@@ -1,0 +1,54 @@
+// Disable rotate tool in joint-selection
+.joint-selection .handle.rotate {
+  display: none;  /* disables the rotate tool */
+}
+
+// 必须在导入 CoreUI 的 SCSS 文件之前重写
+$primary: #3A57A1;  /* 修改為資管系藍色 */
+
+$enable-deprecation-messages: false !default;
+$sidebar-bg: #1A2A4A;  /* 深藍色，讓側邊欄顯得更加沉穩 */
+$sidebar-nav-link-active-bg: #0D1B38; /* 深藍色，強調選中的項目 */
+$sidebar-nav-link-hover-bg: #3B5998;  /* 輕微的藍色，當懸停時變化 */
+.custom-1 {
+  background-color: #2A2E56 !important; /* 深紫色，顯得高端 */
+  border: 5px solid #2A2E56;
+  outline: none !important;
+  color: white;                        /* 確保文字顏色為白色 */
+}
+
+.custom-2 {
+  background-color: #1A2A4A !important; /* 深藍色，統一資管系的色調 */
+  border: 5px solid #1A2A4A;
+  outline: none !important;
+  color: white;                        /* 確保文字顏色為白色 */
+}
+
+.custom-3 {
+  background-color: #4C73A1 !important; /* 淺藍色，提供更柔和的感覺 */
+  border: 5px solid #4C73A1;
+  outline: none !important;
+  color: white;                        /* 確保文字顏色為白色 */
+}
+
+.custom-4 {
+  background-color: #6C87C5 !important; /* 淺紫色，符合資管系優雅風格 */
+  border: 5px solid #6C87C5;
+  outline: none !important;
+  color: white;                        /* 確保文字顏色為白色 */
+}
+
+.custom-5 {
+  background-color: #B3C4E0 !important; /* 淺藍色，帶點科技感 */
+  border: 5px solid #B3C4E0;
+  outline: none !important;
+  color: black;                        /* 確保文字顏色為黑色 */
+}
+
+:root {
+  --custom-1: #2A2E56; /* custom-1 顏色 */
+  --custom-2: #1A2A4A; /* custom-2 顏色 */
+  --custom-3: #4C73A1; /* custom-3 顏色 */
+  --custom-4: #6C87C5; /* custom-4 顏色 */
+  --custom-5: #B3C4E0; /* custom-5 顏色 */
+}
