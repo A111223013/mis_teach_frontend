@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://ai-api.ima-ems.com'
+  apiBaseUrl: 'https://127.0.0.1'
 };

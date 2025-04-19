@@ -1,53 +1,37 @@
-<!-- HTML部分 -->
 <div class="bg-light dark:bg-transparent min-vh-100 d-flex flex-column">
-  <!-- Header Section -->
   <header class="navbar navbar-light shadow-sm custom-2">
     <div class="container">
       <a class="navbar-brand d-flex align-items-center" href="dashboard">
-        <!-- Company Icon -->
         <img src="assets/imalogo_white.ico" alt="Your Logo" class="sidebar-brand-full mx-1" height="32">
-        <!-- Company Name -->
         <span class="fs-4" style="color:white">資管系研究所學習網站</span>
       </a>
     </div>
   </header>
-
-  <!-- Main Content Section -->
   <div class="flex-grow-1 d-flex flex-row align-items-center">
     <c-container breakpoint="md">
       <c-row class="justify-content-center">
         <c-col lg="10" xl="8">
-          <!-- 包裝容器用於推拉效果 -->
           <div class="taichi-container">
-            <!-- 登入/註冊切換容器 -->
             <div class="taichi-slider" id="taichiSlider">
-              <!-- 登入卡片 -->
               <div class="taichi-panel login-panel">
                 <c-card class="p-4 shadow-sm custom-card">
                   <c-card-body class="text-center">
                     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-                      <h1 class="text-primary mb-3">登入</h1>
+                      <strong class="text-primary mb-3">登入</strong>
                       <p class="text-body-secondary mb-4">登入您的帳號</p>
       
                       <div *ngIf="errorMessage" class="alert alert-danger">
                         {{ errorMessage }}
                       </div>
-      
-                      <!-- Email Input -->
                       <c-input-group class="mb-4 justify-content-center">
-                        <span cInputGroupText>&#64;</span>
+                        <span cInputGroupText>帳號</span>
                         <input autoComplete="email" formControlName="email" placeholder="Email" class="form-control rounded-pill" />
                       </c-input-group>
-      
-                      <!-- Password Input -->
+
                       <c-input-group class="mb-4 justify-content-center">
-                        <span cInputGroupText>
-                          <svg cIcon name="cilLockLocked"></svg>
-                        </span>
+                        <span cInputGroupText>密碼</span>
                         <input autoComplete="password" formControlName="password" placeholder="Password" type="password" class="form-control rounded-pill" />
                       </c-input-group>
-      
-                      <!-- Submit Button -->
                       <c-row>
                         <c-col xs="6">
                           <button cButton class="btn custom-2 rounded-pill px-4" type="submit">
@@ -65,54 +49,42 @@
                 </c-card>
                 <div class="taichi-toggle-btn">
                   <button class="btn custom-3 rounded-pill px-4 py-2" id="showRegisterBtn">
-                    我要註冊
+                    沒有帳號? 註冊帳號
                   </button>
                 </div>
               </div>
-              
-              <!-- 註冊卡片 -->
               <div class="taichi-panel register-panel">
                 <c-card class="p-4 shadow-sm custom-card">
                   <c-card-body class="text-center">
                     <form [formGroup]="registerForm" (ngSubmit)="onRegister()">
-                      <h1 class="text-primary mb-3">註冊帳號</h1>
+                      <strong class="text-primary mb-3">註冊帳號</strong>
                       <p class="text-body-secondary mb-4">創建您的新帳號</p>
       
                       <div *ngIf="regErrorMessage" class="alert alert-danger">
                         {{ regErrorMessage }}
                       </div>
-      
-                      <!-- Name Input -->
                       <c-input-group class="mb-3 justify-content-center">
                         <span cInputGroupText>
                           <svg cIcon name="cilUser"></svg>
                         </span>
                         <input formControlName="name" placeholder="姓名" class="form-control rounded-pill" />
                       </c-input-group>
-      
-                      <!-- Email Input -->
                       <c-input-group class="mb-3 justify-content-center">
                         <span cInputGroupText>&#64;</span>
                         <input formControlName="email" placeholder="Email" class="form-control rounded-pill" />
                       </c-input-group>
-      
-                      <!-- Password Input -->
                       <c-input-group class="mb-3 justify-content-center">
                         <span cInputGroupText>
                           <svg cIcon name="cilLockLocked"></svg>
                         </span>
                         <input formControlName="password" placeholder="密碼" type="password" class="form-control rounded-pill" />
                       </c-input-group>
-      
-                      <!-- Confirm Password Input -->
                       <c-input-group class="mb-4 justify-content-center">
                         <span cInputGroupText>
                           <svg cIcon name="cilLockLocked"></svg>
                         </span>
                         <input formControlName="confirmPassword" placeholder="確認密碼" type="password" class="form-control rounded-pill" />
                       </c-input-group>
-      
-                      <!-- Submit Button -->
                       <button cButton class="btn custom-3 rounded-pill px-4" type="submit">
                         立即註冊
                       </button>
@@ -121,7 +93,7 @@
                 </c-card>
                 <div class="taichi-toggle-btn">
                   <button class="btn custom-2 rounded-pill px-4 py-2" id="showLoginBtn">
-                    返回登入
+                    已有帳號? 我要登入
                   </button>
                 </div>
               </div>

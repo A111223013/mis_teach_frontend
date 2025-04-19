@@ -6,7 +6,10 @@ import { FormBuilder, FormGroup, ReactiveFormsModule,Validators } from '@angular
 import { ContainerComponent, RowComponent, ColComponent, CardGroupComponent, TextColorDirective, CardComponent, CardBodyComponent, FormDirective, InputGroupComponent, InputGroupTextDirective, FormControlDirective, ButtonDirective } from '@coreui/angular';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
-
+import { LoginService } from '../../service/login.service';
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
 @Component({
     selector: 'app-login',
     templateUrl: './login.component.html',
@@ -22,13 +25,10 @@ export class LoginComponent implements OnInit {
   errorMessage: string = '';
   regErrorMessage: string = '';
 
-  constructor(private fb: FormBuilder, private router: Router) {
-  }
+  constructor(private fb: FormBuilder, private router: Router, private loginService: LoginService) { }
+  
   ngOnInit(): void {
-    // 初始化表單
     this.initForms();
-    
-    // 初始化太極推拉效果
     this.initTaichiSlider();
   }
   initForms(): void {
@@ -45,55 +45,60 @@ export class LoginComponent implements OnInit {
     });
   }
   
-  // 初始化太極推拉效果
   initTaichiSlider(): void {
-    // 等待DOM加載完成
     setTimeout(() => {
       const slider = document.getElementById('taichiSlider');
       const showRegisterBtn = document.getElementById('showRegisterBtn');
       const showLoginBtn = document.getElementById('showLoginBtn');
       
       if (slider && showRegisterBtn && showLoginBtn) {
-        // 切換到註冊面板
         showRegisterBtn.addEventListener('click', () => {
           slider.style.transform = 'translateX(-50%)';
         });
-        
-        // 切換到登入面板
         showLoginBtn.addEventListener('click', () => {
           slider.style.transform = 'translateX(0)';
         });
       }
     }, 100);
   }
-  // 登入提交
   onSubmit(): void {
     if (this.loginForm.valid) {
-      // 處理登入邏輯
       console.log('登入表單提交', this.loginForm.value);
-      // 這裡實現實際的登入API調用
+      this.loginService.loginUser(this.loginForm.value).subscribe(
+        response => {
+          console.log('登入成功', response);
+          //this.router.navigate(['/dashboard']);
+        },
+        error => {
+          console.error('登入失敗', error);
+          this.errorMessage = '登入失敗，請檢查您的帳號和密碼';
+        }
+      );
     } else {
       this.errorMessage = '請填寫所有必填欄位';
     }
   }
   
-  // 註冊提交
   onRegister(): void {
     if (this.registerForm.valid) {
-      // 檢查密碼是否一致
       const password = this.registerForm.get('password')?.value;
       const confirmPassword = this.registerForm.get('confirmPassword')?.value;
-      
       if (password !== confirmPassword) {
         this.regErrorMessage = '兩次輸入的密碼不一致';
         return;
       }
-      
-      // 處理註冊邏輯
-      console.log('註冊表單提交', this.registerForm.value);
-      // 這裡實現實際的註冊API調用
+      this.loginService.registerUser(this.registerForm.value).subscribe(
+        response => {
+          console.log('註冊表單提交', this.registerForm.value);
+        },
+        error => {
+          console.error('註冊失敗', error);
+          this.regErrorMessage = '註冊失敗，請稍後再試';
+        }
+      );
     } else {
       this.regErrorMessage = '請填寫所有必填欄位';
     }
   }
 }
+
