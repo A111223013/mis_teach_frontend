@@ -66,6 +66,7 @@ export class LoginComponent implements OnInit {
       console.log('登入表單提交', this.loginForm.value);
       this.loginService.loginUser(this.loginForm.value).subscribe(
         response => {
+          this.errorMessage = '';
           console.log('登入成功', response);
           //this.router.navigate(['/dashboard']);
         },
@@ -89,6 +90,7 @@ export class LoginComponent implements OnInit {
       }
       this.loginService.registerUser(this.registerForm.value).subscribe(
         response => {
+          this.regErrorMessage = '';
           console.log('註冊表單提交', this.registerForm.value);
         },
         error => {
