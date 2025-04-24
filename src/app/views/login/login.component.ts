@@ -62,13 +62,13 @@ export class LoginComponent implements OnInit {
     }, 100);
   }
   onSubmit(): void {
-    if (this.loginForm.valid) {
+    if (this.loginForm.value) {
       console.log('登入表單提交', this.loginForm.value);
       this.loginService.loginUser(this.loginForm.value).subscribe(
         response => {
           this.errorMessage = '';
           console.log('登入成功', response);
-          //this.router.navigate(['/dashboard']);
+          this.router.navigate(['/dashboard']);
         },
         error => {
           console.error('登入失敗', error);
@@ -81,7 +81,8 @@ export class LoginComponent implements OnInit {
   }
   
   onRegister(): void {
-    if (this.registerForm.valid) {
+    console.log('註冊表單提交', this.registerForm.value);
+    if (this.registerForm.value ) {
       const password = this.registerForm.get('password')?.value;
       const confirmPassword = this.registerForm.get('confirmPassword')?.value;
       if (password !== confirmPassword) {

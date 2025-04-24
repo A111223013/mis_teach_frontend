@@ -1,0 +1,101 @@
+<div class="dashboard-container">
+    <!-- 導航欄 -->
+    <c-container [fluid]="true" class="mb-3">
+      <c-header class="d-print-none header-sticky bg-light border-bottom">
+        <c-container [fluid]="true">
+          <c-header-nav class="d-none d-md-flex me-auto">
+            <c-nav-item>
+              <a cNavLink routerLink="/dashboard/overview" routerLinkActive="active" class="px-3">
+                <svg cIcon name="cilSpeedometer" size="xl" class="me-2"></svg>概覽
+              </a>
+            </c-nav-item>
+            <c-nav-item>
+              <a cNavLink routerLink="/dashboard/courses" class="px-3">
+                <svg cIcon name="cilBook" size="xl" class="me-2"></svg>課程
+              </a>
+            </c-nav-item>
+            <c-nav-item>
+              <a cNavLink routerLink="/dashboard/students" class="px-3">
+                <svg cIcon name="cilPeople" size="xl" class="me-2"></svg>學生
+              </a>
+            </c-nav-item>
+            <c-nav-item>
+              <a cNavLink routerLink="/dashboard/analytics" class="px-3">
+                <svg cIcon name="cilChartPie" size="xl" class="me-2"></svg>分析
+              </a>
+            </c-nav-item>
+          </c-header-nav>
+          <c-header-nav class="ms-3">
+            <c-nav-item>
+              <a cNavLink routerLink="/login" class="px-3 text-danger">
+                <svg cIcon name="cilExitToApp" size="xl" class="me-2"></svg>登出
+              </a>
+            </c-nav-item>
+          </c-header-nav>
+        </c-container>
+      </c-header>
+    </c-container>
+  
+    <!-- 內容區域 -->
+    <c-container [fluid]="true">
+      <!-- 歡迎區域 -->
+      <c-card class="mb-4 border-start-primary border-start-4">
+        <c-card-body>
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h1 class="welcome-title fw-bold text-primary">歡迎您，{{userName}}！</h1>
+              <p class="welcome-subtitle text-muted mb-0">今天是 {{currentDate | date:'yyyy-MM-dd'}}，祝您有個美好的一天。</p>
+            </div>
+            <div>
+              <svg cIcon name="cilUser" width="64" height="64" class="text-primary-subtle"></svg>
+            </div>
+          </div>
+        </c-card-body>
+      </c-card>
+
+      <!-- 白板區域 -->
+      <c-card class="mb-4">
+        <c-card-header>
+          <strong>教學白板</strong>
+        </c-card-header>
+        <c-card-body>
+          <div class="whiteboard-container">
+            <div class="whiteboard-controls mb-3">
+              <c-button-group role="group" aria-label="顏色選擇">
+                <button cButton color="dark" [active]="currentColor === '#000'" (click)="setColor('#000')">黑色</button>
+                <button cButton color="primary" [active]="currentColor === '#0d6efd'" (click)="setColor('#0d6efd')">藍色</button>
+                <button cButton color="danger" [active]="currentColor === '#dc3545'" (click)="setColor('#dc3545')">紅色</button>
+                <button cButton color="success" [active]="currentColor === '#198754'" (click)="setColor('#198754')">綠色</button>
+              </c-button-group>
+              <div class="ms-3 d-inline-block">
+                <label for="brushSize" class="form-label me-2">畫筆大小:</label>
+                <input type="range" class="form-range d-inline-block w-auto" min="1" max="20" step="1" id="brushSize" [(ngModel)]="brushSize">
+                <span class="ms-2">{{brushSize}}px</span>
+              </div>
+              <c-button-group class="ms-3" role="group" aria-label="工具">
+                <button cButton color="light" (click)="clearCanvas()">
+                  <svg cIcon name="cilTrash" size="sm" class="me-1"></svg>清除
+                </button>
+                <button cButton color="info" (click)="saveImage()">
+                  <svg cIcon name="cilSave" size="sm" class="me-1"></svg>儲存
+                </button>
+              </c-button-group>
+            </div>
+            <div class="whiteboard-canvas-container">
+              <canvas #whiteboardCanvas 
+                     class="whiteboard-canvas" 
+                     (mousedown)="startDrawing($event)" 
+                     (mousemove)="draw($event)" 
+                     (mouseup)="stopDrawing()" 
+                     (mouseleave)="stopDrawing()"
+                     (touchstart)="startDrawingTouch($event)"
+                     (touchmove)="drawTouch($event)"
+                     (touchend)="stopDrawing()">
+              </canvas>
+            </div>
+          </div>
+        </c-card-body>
+      </c-card>
+    </c-container>
+  </div>
+  

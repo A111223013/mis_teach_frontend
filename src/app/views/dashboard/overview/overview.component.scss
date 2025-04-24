@@ -1,0 +1,133 @@
+.dashboard-container {
+    min-height: 100vh;
+    background-color: #f8f9fa;
+  }
+  
+  // 標題樣式
+  .welcome-title {
+    font-size: 1.8rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  // 統計卡片樣式
+  c-card {
+    transition: transform 0.3s ease;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    
+    &:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+  }
+  
+  // 導航項目樣式
+  c-nav-item a {
+    transition: all 0.2s ease;
+    border-radius: 0.25rem;
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    &.active {
+      font-weight: bold;
+    }
+  }
+  
+  // 進度條樣式
+  .progress-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  // 自定義邊框顏色
+  .border-start-primary {
+    border-left-color: var(--cui-primary) !important;
+  }
+  
+  .border-start-4 {
+    border-left-width: 4px !important;
+  }
+  
+  .border-bottom-3 {
+    border-bottom-width: 3px !important;
+  }
+  
+  // 卡片陰影效果
+  .shadow-sm {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  }
+  
+  // 圖標顏色
+  .text-primary-subtle {
+    color: rgba(var(--cui-primary-rgb), 0.5) !important;
+  }
+  
+  .text-info-subtle {
+    color: rgba(var(--cui-info-rgb), 0.5) !important;
+  }
+  
+  .text-warning-subtle {
+    color: rgba(var(--cui-warning-rgb), 0.5) !important;
+  }
+  
+  .text-danger-subtle {
+    color: rgba(var(--cui-danger-rgb), 0.5) !important;
+  }
+  
+  // 快速操作按鈕
+  button {
+    transition: all 0.2s;
+    &:hover {
+      transform: translateY(-2px);
+    }
+  }
+  
+.whiteboard-container {
+  width: 100%;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+  padding: 15px;
+}
+
+.whiteboard-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.whiteboard-canvas-container {
+  width: 100%;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  overflow: hidden;
+  background-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.whiteboard-canvas {
+  display: block;
+  cursor: crosshair;
+  width: 100%;
+  height: 400px;
+  touch-action: none;
+}
+
+.form-range {
+  width: 100px;
+}
+
+@media (max-width: 768px) {
+  .whiteboard-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .whiteboard-controls > div,
+  .whiteboard-controls > c-button-group {
+    margin-bottom: 10px;
+  }
+}
+  
