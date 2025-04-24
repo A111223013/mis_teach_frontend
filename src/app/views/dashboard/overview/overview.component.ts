@@ -35,7 +35,7 @@ import { LoginService } from '../../../service/login.service';
   ]
 })
 export class OverviewComponent implements OnInit, AfterViewInit {
-  userName: string = '老師';
+  userName: string = "";
   currentDate: Date = new Date();
   
   // 白板相關屬性
