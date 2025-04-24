@@ -76,58 +76,15 @@
   }
   
   // 快速操作按鈕
-  button {
-    transition: all 0.2s;
-    &:hover {
-      transform: translateY(-2px);
-    }
-  }
+  // Be cautious applying this globally to button if not intended
+  // button {
+  //   transition: all 0.2s;
+  //   &:hover {
+  //     transform: translateY(-2px);
+  //   }
+  // }
   
-.whiteboard-container {
-  width: 100%;
-  background-color: #f8f9fa;
-  border-radius: 5px;
-  padding: 15px;
-}
-
-.whiteboard-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.whiteboard-canvas-container {
-  width: 100%;
-  border: 1px solid #dee2e6;
-  border-radius: 5px;
-  overflow: hidden;
-  background-color: #ffffff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-}
-
-.whiteboard-canvas {
-  display: block;
-  cursor: crosshair;
-  width: 100%;
-  height: 400px;
-  touch-action: none;
-}
-
-.form-range {
-  width: 100px;
-}
-
-@media (max-width: 768px) {
-  .whiteboard-controls {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  /* Whiteboard styles removed - moved to whiteboard.component.scss */
   
-  .whiteboard-controls > div,
-  .whiteboard-controls > c-button-group {
-    margin-bottom: 10px;
-  }
-}
+  /* Add styles for charts or other dashboard elements here */
   

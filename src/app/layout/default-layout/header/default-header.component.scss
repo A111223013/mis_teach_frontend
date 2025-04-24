@@ -1,0 +1,22 @@
+// Add header specific styles if needed
+
+.header-brand {
+    // Add styles for your brand/logo here
+    font-weight: bold;
+    font-size: 1.25rem;
+    text-decoration: none;
+    color: inherit;
+    margin-right: 1rem; // Space between brand and nav
+}
+
+// Ensure nav items are properly aligned if needed
+c-header-nav {
+    align-items: center; // Vertically align items if height differs
+}
+
+.nav-icon {
+    // Ensure icons align nicely with text
+    vertical-align: middle;
+    width: 1.2em;
+    height: 1.2em;
+} 

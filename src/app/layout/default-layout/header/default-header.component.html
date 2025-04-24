@@ -1,0 +1,47 @@
+<c-header class="header-light bg-light border-bottom">
+  <c-container [fluid]="true">
+    <!-- Brand Logo -->
+    <a class="header-brand" routerLink="/dashboard">
+      <!-- Add your logo image or text here -->
+      MIS TeachAI 
+    </a>
+
+    <!-- Header Nav (Main Navigation) -->
+    <c-header-nav class="d-none d-md-flex me-auto">
+      <ng-container *ngFor="let item of navItems">
+        <c-nav-item>
+          <a 
+            cNavLink 
+            [routerLink]="item.url" 
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{exact: true}"
+          >
+            <svg cIcon *ngIf="item.iconComponent?.name" [name]="item.iconComponent.name" class="nav-icon me-2"></svg>
+            {{ item.name }}
+          </a>
+        </c-nav-item>
+      </ng-container>
+    </c-header-nav>
+
+    <!-- Right Aligned Nav (e.g., Logout) -->
+    <c-header-nav class="ms-auto">
+      <c-nav-item>
+        <a routerLink="/login" cNavLink class="text-danger">
+          <svg cIcon name="cilAccountLogout" size="lg" class="me-1"></svg> 登出
+        </a>
+      </c-nav-item>
+    </c-header-nav>
+
+    <!-- Optional Mobile Toggler for Nav (if nav collapses on mobile) -->
+    <!-- <c-header-toggler class="d-lg-none ms-auto" toggle="collapse" target="#headerNav">
+      <svg cIcon name="cilMenu"></svg>
+    </c-header-toggler> -->
+
+  </c-container>
+  <!-- Optional: Header Divider -->
+  <!-- <c-header-divider></c-header-divider> -->
+  <!-- Optional: Breadcrumbs -->
+  <!-- <c-container [fluid]="true">
+    <c-breadcrumb-router></c-breadcrumb-router>
+  </c-container> -->
+</c-header> 
