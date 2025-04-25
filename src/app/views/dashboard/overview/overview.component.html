@@ -8,8 +8,8 @@
         <c-card-body>
           <div class="d-flex justify-content-between align-items-center">
             <div>
-              <h1 class="welcome-title fw-bold text-primary">歡迎您，{{userName}} 同學!</h1>
-              <p class="welcome-subtitle text-muted mb-0">今天是 {{currentDate | date:'yyyy-MM-dd'}}，祝您有個美好的一天。</p>
+              <h1 class="welcome-title fw-bold text-primary">歡迎回來，{{userName}}!</h1>
+              <p class="welcome-subtitle text-muted mb-0">今天是 {{currentDate | date:'yyyy-MM-dd'}}，繼續加油！</p>
             </div>
             <div>
               <svg cIcon name="cilUser" width="64" height="64" class="text-primary-subtle"></svg>
@@ -18,17 +18,150 @@
         </c-card-body>
       </c-card>
 
-      <!-- Placeholder for Charts / Other User Info -->
-      <c-card class="mb-4">
-        <c-card-header>
-          <strong>學習儀表板</strong>
-        </c-card-header>
-        <c-card-body>
-          <p>這裡可以放置學生的學習進度圖表、待辦事項等資訊。</p>
-          <!-- Example: Add the whiteboard component here if needed on this page -->
-          <!-- <app-whiteboard></app-whiteboard> -->
-        </c-card-body>
-      </c-card>
+      <c-row>
+        <!-- Left Column (Main Charts) -->
+        <c-col xs="12" lg="8">
+
+          <!-- CS Sub-Topic Accuracy Card -->
+          <c-card class="mb-4">
+            <c-card-header>
+              <strong>計算機概論 - 各主題正確率</strong>
+            </c-card-header>
+            <c-card-body>
+              <div class="chart-container" style="position: relative; height:300px">
+                <canvas baseChart class="chart" 
+                        [data]="csSubTopicAccuracyData"
+                        [options]="barChartOptions"
+                        [type]="'bar'">
+                </canvas>
+              </div>
+            </c-card-body>
+          </c-card>
+
+          <!-- CS Accuracy Trend Card -->
+          <c-card class="mb-4">
+            <c-card-header>
+              <strong>計算機概論 - 正確率趨勢</strong>
+            </c-card-header>
+            <c-card-body>
+              <div class="chart-container" style="position: relative; height:250px">
+                <canvas baseChart class="chart" 
+                      [data]="csAccuracyTrendData"
+                      [options]="lineChartOptions"
+                      [type]="'line'">
+                </canvas>
+              </div>
+            </c-card-body>
+          </c-card>
+
+          <!-- NEW: School/Year Performance Card -->
+          <c-card class="mb-4">
+            <c-card-header>
+              <strong>依年份/學校 答題表現 (計概)</strong>
+            </c-card-header>
+            <c-card-body>
+              <div class="chart-container" style="position: relative; height:300px">
+                <canvas baseChart class="chart" 
+                        [data]="schoolYearAccuracyData"
+                        [options]="barChartOptions"
+                        [type]="'bar'">
+                </canvas>
+              </div>
+            </c-card-body>
+          </c-card>
+
+        </c-col>
+
+        <!-- Right Column (Summary & Lists) -->
+        <c-col xs="12" lg="4">
+
+          <!-- CS Overall Progress Card -->
+          <c-card class="mb-4">
+            <c-card-header>
+              <strong>計算機概論 - 練習進度</strong>
+            </c-card-header>
+            <c-card-body>
+              <c-progress class="mb-2" [height]="'20px'">
+                <c-progress-bar [value]="csProgressPercentage" [animated]="true" color="info">
+                  {{csProgressPercentage}}%
+                </c-progress-bar>
+              </c-progress>
+              <div class="d-flex justify-content-between">
+                <small class="text-muted">已練習 {{csCompletedQuestions | number}} / {{csTotalQuestions | number}} 題</small>
+              </div>
+            </c-card-body>
+          </c-card>
+
+          <!-- CS Common Mistakes Card -->
+          <c-card class="mb-4">
+            <c-card-header>
+              <strong>計算機概論 - 常錯主題</strong>
+            </c-card-header>
+            <c-card-body>
+              <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between align-items-center" *ngFor="let topic of csCommonMistakes">
+                  {{topic.name}} 
+                  <span class="badge bg-warning text-dark rounded-pill">{{topic.accuracy}}%</span>
+                </li>
+                <li class="list-group-item" *ngIf="!csCommonMistakes || csCommonMistakes.length === 0">
+                  <span class="text-success">表現很棒！</span>
+                </li>
+              </ul>
+            </c-card-body>
+          </c-card>
+
+          <!-- Recent Attempts Card -->
+          <c-card class="mb-4">
+            <c-card-header>
+              <strong>最近練習紀錄</strong>
+            </c-card-header>
+            <c-card-body>
+              <ul class="list-group list-group-flush">
+                 <li class="list-group-item" *ngFor="let attempt of recentAttempts">
+                   <div class="d-flex w-100 justify-content-between">
+                     <h6 class="mb-1 text-truncate" [title]="attempt.title">{{attempt.title}}</h6>
+                     <small>{{attempt.date | date:'MM/dd'}}</small>
+                   </div>
+                   <small class="text-muted">正確率: {{attempt.accuracy}}%</small>
+                 </li>
+                  <li class="list-group-item" *ngIf="!recentAttempts || recentAttempts.length === 0">
+                    尚未有練習紀錄。
+                  </li>
+              </ul>
+            </c-card-body>
+          </c-card>
+
+          <!-- NEW: Answering Time Analysis Card -->
+          <c-card class="mb-4">
+            <c-card-header>
+              <strong>答題時間分析 (計概)</strong>
+            </c-card-header>
+            <c-card-body class="p-0">
+              <table cTable class="table-hover table-striped">
+                <thead>
+                  <tr>
+                    <th>主題</th>
+                    <th class="text-center">平均時間</th>
+                    <th class="text-center">狀態</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let item of answeringTimeData">
+                    <td>{{item.subject}}</td>
+                    <td class="text-center">{{item.avgTime}}</td>
+                    <td class="text-center">
+                      <span [ngClass]="'badge bg-' + item.status">
+                        {{ item.status === 'success' ? '良好' : (item.status === 'warning' ? '待加強' : '過慢') }}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </c-card-body>
+          </c-card>
+
+        </c-col>
+      </c-row>
 
     </c-container>
   </div>

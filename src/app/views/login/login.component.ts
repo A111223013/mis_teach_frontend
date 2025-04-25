@@ -63,11 +63,9 @@ export class LoginComponent implements OnInit {
   }
   onSubmit(): void {
     if (this.loginForm.value) {
-      console.log('登入表單提交', this.loginForm.value);
       this.loginService.loginUser(this.loginForm.value).subscribe(
         response => {
           this.errorMessage = '';
-          console.log('登入成功', response);
           this.router.navigate(['/dashboard']);
         },
         error => {
@@ -81,7 +79,6 @@ export class LoginComponent implements OnInit {
   }
   
   onRegister(): void {
-    console.log('註冊表單提交', this.registerForm.value);
     if (this.registerForm.value ) {
       const password = this.registerForm.get('password')?.value;
       const confirmPassword = this.registerForm.get('confirmPassword')?.value;
@@ -92,7 +89,6 @@ export class LoginComponent implements OnInit {
       this.loginService.registerUser(this.registerForm.value).subscribe(
         response => {
           this.regErrorMessage = '';
-          console.log('註冊表單提交', this.registerForm.value);
         },
         error => {
           console.error('註冊失敗', error);

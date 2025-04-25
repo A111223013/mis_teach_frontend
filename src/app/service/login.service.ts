@@ -18,8 +18,4 @@ export class LoginService {
     const headers = new HttpHeaders().set('Content-Type', 'application/json');
     return this.http.post(`${environment.apiBaseUrl}/login/login_user`, formData, { headers , withCredentials: true });
   }
-  getUserInfo(): Observable<any> {
-    const headers = new HttpHeaders().set('Content-Type', 'application/json');
-    return this.http.get(`${environment.apiBaseUrl}/login/get_user_info`, { headers , withCredentials: true });
-  }
 }

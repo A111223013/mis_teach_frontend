@@ -6,7 +6,7 @@ import {
   NavLinkDirective, 
   HeaderModule, NavModule
 } from '@coreui/angular';
-import { IconModule, IconSetService } from '@coreui/icons-angular';
+import { IconDirective, IconModule, IconSetService } from '@coreui/icons-angular';
 import { navItems } from '../_nav';
 import { 
   cilAccountLogout, 
@@ -23,7 +23,8 @@ import {
     ContainerComponent, 
     HeaderModule, 
     NavModule,
-    IconModule
+    IconModule,
+    IconDirective 
   ],
   templateUrl: './default-header.component.html',
   styleUrls: ['./default-header.component.scss']

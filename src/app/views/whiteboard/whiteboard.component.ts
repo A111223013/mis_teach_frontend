@@ -223,15 +223,15 @@ export class WhiteboardComponent implements OnInit, AfterViewInit {
     if (!this.whiteboardCanvas || !this.ctx) return;
     const canvas = this.whiteboardCanvas.nativeElement;
     setTimeout(() => {
-      const dataUrl = canvas.toDataURL();
-      if (this.undoStack.length > 0 && this.undoStack[this.undoStack.length - 1] === dataUrl) {
-        return;
-      }
-      this.redoStack = []; 
-      this.undoStack.push(dataUrl);
-      if (this.undoStack.length > this.MAX_HISTORY_SIZE) {
-        this.undoStack.shift(); 
-      }
+    const dataUrl = canvas.toDataURL();
+    if (this.undoStack.length > 0 && this.undoStack[this.undoStack.length - 1] === dataUrl) {
+      return;
+    }
+    this.redoStack = []; 
+    this.undoStack.push(dataUrl);
+    if (this.undoStack.length > this.MAX_HISTORY_SIZE) {
+      this.undoStack.shift(); 
+    }
     }, 50);
   }
 
