@@ -4,7 +4,11 @@ import { RouterModule } from '@angular/router';
 import {
   ContainerComponent, HeaderComponent, HeaderNavComponent, NavItemComponent, 
   NavLinkDirective, 
-  HeaderModule, NavModule
+  HeaderModule, NavModule,
+  DropdownModule,
+  DropdownToggleDirective,
+  DropdownItemDirective,
+  DropdownMenuDirective
 } from '@coreui/angular';
 import { IconDirective, IconModule, IconSetService } from '@coreui/icons-angular';
 import { navItems } from '../_nav';
@@ -23,6 +27,10 @@ import {
     ContainerComponent, 
     HeaderModule, 
     NavModule,
+    DropdownModule,
+    DropdownToggleDirective,
+    DropdownItemDirective,
+    DropdownMenuDirective,
     IconModule,
     IconDirective 
   ],

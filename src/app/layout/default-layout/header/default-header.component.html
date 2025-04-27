@@ -9,17 +9,42 @@
     <!-- Header Nav (Main Navigation) -->
     <c-header-nav class="d-none d-md-flex me-auto">
       <ng-container *ngFor="let item of navItems">
-        <c-nav-item>
-          <a 
-            cNavLink 
-            [routerLink]="item.url" 
-            routerLinkActive="active"
-            [routerLinkActiveOptions]="{exact: true}"
-          >
-            <svg cIcon *ngIf="item.iconComponent?.name" [name]="item.iconComponent.name" class="nav-icon me-2"></svg>
-            {{ item.name }}
-          </a>
-        </c-nav-item>
+        <!-- If item has children, render as dropdown -->
+        <ng-container *ngIf="item.children && item.children.length > 0">
+          <c-dropdown variant="nav-item">
+            <a cDropdownToggle cNavLink>
+              <svg cIcon *ngIf="item.iconComponent?.name" [name]="item.iconComponent.name" class="nav-icon me-2"></svg>
+              {{ item.name }}
+            </a>
+            <!-- Use ul with cDropdownMenu directive -->
+            <ul cDropdownMenu>
+              <li *ngFor="let child of item.children">
+                <a 
+                  cDropdownItem 
+                  [routerLink]="child.url"
+                  routerLinkActive="active"
+                >
+                  {{ child.name }}
+                </a>
+              </li>
+            </ul>
+          </c-dropdown>
+        </ng-container>
+
+        <!-- If item does not have children, render as simple link -->
+        <ng-container *ngIf="!item.children || item.children.length === 0">
+          <c-nav-item>
+            <a 
+              cNavLink 
+              [routerLink]="item.url" 
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{exact: true}"
+            >
+              <svg cIcon *ngIf="item.iconComponent?.name" [name]="item.iconComponent.name" class="nav-icon me-2"></svg>
+              {{ item.name }}
+            </a>
+          </c-nav-item>
+        </ng-container>
       </ng-container>
     </c-header-nav>
 

@@ -18,8 +18,21 @@ export const navItems: INavData[] = [
   },
   {
     name: '學生',
-    url: '/dashboard/students',
-    iconComponent: { name: 'cilPeople' }
+    iconComponent: { name: 'cilPeople' },
+    children: [
+      {
+        name: '考古題複習',
+        url: '/dashboard/students/past-exam-review'
+      },
+      {
+        name: '錯題複習',
+        url: '/dashboard/students/mistake-review'
+      },
+      {
+        name: 'AI出題',
+        url: '/dashboard/students/ai-quiz'
+      }
+    ]
   },
   {
     name: '分析',
@@ -31,6 +44,5 @@ export const navItems: INavData[] = [
     url: '/dashboard/whiteboard',
     iconComponent: { name: 'cilBrush' }
   }
-
   // Add other navigation items here
 ]; 

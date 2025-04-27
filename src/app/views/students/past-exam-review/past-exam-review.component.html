@@ -1,0 +1,158 @@
+<div class="container-fluid exam-page-layout">
+  <div class="row">
+    <!-- Question Navigation Panel -->
+    <div class="col-md-3 col-lg-2 question-nav-panel">
+      <h5>題目導覽</h5>
+      <div class="question-grid">
+        <button 
+          *ngFor="let q of examQuestions; let i = index"
+          class="btn question-nav-btn"
+          [class.current]="i === currentQuestionIndex"
+          [class.answered]="isQuestionAnswered(q.id)"
+          [class.flagged]="flaggedQuestions[q.id]"
+          (click)="goToQuestion(i)">
+          {{ i + 1 }}
+          <span *ngIf="flaggedQuestions[q.id]" class="flag-indicator">★</span>
+        </button>
+      </div>
+      <div class="legend mt-3">
+         <div><span class="indicator answered"></span> 已作答</div>
+         <div><span class="indicator unanswered"></span> 未作答</div>
+         <div><span class="indicator flagged">★</span> 已標記</div>
+         <div><span class="indicator current"></span> 目前題目</div>
+      </div>
+    </div>
+
+    <!-- Main Question Area -->
+    <div class="col-md-9 col-lg-10">
+      <div class="exam-container" *ngIf="examQuestions.length > 0">
+        <div class="exam-header">
+          <h2>考古題複習</h2>
+          <div>
+            <span>第 {{ currentQuestionIndex + 1 }} / {{ examQuestions.length }} 題</span>
+            <span class="timer">總時間：{{ formatTime(elapsedTime) }}</span>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="question-area" *ngIf="currentQuestion">
+          <div class="question-header">
+             <p class="question-text">{{ currentQuestion.text }}</p>
+             <button class="btn btn-sm btn-outline-warning flag-btn" (click)="toggleFlag(currentQuestion.id)">
+                {{ flaggedQuestions[currentQuestion.id] ? '取消標記' : '標記此題' }} ★
+             </button>
+          </div>
+          
+          <!-- Answer options based on type -->
+          <div [ngSwitch]="currentQuestion.type">
+            <!-- Single Choice -->
+            <div *ngSwitchCase="'single-choice'">
+              <div *ngFor="let option of singleChoiceOptions; let i = index" class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="radio" 
+                  name="singleChoiceOption{{currentQuestion.id}}" 
+                  id="option{{currentQuestion.id}}-{{i}}" 
+                  [value]="option" 
+                  [(ngModel)]="currentAnswer"
+                  (ngModelChange)="saveCurrentAnswer()">
+                <label class="form-check-label" for="option{{currentQuestion.id}}-{{i}}">
+                  {{ option }}
+                </label>
+              </div>
+            </div>
+
+            <!-- Multiple Choice -->
+            <div *ngSwitchCase="'multiple-choice'">
+               <div *ngFor="let option of multipleChoiceOptions; let i = index" class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="checkbox" 
+                  name="multiChoiceOption{{currentQuestion.id}}-{{i}}" 
+                  id="multi-option{{currentQuestion.id}}-{{i}}"
+                  [(ngModel)]="currentAnswer[option]" 
+                  (ngModelChange)="saveCurrentAnswer()">
+                <label class="form-check-label" for="multi-option{{currentQuestion.id}}-{{i}}">
+                  {{ option }}
+                </label>
+              </div>
+            </div>
+
+            <!-- Short Answer -->
+            <div *ngSwitchCase="'short-answer'">
+              <textarea 
+                class="form-control" 
+                rows="5" 
+                placeholder="請在此輸入答案..."
+                [(ngModel)]="currentAnswer"
+                (blur)="saveCurrentAnswer()"> <!-- Save on losing focus -->
+              </textarea>
+            </div>
+
+            <!-- True/False -->
+            <div *ngSwitchCase="'true-false'">
+              <div class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="radio" 
+                  name="trueFalseOption{{currentQuestion.id}}" 
+                  id="true{{currentQuestion.id}}" 
+                  [value]="true" 
+                  [(ngModel)]="currentAnswer"
+                  (ngModelChange)="saveCurrentAnswer()">
+                <label class="form-check-label" for="true{{currentQuestion.id}}">
+                  正確 (True)
+                </label>
+              </div>
+              <div class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="radio" 
+                  name="trueFalseOption{{currentQuestion.id}}" 
+                  id="false{{currentQuestion.id}}" 
+                  [value]="false" 
+                  [(ngModel)]="currentAnswer"
+                  (ngModelChange)="saveCurrentAnswer()">
+                <label class="form-check-label" for="false{{currentQuestion.id}}">
+                  錯誤 (False)
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="navigation-buttons">
+          <button 
+            class="btn btn-secondary me-2" 
+            (click)="previousQuestion()" 
+            [disabled]="currentQuestionIndex === 0">
+            上一題
+          </button>
+          
+          <!-- Show Next button if not the last question -->
+          <button 
+            *ngIf="currentQuestionIndex < examQuestions.length - 1"
+            class="btn btn-primary" 
+            (click)="nextQuestion()">
+            下一題
+          </button>
+
+          <!-- Show Submit button if it is the last question -->
+          <button 
+            *ngIf="currentQuestionIndex === examQuestions.length - 1"
+            class="btn btn-success" 
+            (click)="submitExam()">
+            交卷
+          </button>
+        </div>
+      </div>
+      <div *ngIf="examQuestions.length === 0">
+        <p>正在載入題目...</p>
+      </div>
+    </div>
+  </div>
+</div>

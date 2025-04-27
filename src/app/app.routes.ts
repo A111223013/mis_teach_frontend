@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { LoginComponent } from './views/login/login.component';
 import { DefaultLayoutComponent } from './layout/default-layout/default-layout.component';
+import { PastExamReviewComponent } from './views/students/past-exam-review/past-exam-review.component';
 
 export const routes: Routes = [
     { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -18,6 +19,10 @@ export const routes: Routes = [
             {
                 path: 'whiteboard',
                 loadChildren: () => import('./views/whiteboard/routes').then(m => m.routes)
+            },
+            {
+                path: 'students',
+                loadChildren: () => import('./views/students/routes').then(m => m.routes)
             }
         ]
     },

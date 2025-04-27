@@ -1,0 +1,145 @@
+.exam-container {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.exam-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+
+  h2 {
+    margin: 0;
+  }
+
+  .timer {
+    font-weight: bold;
+    margin-left: 20px; // Add some space
+  }
+}
+
+.question-area {
+  margin-top: 20px;
+  margin-bottom: 20px;
+
+  .question-text {
+    font-size: 1.1em;
+    margin-bottom: 15px;
+  }
+
+  .form-check {
+    margin-bottom: 10px; // Space between options
+  }
+
+  textarea.form-control {
+    margin-top: 10px;
+  }
+}
+
+.navigation-buttons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.exam-page-layout {
+  margin-top: 20px;
+}
+
+.question-nav-panel {
+  padding: 15px;
+  border-right: 1px solid #ddd;
+  height: calc(100vh - 120px); // Adjust height based on header/footer
+  overflow-y: auto;
+  background-color: #f8f9fa;
+
+  h5 {
+    margin-bottom: 15px;
+    text-align: center;
+  }
+}
+
+.question-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); // Responsive grid
+  gap: 8px;
+}
+
+.question-nav-btn {
+  border: 1px solid #ccc;
+  text-align: center;
+  padding: 5px;
+  font-size: 0.9em;
+  background-color: #fff; // Default/unanswered
+  color: #dc3545; // Red text for unanswered
+  position: relative; // For flag indicator positioning
+
+  &.answered {
+    background-color: #d1e7dd; // Light green
+    border-color: #a3cfbb;
+    color: #0f5132; // Dark green text
+  }
+
+  &.current {
+    border-color: #0d6efd; // Blue border
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25); // Blue glow
+    font-weight: bold;
+  }
+
+  .flag-indicator {
+    position: absolute;
+    top: -5px;
+    right: -2px;
+    font-size: 0.8em;
+    color: #ffc107; // Warning yellow for flag
+  }
+  
+  // Keep border for flagged even if unanswered
+  &.flagged {
+     border-style: dashed; // Indicate flag with border style
+     border-color: #ffc107;
+  }
+}
+
+.legend {
+  font-size: 0.8em;
+  color: #6c757d;
+  div {
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+  }
+  .indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 1px solid #ccc;
+    margin-right: 5px;
+    &.answered { background-color: #d1e7dd; border-color: #a3cfbb; }
+    &.unanswered { background-color: #fff; }
+    &.flagged { font-size: 1em; width: auto; height: auto; border: none; color: #ffc107; }
+    &.current { border-color: #0d6efd; background-color: #fff; border-width: 2px; }
+  }
+}
+
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; // Align items to top
+    margin-bottom: 15px;
+
+    .question-text {
+        flex-grow: 1; // Allow text to take up space
+        margin-right: 15px; // Space before flag button
+        margin-bottom: 0; // Remove default margin
+    }
+
+    .flag-btn {
+        flex-shrink: 0; // Prevent button from shrinking
+    }
+}
