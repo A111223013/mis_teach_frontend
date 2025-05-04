@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { OverviewComponent } from './overview/overview.component';
+import { TestAiComponent } from './test-ai/test-ai.component';
 
 export const routes: Routes = [
     {
@@ -10,5 +11,9 @@ export const routes: Routes = [
     {
         path: 'overview',
         component: OverviewComponent
+    },
+    {
+        path: 'test_ai',
+        component: TestAiComponent
     }
 ];

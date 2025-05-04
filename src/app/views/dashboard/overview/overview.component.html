@@ -22,6 +22,35 @@
         <!-- Left Column (Main Charts) -->
         <c-col xs="12" lg="8">
 
+          <!-- NEW: Math Symbols Card -->
+          <c-card class="mb-4">
+            <c-card-header>
+              <strong>數學符號範例</strong>
+            </c-card-header>
+            <c-card-body>
+              <div class="math-container p-3">
+                <div class="mb-3">
+                  <strong>行內公式：</strong>
+                  <p [innerHTML]="'歐拉公式 $e^{i\\pi} + 1 = 0$ 將五個最重要的數學常數連結在一起。'"></p>
+                </div>
+                <div class="mb-3">
+                  <strong>區塊公式：</strong>
+                  <p>二次方程式的解：</p>
+                  <div [innerHTML]="'$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$'"></div>
+                </div>
+                <div class="mb-3">
+                  <strong>矩陣表示：</strong>
+                  <div [innerHTML]="'$$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix} \\begin{pmatrix} x \\\\ y \\end{pmatrix} = \\begin{pmatrix} ax + by \\\\ cx + dy \\end{pmatrix}$$'"></div>
+                </div>
+                <div>
+                  <strong>積分與極限：</strong>
+                  <div [innerHTML]="'$$\\int_{0}^{\\infty} e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}$$'"></div>
+                  <div class="mt-2" [innerHTML]="'$$\\lim_{n\\to\\infty} \\left(1+\\frac{1}{n}\\right)^n = e$$'"></div>
+                </div>
+              </div>
+            </c-card-body>
+          </c-card>
+
           <!-- CS Sub-Topic Accuracy Card -->
           <c-card class="mb-4">
             <c-card-header>

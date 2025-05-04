@@ -19,4 +19,10 @@ export class DashboardService {
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
     return this.http.post(`${environment.apiBaseUrl}/dashboard/get-user-name`, {}, { headers });
    }
+
+   ask(question: string): Observable<string> {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.post<string>(`${environment.apiBaseUrl}/ai_agent/ask`, { question }, { headers });
+   }
 }

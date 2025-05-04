@@ -1,0 +1,22 @@
+<div class="chatgpt-root">
+  <div class="chatgpt-card">
+    <div class="chatgpt-header">
+      <span class="fw-bold">AI 聊天室</span>
+    </div>
+    <div class="chatgpt-body" #chatBody>
+      <div *ngFor="let msg of messages" [ngClass]="msg.role">
+        <div class="chat-bubble" [ngClass]="msg.role">
+          <span *ngIf="msg.role === 'user'">🙋‍♂️</span>
+          <span *ngIf="msg.role === 'ai'">🤖</span>
+          <span [innerHTML]="msg.text"></span>
+        </div>
+      </div>
+    </div>
+    <div class="chatgpt-footer">
+      <form (ngSubmit)="sendMessage()" class="chatgpt-input-row">
+        <input [(ngModel)]="inputMessage" name="message" placeholder="輸入訊息..." required autocomplete="off" />
+        <button type="submit">送出</button>
+      </form>
+    </div>
+  </div>
+</div>

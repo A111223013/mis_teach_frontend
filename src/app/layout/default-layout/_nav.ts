@@ -43,6 +43,11 @@ export const navItems: INavData[] = [
     name: '繪圖板',
     url: '/dashboard/whiteboard',
     iconComponent: { name: 'cilBrush' }
+  },
+  {
+    name: 'AI',
+    url: '/dashboard/test_ai',
+    iconComponent: { name: 'cilBrain' }
   }
   // Add other navigation items here
 ]; 

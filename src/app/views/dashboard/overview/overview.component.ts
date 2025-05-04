@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { 
@@ -14,6 +14,7 @@ import { cilSpeedometer, cilBook, cilPeople, cilChartPie, cilExitToApp, cilUser 
 import { DashboardService } from '../../../service/dashboard.service';
 import { BaseChartDirective } from 'ng2-charts';
 import { Chart, ChartData, ChartOptions, registerables } from 'chart.js';
+import { MathJaxService } from '../../../service/mathjax.service';
 
 @Component({
   selector: 'app-overview',
@@ -38,7 +39,7 @@ import { Chart, ChartData, ChartOptions, registerables } from 'chart.js';
     TableModule
   ]
 })
-export class OverviewComponent implements OnInit {
+export class OverviewComponent implements OnInit, AfterViewInit {
   userName: string = "";
   currentDate: Date = new Date();
   
@@ -205,7 +206,8 @@ export class OverviewComponent implements OnInit {
 
   constructor(
     private iconSetService: IconSetService, 
-    private dashboardService: DashboardService
+    private dashboardService: DashboardService,
+    private mathJaxService: MathJaxService
   ) { 
     iconSetService.icons = { cilUser };
     Chart.register(...registerables);
@@ -213,6 +215,12 @@ export class OverviewComponent implements OnInit {
 
   ngOnInit(): void {
     this.getUserInfo();
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => {
+      this.renderMathSymbols();
+    }, 500);
   }
 
   getUserInfo(): void {
@@ -224,5 +232,12 @@ export class OverviewComponent implements OnInit {
         console.error('Error fetching user info:', error);
       }
     );
+  }
+
+  private renderMathSymbols(): void {
+    const mathContainer = document.querySelector('.math-container');
+    if (mathContainer) {
+      this.mathJaxService.renderMathInElement(mathContainer as HTMLElement);
+    }
   }
 }
