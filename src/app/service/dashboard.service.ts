@@ -25,4 +25,15 @@ export class DashboardService {
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
     return this.http.post<string>(`${environment.apiBaseUrl}/ai_agent/ask`, { question }, { headers });
    }
+
+   get_exam(): Observable<any> {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.post(`${environment.apiBaseUrl}/dashboard/get-exam`, {}, { headers });
+   }
+   get_exam_to_object(school: string, year: string, subject: string): Observable<any> {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.post(`${environment.apiBaseUrl}/dashboard/get-exam-to-object`, {school, year, subject}, { headers });
+   }
 }

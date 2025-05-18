@@ -31,6 +31,15 @@ export const navItems: INavData[] = [
       {
         name: 'AI出題',
         url: '/dashboard/students/ai-quiz'
+      },
+      {
+         name: '選擇考古題',
+        url: '/dashboard/students/past-choice'
+
+      },
+      {
+        name: '考古題複習',
+        url: '/dashboard/students/past-exam'
       }
     ]
   },

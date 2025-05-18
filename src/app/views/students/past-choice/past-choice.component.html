@@ -1,0 +1,57 @@
+<c-card class="p-4">
+    <form (ngSubmit)="onSearch()" #searchForm="ngForm">
+      <div class="row mb-3">
+        <div class="col-md-4">
+          <label for="school" class="form-label">學校</label>
+          <select
+            id="school"
+            class="form-select"
+            name="school"
+            [(ngModel)]="formData.school"
+            required
+          >
+            <option value="">請選擇學校</option>
+            <option *ngFor="let school of schools" [value]="school">{{ school }}</option>
+          </select>
+        </div>
+  
+        <div class="col-md-4">
+          <label for="year" class="form-label">年度</label>
+          <select
+            id="year"
+            class="form-select"
+            name="year"
+            [(ngModel)]="formData.year"
+            required
+          >
+            <option value="">請選擇年度</option>
+            <option *ngFor="let year of years" [value]="year">{{ year }}</option>
+          </select>
+        </div>
+  
+        <div class="col-md-4">
+          <label for="subject" class="form-label">科目</label>
+          <select
+            id="subject"
+            class="form-select"
+            name="subject"
+            [(ngModel)]="formData.subject"
+            required
+          >
+            <option value="">請選擇科目</option>
+            <option *ngFor="let subject of subjects" [value]="subject">{{ subject }}</option>
+          </select>
+        </div>
+      </div>
+  
+      <div class="text-end">
+        <button class="btn btn-primary" type="submit">搜尋</button>
+      </div>
+    </form>
+    <div class="mt-3">
+      <label for="customSelect" class="form-label">自訂下拉選單</label>
+      <select id="customSelect" class="form-select" [value]="selectedOption" (change)="onOptionChange($event)">
+        <option *ngFor="let option of options" [value]="option.value">{{ option.label }}</option>
+      </select>
+    </div>
+  </c-card>
