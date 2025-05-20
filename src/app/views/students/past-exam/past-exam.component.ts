@@ -3,11 +3,10 @@ import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { DashboardService } from '../../../service/dashboard.service';
 @Component({
-  selector: 'app-past-exam',
-  standalone: true,
-  imports: [CommonModule],
-  templateUrl: './past-exam.component.html',
-  styleUrl: './past-exam.component.scss'
+    selector: 'app-past-exam',
+    imports: [CommonModule],
+    templateUrl: './past-exam.component.html',
+    styleUrl: './past-exam.component.scss'
 })
 export class PastExamComponent implements OnInit {
   // 儲存從 URL 參數獲得的搜尋條件

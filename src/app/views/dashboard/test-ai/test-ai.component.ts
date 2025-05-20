@@ -5,13 +5,12 @@ import { DashboardService } from '../../../service/dashboard.service';
 import { MathJaxService } from '../../../service/mathjax.service';
 
 @Component({
-  selector: 'app-test-ai',
-  standalone: true,
-  imports: [
-    CommonModule, FormsModule
-  ],
-  templateUrl: './test-ai.component.html',
-  styleUrl: './test-ai.component.scss'
+    selector: 'app-test-ai',
+    imports: [
+        CommonModule, FormsModule
+    ],
+    templateUrl: './test-ai.component.html',
+    styleUrl: './test-ai.component.scss'
 })
 export class TestAiComponent implements AfterViewChecked {
 

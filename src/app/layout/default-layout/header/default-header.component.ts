@@ -19,23 +19,22 @@ import {
 } from '@coreui/icons';
 
 @Component({
-  selector: 'app-default-header',
-  standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule,
-    ContainerComponent, 
-    HeaderModule, 
-    NavModule,
-    DropdownModule,
-    DropdownToggleDirective,
-    DropdownItemDirective,
-    DropdownMenuDirective,
-    IconModule,
-    IconDirective 
-  ],
-  templateUrl: './default-header.component.html',
-  styleUrls: ['./default-header.component.scss']
+    selector: 'app-default-header',
+    imports: [
+        CommonModule,
+        RouterModule,
+        ContainerComponent,
+        HeaderModule,
+        NavModule,
+        DropdownModule,
+        DropdownToggleDirective,
+        DropdownItemDirective,
+        DropdownMenuDirective,
+        IconModule,
+        IconDirective
+    ],
+    templateUrl: './default-header.component.html',
+    styleUrls: ['./default-header.component.scss']
 })
 export class DefaultHeaderComponent {
   public navItems = navItems;

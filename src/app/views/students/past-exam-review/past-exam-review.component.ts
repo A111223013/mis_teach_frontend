@@ -30,14 +30,13 @@ interface TrueFalseQuestion extends BaseQuestion {
 type Question = SingleChoiceQuestion | MultipleChoiceQuestion | ShortAnswerQuestion | TrueFalseQuestion;
 
 @Component({
-  selector: 'app-past-exam-review',
-  standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule
-  ],
-  templateUrl: './past-exam-review.component.html',
-  styleUrls: ['./past-exam-review.component.scss']
+    selector: 'app-past-exam-review',
+    imports: [
+        CommonModule,
+        FormsModule
+    ],
+    templateUrl: './past-exam-review.component.html',
+    styleUrls: ['./past-exam-review.component.scss']
 })
 export class PastExamReviewComponent implements OnInit, OnDestroy {
 

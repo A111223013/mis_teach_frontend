@@ -17,27 +17,26 @@ import { Chart, ChartData, ChartOptions, registerables } from 'chart.js';
 import { MathJaxService } from '../../../service/mathjax.service';
 
 @Component({
-  selector: 'app-overview',
-  templateUrl: './overview.component.html',
-  styleUrls: ['./overview.component.scss'],
-  standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule,
-    DatePipe,
-    CardComponent, 
-    CardBodyComponent,
-    CardHeaderComponent,
-    ContainerComponent, 
-    IconDirective,
-    BaseChartDirective,
-    ProgressBarComponent,
-    ProgressComponent,
-    RowComponent,
-    ColComponent,
-    ListGroupModule,
-    TableModule
-  ]
+    selector: 'app-overview',
+    templateUrl: './overview.component.html',
+    styleUrls: ['./overview.component.scss'],
+    imports: [
+        CommonModule,
+        RouterModule,
+        DatePipe,
+        CardComponent,
+        CardBodyComponent,
+        CardHeaderComponent,
+        ContainerComponent,
+        IconDirective,
+        BaseChartDirective,
+        ProgressBarComponent,
+        ProgressComponent,
+        RowComponent,
+        ColComponent,
+        ListGroupModule,
+        TableModule
+    ]
 })
 export class OverviewComponent implements OnInit, AfterViewInit {
   userName: string = "";

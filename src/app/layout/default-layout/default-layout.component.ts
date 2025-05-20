@@ -6,16 +6,15 @@ import { DefaultHeaderComponent } from './header/default-header.component';
 import { DefaultFooterComponent } from './footer/default-footer.component';
 
 @Component({
-  selector: 'app-default-layout',
-  standalone: true,
-  imports: [
-    CommonModule,
-    RouterOutlet,
-    ContainerComponent,
-    DefaultHeaderComponent, 
-    DefaultFooterComponent,
-  ],
-  templateUrl: './default-layout.component.html',
-  styleUrls: ['./default-layout.component.scss']
+    selector: 'app-default-layout',
+    imports: [
+        CommonModule,
+        RouterOutlet,
+        ContainerComponent,
+        DefaultHeaderComponent,
+        DefaultFooterComponent,
+    ],
+    templateUrl: './default-layout.component.html',
+    styleUrls: ['./default-layout.component.scss']
 })
 export class DefaultLayoutComponent { }

@@ -15,12 +15,10 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 
 @Component({
-  selector: 'app-past-choice',
-  standalone: true,
-  imports: [CardComponent, CardImgDirective, CardBodyComponent, CardTitleDirective, CardTextDirective, ButtonDirective, FormsModule, CommonModule],
-
-  templateUrl: './past-choice.component.html',
-  styleUrl: './past-choice.component.scss'
+    selector: 'app-past-choice',
+    imports: [CardComponent, CardImgDirective, CardBodyComponent, CardTitleDirective, CardTextDirective, ButtonDirective, FormsModule, CommonModule],
+    templateUrl: './past-choice.component.html',
+    styleUrl: './past-choice.component.scss'
 })
 export class PastChoiceComponent implements OnInit {
   userName: string = '';

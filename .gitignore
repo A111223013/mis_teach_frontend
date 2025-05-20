@@ -1,2 +1,28 @@
-/node_modules/
-node_modules
+# ========== Node.js ==========
+node_modules/
+npm-debug.log
+yarn-error.log
+.angular/cache
+dist/
+build/
+
+# ========== IDE & 系統檔案 ==========
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.history/
+*.sublime-workspace
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+
+# ========== 測試與暫存檔 ==========
+coverage/
+connect.lock
+testem.log
+tmp/
+out-tsc/
+bazel-out/

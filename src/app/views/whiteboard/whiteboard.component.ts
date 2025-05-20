@@ -13,20 +13,19 @@ import {
 } from '@coreui/icons';
 
 @Component({
-  selector: 'app-whiteboard-view',
-  standalone: true,
-  imports: [
-    CommonModule, 
-    FormsModule, 
-    IconDirective, 
-    ButtonDirective, 
-    ButtonGroupComponent,
-    CardBodyComponent,
-    CardComponent,
-    CardHeaderComponent
-  ],
-  templateUrl: './whiteboard.component.html',
-  styleUrls: ['./whiteboard.component.scss']
+    selector: 'app-whiteboard-view',
+    imports: [
+        CommonModule,
+        FormsModule,
+        IconDirective,
+        ButtonDirective,
+        ButtonGroupComponent,
+        CardBodyComponent,
+        CardComponent,
+        CardHeaderComponent
+    ],
+    templateUrl: './whiteboard.component.html',
+    styleUrls: ['./whiteboard.component.scss']
 })
 export class WhiteboardComponent implements OnInit, AfterViewInit {
 
