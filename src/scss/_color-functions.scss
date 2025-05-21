@@ -1,0 +1,20 @@
+// Workaround for missing color.channel function
+@function color-channel($color, $channel, $space: null) {
+  @if $channel == "red" {
+    @return red($color);
+  } @else if $channel == "green" {
+    @return green($color);
+  } @else if $channel == "blue" {
+    @return blue($color);
+  } @else {
+    @return 0;
+  }
+}
+
+// Create an alias for the function
+@function color-function($name, $args...) {
+  @if $name == "channel" {
+    @return color-channel($args...);
+  }
+  @return null;
+}

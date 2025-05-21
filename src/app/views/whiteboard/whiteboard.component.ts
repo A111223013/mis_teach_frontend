@@ -24,6 +24,7 @@ import {
         CardComponent,
         CardHeaderComponent
     ],
+    standalone: true,
     templateUrl: './whiteboard.component.html',
     styleUrls: ['./whiteboard.component.scss']
 })

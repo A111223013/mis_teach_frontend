@@ -5,6 +5,7 @@ import { DashboardService } from '../../../service/dashboard.service';
 @Component({
     selector: 'app-past-exam',
     imports: [CommonModule],
+    standalone: true,
     templateUrl: './past-exam.component.html',
     styleUrl: './past-exam.component.scss'
 })

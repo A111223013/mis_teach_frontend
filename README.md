@@ -57,3 +57,32 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+
+
+修正scss
+Application bundle generation failed. [3.410 seconds]
+
+X [ERROR] Undefined function.
+  ╷
+4 │   @return color.channel($value, "red", $space: rgb), color.channel($value, "green", $space: rgb), color.channel($value, "blue", $space: rgb);
+  │           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+  node_modules\@coreui\coreui\scss\functions\_to-rgb.scss 4:11  to-rgb()
+  node_modules\@coreui\coreui\scss\_variables.scss 899:31       @forward
+  node_modules\@coreui\coreui\scss\coreui.scss 5:1              @import
+  src\scss\styles.scss 11:9                                     root stylesheet [plugin angular-sass]
+
+    angular:styles/global:styles:1:8:
+      1 │ @import 'src/scss/styles.scss';
+        ╵         ~~~~~~~~~~~~~~~~~~~~~~
+
+我修改_color-functions.scss的@function luminance($color) {
+  $rgb: (
+    "r": red($color), // 替換為兼容的 red() 函數
+    "g": green($color),
+    "b": blue($color)
+  );跟
+  _to-rgb.scss的@function to-rgb($value) {
+  @return red($value), green($value), blue($value);
+}
