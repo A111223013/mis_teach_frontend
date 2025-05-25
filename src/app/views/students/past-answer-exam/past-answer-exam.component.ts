@@ -241,7 +241,7 @@ export class PastAnswerExamComponent {
         console.log('答案提交成功:', response);
 
         // 提交後返回選擇頁面
-        //this.router.navigate(['/dashboard/students/past-choice']);
+        this.router.navigate(['/dashboard/students/past-choice']);
       },
       (error: any) => {
         console.error('答案提交失敗:', error);
