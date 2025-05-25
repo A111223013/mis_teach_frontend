@@ -18,7 +18,6 @@ import { Router } from '@angular/router';
     selector: 'app-past-choice',
     imports: [CardComponent, CardImgDirective, CardBodyComponent, CardTitleDirective, CardTextDirective, ButtonDirective, FormsModule, CommonModule],
     templateUrl: './past-choice.component.html',
-    standalone: true,
     styleUrl: './past-choice.component.scss'
 })
 export class PastChoiceComponent implements OnInit {
@@ -99,6 +98,18 @@ export class PastChoiceComponent implements OnInit {
     // 這裡可以根據 formData 做查詢
     console.log('搜尋條件：', this.formData);
     this.router.navigate(['/dashboard/students/past-exam'], {
+      queryParams: {
+        school: this.formData.school,
+        year: this.formData.year,
+        subject: this.formData.subject
+      }
+    });
+  }
+
+  // 作答題目按鈕事件
+  onAnswer() {
+    console.log('開始作答，條件：', this.formData);
+    this.router.navigate(['/dashboard/students/past-answer-exam'], {
       queryParams: {
         school: this.formData.school,
         year: this.formData.year,

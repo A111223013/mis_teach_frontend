@@ -40,6 +40,10 @@ export const navItems: INavData[] = [
       {
         name: '考古題複習',
         url: '/dashboard/students/past-exam'
+      },
+      {
+        name: '作答考古題',
+        url: '/dashboard/students/past-answer-exam'
       }
     ]
   },

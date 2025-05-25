@@ -10,7 +10,6 @@ import { MathJaxService } from '../../../service/mathjax.service';
         CommonModule, FormsModule
     ],
     templateUrl: './test-ai.component.html',
-    standalone: true,
     styleUrl: './test-ai.component.scss'
 })
 export class TestAiComponent implements AfterViewChecked {

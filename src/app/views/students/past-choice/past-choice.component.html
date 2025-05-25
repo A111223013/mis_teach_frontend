@@ -46,12 +46,10 @@
   
       <div class="text-end">
         <button class="btn btn-primary" type="submit">搜尋</button>
+        <button class="btn btn-secondary ms-2" type="button" (click)="onAnswer()">作答題目</button>
       </div>
+      
+  
     </form>
-    <div class="mt-3">
-      <label for="customSelect" class="form-label">自訂下拉選單</label>
-      <select id="customSelect" class="form-select" [value]="selectedOption" (change)="onOptionChange($event)">
-        <option *ngFor="let option of options" [value]="option.value">{{ option.label }}</option>
-      </select>
-    </div>
+  
   </c-card>

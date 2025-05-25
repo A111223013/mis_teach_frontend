@@ -12,7 +12,6 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 @Component({
     selector: 'app-login',
-    standalone: true,
     templateUrl: './login.component.html',
     styleUrls: ['./login.component.scss'],
     imports: [ContainerComponent, RowComponent, ColComponent, CardGroupComponent, TextColorDirective, CardComponent, CardBodyComponent, FormDirective, InputGroupComponent, InputGroupTextDirective, IconDirective, FormControlDirective, ButtonDirective, NgStyle,

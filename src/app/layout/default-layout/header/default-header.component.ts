@@ -33,7 +33,6 @@ import {
         IconModule,
         IconDirective
     ],
-    standalone: true,
     templateUrl: './default-header.component.html',
     styleUrls: ['./default-header.component.scss']
 })

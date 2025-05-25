@@ -1,0 +1,104 @@
+.question-text {
+  font-size: 16px;
+  line-height: 1.6;
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+}
+
+/* 題型標籤 */
+.exam-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.exam-tab-btn {
+  border: 1px solid #dee2e6;
+  background-color: #f8f9fa;
+  color: #495057;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.exam-tab-btn.active {
+  background-color: #3c6fba;
+  color: white;
+  border-color: #3c6fba;
+}
+
+/* 選項樣式 */
+.option-item {
+  margin-bottom: 10px;
+}
+
+.option-label {
+  display: flex;
+  align-items: flex-start;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.option-label:hover {
+  background-color: #f0f0f0;
+}
+
+.option-input {
+  margin-right: 10px;
+  margin-top: 3px;
+}
+
+.option-text {
+  flex: 1;
+}
+
+/* 導航按鈕 */
+.nav-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.nav-btn:hover:not([disabled]) {
+  background-color: #5a6268;
+}
+
+.nav-btn[disabled] {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* 代碼編輯器 */
+.code-editor {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+}
+
+/* 圖片樣式 */
+.image-container img {
+  max-width: 100%;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+/* 題目信息標籤 */
+.question-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.question-info .badge {
+  font-size: 0.85rem;
+  font-weight: normal;
+  padding: 5px 10px;
+}

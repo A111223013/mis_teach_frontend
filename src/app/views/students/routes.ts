@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { PastExamReviewComponent } from './past-exam-review/past-exam-review.component';
 import {PastChoiceComponent} from './past-choice/past-choice.component'
 import {PastExamComponent} from './past-exam/past-exam.component'
-
+import {PastAnswerExamComponent} from './past-answer-exam/past-answer-exam.component'
 export const routes: Routes = [
     {
         path: '',
@@ -24,5 +24,10 @@ export const routes: Routes = [
         path: 'past-exam',
         component: PastExamComponent,
         data: { title: '考古題複習' }
+    },
+    {
+        path: 'past-answer-exam',
+        component: PastAnswerExamComponent,
+        data: { title: '作答題目' }
     }
 ];

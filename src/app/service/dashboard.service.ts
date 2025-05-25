@@ -36,4 +36,10 @@ export class DashboardService {
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
     return this.http.post(`${environment.apiBaseUrl}/dashboard/get-exam-to-object`, {school, year, subject}, { headers });
    }
+
+   submitAnswers(answers: any[]): Observable<any> {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.post(`${environment.apiBaseUrl}/dashboard/submit-answers`, { answers }, { headers });
+   }
 }

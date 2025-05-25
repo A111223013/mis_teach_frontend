@@ -14,7 +14,6 @@ import { DefaultFooterComponent } from './footer/default-footer.component';
         DefaultHeaderComponent,
         DefaultFooterComponent,
     ],
-    standalone: true,
     templateUrl: './default-layout.component.html',
     styleUrls: ['./default-layout.component.scss']
 })

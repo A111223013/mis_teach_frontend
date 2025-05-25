@@ -1,0 +1,139 @@
+<div class="container-fluid py-4">
+  <div class="row">
+    <div class="col-12 mb-4">
+      <c-card class="p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="mb-0">{{ searchParams.year }}年 {{ searchParams.subject }}</h2>
+          <button cButton color="primary" (click)="submitAnswers()">提交答案</button>
+        </div>
+        
+        <!-- 題型標籤 -->
+        <div class="exam-tabs mb-4">
+          <button class="exam-tab-btn" 
+            *ngFor="let item of ['single-choice', 'multiple-choice', 'true-false', 'short-answer', 'long-answer', 'coding-answer']"
+            [class.active]="currentType === item"
+            [class.d-none]="!hasExamsOfType(item)"
+            (click)="filterExamsByType(item)">
+            {{ item === 'single-choice' ? '單選題' : 
+               item === 'multiple-choice' ? '多選題' : 
+               item === 'true-false' ? '是非題' : 
+               item === 'short-answer' ? '簡答題' : 
+               item === 'long-answer' ? '長答題' : '程式設計題' }}
+            ({{ getExamStatCount(item) }})
+          </button>
+        </div>
+        
+        <hr class="my-3">
+        
+        <!-- 題目顯示區 -->
+        <div *ngIf="currentQuestion">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">第 {{ currentQuestion.question_number }} 題</h5>
+            <span>{{ currentIndex + 1 }} / {{ filteredExams.length }}</span>
+          </div>
+          
+          <div class="question-info mb-2">
+            <span class="badge bg-secondary me-2">{{ currentQuestion.department || '未知研究所' }}</span>
+            <span class="badge bg-info">{{ currentQuestion.school || '未知學校' }}</span>
+          </div>
+          
+          <div class="question-text mb-4">
+            {{ currentQuestion.question_text }}
+          </div>
+          
+          <!-- 選擇題選項 -->
+          <div class="options-container mb-4" *ngIf="['single-choice', 'multiple-choice'].includes(currentQuestion.type)">
+            <div class="option-item" *ngFor="let option of currentQuestion.options; let i = index">
+              <label class="option-label">
+                <input 
+                  *ngIf="currentQuestion.type === 'single-choice'"
+                  type="radio" 
+                  [name]="'question_' + currentQuestion.id" 
+                  [value]="choiceOptions[i]"
+                  [(ngModel)]="userAnswers[currentQuestion.id]"
+                  class="option-input"
+                >
+                <input 
+                  *ngIf="currentQuestion.type === 'multiple-choice'"
+                  type="checkbox" 
+                  [checked]="isMultipleChoiceSelected(i)"
+                  (change)="toggleMultipleChoice(i)"
+                  class="option-input"
+                >
+                <span class="option-text">{{ option }}</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- 是非題 -->
+          <div class="options-container mb-4" *ngIf="currentQuestion.type === 'true-false'">
+            <div class="option-item">
+              <label class="option-label">
+                <input 
+                  type="radio" 
+                  [name]="'question_' + currentQuestion.id" 
+                  value="true"
+                  [(ngModel)]="userAnswers[currentQuestion.id]"
+                  class="option-input"
+                >
+                <span class="option-text">正確</span>
+              </label>
+            </div>
+            <div class="option-item">
+              <label class="option-label">
+                <input 
+                  type="radio" 
+                  [name]="'question_' + currentQuestion.id" 
+                  value="false"
+                  [(ngModel)]="userAnswers[currentQuestion.id]"
+                  class="option-input"
+                >
+                <span class="option-text">錯誤</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- 簡答題和長答題 -->
+          <div class="text-answer-container mb-4" *ngIf="['short-answer', 'long-answer'].includes(currentQuestion.type)">
+            <textarea 
+              class="form-control" 
+              [rows]="currentQuestion.type === 'short-answer' ? 3 : 8"
+              [(ngModel)]="userAnswers[currentQuestion.id]"
+              placeholder="請輸入您的答案"
+            ></textarea>
+          </div>
+          
+          <!-- 程式設計題 -->
+          <div class="coding-answer-container mb-4" *ngIf="currentQuestion.type === 'coding-answer'">
+            <textarea 
+              class="form-control code-editor" 
+              rows="10"
+              [(ngModel)]="userAnswers[currentQuestion.id]"
+              placeholder="請編寫您的程式碼"
+            ></textarea>
+          </div>
+          
+          <!-- 題目圖片 -->
+          <div class="image-container mb-3" *ngIf="currentQuestion.image_file && currentQuestion.image_file.length > 0">
+            <img [src]="currentQuestion.image_file" class="img-fluid" alt="題目圖片">
+          </div>
+          
+          <!-- 上下題按鈕 -->
+          <div class="navigation-buttons d-flex justify-content-between mt-4">
+            <button class="nav-btn" (click)="prevQuestion()" [disabled]="currentIndex === 0">
+              上一題
+            </button>
+            <button class="nav-btn" (click)="nextQuestion()" [disabled]="currentIndex === filteredExams.length - 1">
+              下一題
+            </button>
+          </div>
+        </div>
+        
+        <!-- 無題目提示 -->
+        <div class="alert alert-info my-4" *ngIf="!currentQuestion">
+          該題型下沒有可用的題目。
+        </div>
+      </c-card>
+    </div>
+  </div>
+</div>
