@@ -35,6 +35,7 @@ type Question = SingleChoiceQuestion | MultipleChoiceQuestion | ShortAnswerQuest
         CommonModule,
         FormsModule
     ],
+    standalone: true, 
     templateUrl: './past-exam-review.component.html',
     styleUrls: ['./past-exam-review.component.scss']
 })

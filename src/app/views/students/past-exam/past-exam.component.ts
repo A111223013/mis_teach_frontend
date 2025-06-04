@@ -6,6 +6,7 @@ import { DashboardService } from '../../../service/dashboard.service';
     selector: 'app-past-exam',
     imports: [CommonModule],
     templateUrl: './past-exam.component.html',
+    standalone: true,
     styleUrl: './past-exam.component.scss'
 })
 export class PastExamComponent implements OnInit {

@@ -7,6 +7,7 @@ import { DefaultFooterComponent } from './footer/default-footer.component';
 
 @Component({
     selector: 'app-default-layout',
+    standalone: true,
     imports: [
         CommonModule,
         RouterOutlet,

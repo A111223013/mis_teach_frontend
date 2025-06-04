@@ -20,6 +20,7 @@ import { MathJaxService } from '../../../service/mathjax.service';
     selector: 'app-overview',
     templateUrl: './overview.component.html',
     styleUrls: ['./overview.component.scss'],
+    standalone: true,
     imports: [
         CommonModule,
         RouterModule,

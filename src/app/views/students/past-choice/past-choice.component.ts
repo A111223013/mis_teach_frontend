@@ -18,6 +18,7 @@ import { Router } from '@angular/router';
     selector: 'app-past-choice',
     imports: [CardComponent, CardImgDirective, CardBodyComponent, CardTitleDirective, CardTextDirective, ButtonDirective, FormsModule, CommonModule],
     templateUrl: './past-choice.component.html',
+    standalone: true,
     styleUrl: './past-choice.component.scss'
 })
 export class PastChoiceComponent implements OnInit {

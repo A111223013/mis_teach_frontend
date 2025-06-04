@@ -9,6 +9,7 @@ import { MathJaxService } from '../../../service/mathjax.service';
     imports: [
         CommonModule, FormsModule
     ],
+    standalone: true,
     templateUrl: './test-ai.component.html',
     styleUrl: './test-ai.component.scss'
 })
