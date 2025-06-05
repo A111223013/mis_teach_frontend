@@ -15,6 +15,7 @@ import { DashboardService } from '../../../service/dashboard.service';
 import { BaseChartDirective } from 'ng2-charts';
 import { Chart, ChartData, ChartOptions, registerables } from 'chart.js';
 import { MathJaxService } from '../../../service/mathjax.service';
+import { AiChatComponent } from '../ai-chat/ai-chat.component';
 
 @Component({
     selector: 'app-overview',
@@ -36,7 +37,8 @@ import { MathJaxService } from '../../../service/mathjax.service';
         RowComponent,
         ColComponent,
         ListGroupModule,
-        TableModule
+        TableModule,
+        AiChatComponent
     ]
 })
 export class OverviewComponent implements OnInit, AfterViewInit {

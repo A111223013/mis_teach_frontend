@@ -60,7 +60,7 @@ export const navItems: INavData[] = [
   {
     name: 'AI',
     url: '/dashboard/test_ai',
-    iconComponent: { name: 'cilBrain' }
+    iconComponent: { name: 'cil-clipboard' }
   }
   // Add other navigation items here
 ]; 

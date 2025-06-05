@@ -1,0 +1,141 @@
+<!-- AI聊天助理 - 浮動窗口 -->
+<div class="ai-chat-container" [class.expanded]="isExpanded">
+  
+  <!-- 聊天窗口標題欄 -->
+  <div class="chat-header" (click)="toggleExpanded()">
+    <div class="header-content">
+      <svg cIcon [name]="isExpanded ? 'cilSettings' : 'cilSpeech'" class="chat-icon"></svg>
+      <div class="header-text">
+        <span class="title">AI教學助理</span>
+        <span class="subtitle" *ngIf="isExpanded">{{ getAiModelLabel(currentAiModel) }}</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <c-badge 
+        *ngIf="messages.length > 0 && !isExpanded" 
+        color="primary" 
+        shape="rounded-pill">
+        {{ messages.length }}
+      </c-badge>
+      <svg cIcon [name]="isExpanded ? 'cilChevronLeft' : 'cilChevronRight'" class="toggle-icon"></svg>
+    </div>
+  </div>
+
+  <!-- 聊天窗口內容 -->
+  <div class="chat-content" *ngIf="isExpanded">
+    
+    <!-- 工具欄 -->
+    <div class="chat-toolbar">
+
+      <!-- 操作按鈕 -->
+      <div class="toolbar-actions">
+        <button
+          cButton
+          variant="ghost"
+          size="sm"
+          (click)="resetConversation()"
+          [disabled]="isTyping"
+          title="重置對話">
+          <svg cIcon name="cilReload"></svg>
+        </button>
+        <button
+          cButton
+          variant="ghost"
+          size="sm"
+          (click)="clearMessages()"
+          [disabled]="isTyping"
+          title="清除記錄">
+          <svg cIcon name="cilTrash"></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 訊息區域 -->
+    <div class="messages-container" #messagesContainer>
+      
+      <!-- 訊息列表 -->
+      <div class="messages-list">
+        <div 
+          *ngFor="let message of messages; trackBy: trackByMessageId" 
+          class="message-wrapper"
+          [class.user-message]="message.type === 'user'"
+          [class.assistant-message]="message.type === 'assistant'">
+          
+          <div class="message-content">
+            <!-- 用戶訊息 -->
+            <div *ngIf="message.type === 'user'" class="user-bubble">
+              <div class="message-text">{{ message.content }}</div>
+              <div class="message-meta">
+                <small class="text-muted">{{ formatTime(message.timestamp) }}</small>
+              </div>
+            </div>
+
+            <!-- AI助理訊息 -->
+            <div *ngIf="message.type === 'assistant'" class="assistant-bubble">
+              <div class="assistant-avatar">
+                <svg cIcon name="cilRobot"></svg>
+              </div>
+              <div class="assistant-content">
+                <div class="message-text" [innerHTML]="message.content | markdown"></div>
+                <div class="message-meta">
+                  <small class="text-muted">
+                    {{ formatTime(message.timestamp) }}
+                    <span *ngIf="message.aiModel" class="ms-2">
+                      • {{ getAiModelLabel(message.aiModel) }}
+                    </span>
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 打字指示器 -->
+        <div *ngIf="isTyping" class="message-wrapper assistant-message">
+          <div class="message-content">
+            <div class="assistant-bubble">
+              <div class="assistant-avatar">
+                <svg cIcon name="cilRobot"></svg>
+              </div>
+              <div class="assistant-content">
+                <div class="typing-indicator">
+                  <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                  <small class="text-muted ms-2">AI正在思考中...</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 輸入區域 -->
+    <div class="input-container">
+      <div class="input-wrapper">
+        <textarea 
+          #messageInput
+          [(ngModel)]="currentMessage"
+          (keydown)="onKeyPress($event)"
+          placeholder="輸入您的問題..."
+          class="message-input"
+          rows="1"
+          [disabled]="isTyping"></textarea>
+        
+        <button
+          cButton
+          color="primary"
+          size="sm"
+          (click)="sendMessage()"
+          [disabled]="!currentMessage.trim() || isTyping"
+          class="send-button">
+          <svg cIcon name="cilArrowRight" *ngIf="!isTyping"></svg>
+          <c-spinner size="sm" *ngIf="isTyping"></c-spinner>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

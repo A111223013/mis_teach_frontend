@@ -7,9 +7,7 @@ import { ContainerComponent, RowComponent, ColComponent, CardGroupComponent, Tex
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { LoginService } from '../../service/login.service';
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+
 @Component({
     selector: 'app-login',
     templateUrl: './login.component.html',
@@ -66,6 +64,11 @@ export class LoginComponent implements OnInit {
       this.loginService.loginUser(this.loginForm.value).subscribe(
         response => {
           this.errorMessage = '';
+          // 保存token到localStorage
+          if (response.token) {
+            localStorage.setItem('token', response.token);
+            console.log('Token saved:', response.token);
+          }
           this.router.navigate(['/dashboard']);
         },
         error => {
