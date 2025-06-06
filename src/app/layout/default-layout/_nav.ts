@@ -58,9 +58,18 @@ export const navItems: INavData[] = [
     iconComponent: { name: 'cilBrush' }
   },
   {
-    name: 'AI',
-    url: '/dashboard/test_ai',
-    iconComponent: { name: 'cil-clipboard' }
+    name: '智能學習系統',
+    iconComponent: { name: 'cilBook' },
+    children: [
+      {
+        name: '測驗演示',
+        url: '/dashboard/quiz-demo'
+      },
+      {
+        name: 'AI 助理',
+        url: '/dashboard/ai-chat'
+      }
+    ]
   }
   // Add other navigation items here
 ]; 

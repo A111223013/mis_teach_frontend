@@ -4,11 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 
 import { CardModule, ButtonModule, FormModule, SpinnerModule, BadgeModule, DropdownModule } from '@coreui/angular';
-import { IconModule, IconSetService } from '@coreui/icons-angular';
+import { IconModule } from '@coreui/icons-angular';
 
 import { RagAssistantService, ChatMessage } from '../../../service/rag-assistant.service';
 import { MarkdownPipe } from '../../../service/markdown.pipe';
-import { iconSubset } from '../../../icons/icon-subset';
 
 @Component({
   selector: 'app-ai-chat',
@@ -43,11 +42,9 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   private shouldScrollToBottom = false;
 
   constructor(
-    private ragService: RagAssistantService,
-    private iconSetService: IconSetService
+    private ragService: RagAssistantService
   ) {
-    // 配置圖標
-    iconSetService.icons = { ...iconSubset };
+    // 初始化組件
   }
 
   ngOnInit(): void {

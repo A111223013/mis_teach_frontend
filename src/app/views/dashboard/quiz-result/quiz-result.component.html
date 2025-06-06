@@ -1,0 +1,287 @@
+<div *ngIf="loading" class="d-flex justify-content-center align-items-center" style="min-height: 400px;">
+  <div class="spinner-border text-primary" role="status">
+    <span class="visually-hidden">載入中...</span>
+  </div>
+</div>
+
+<div *ngIf="error && !loading" class="alert alert-danger" role="alert">
+  <strong>錯誤：</strong> {{ error }}
+</div>
+
+<div *ngIf="quizResult && !loading" class="quiz-result-container">
+
+  <c-row class="mb-4">
+    <c-col xs="12">
+      <c-card class="summary-card">
+        <c-card-header class="bg-light">
+          <h4 class="mb-0">
+            <c-icon name="cilClipboard" class="me-2"></c-icon> 測驗結果總覽
+          </h4>
+        </c-card-header>
+        <c-card-body>
+          <c-row class="text-center">
+            <c-col xs="12" md="3" class="mb-3">
+              <div class="score-display">
+                <h2 class="text-{{ getScoreColor() }} mb-1">
+                  {{ quizResult.correct_count }}/{{ quizResult.total_questions }}
+                </h2>
+                <p class="text-muted mb-0">總分</p>
+                <small class="text-muted">
+                  得分率：{{ getScorePercentage() }}%
+                </small>
+              </div>
+            </c-col>
+
+            <c-col xs="6" md="2" class="mb-3">
+              <div class="stat-item">
+                <h5 class="text-success mb-1">{{ quizResult.correct_count }}</h5>
+                <p class="text-muted mb-0">正確</p>
+              </div>
+            </c-col>
+
+            <c-col xs="6" md="2" class="mb-3">
+              <div class="stat-item">
+                <h5 class="text-danger mb-1">{{ quizResult.wrong_count }}</h5>
+                <p class="text-muted mb-0">錯誤</p>
+              </div>
+            </c-col>
+
+            <c-col xs="6" md="2" class="mb-3">
+              <div class="stat-item">
+                <h5 class="text-warning mb-1">{{ quizResult.marked_count }}</h5>
+                <p class="text-muted mb-0">標記</p>
+              </div>
+            </c-col>
+
+            <c-col xs="6" md="2" class="mb-3">
+              <div class="stat-item">
+                <h5 class="text-secondary mb-1">{{ quizResult.unanswered_count }}</h5>
+                <p class="text-muted mb-0">未答</p>
+              </div>
+            </c-col>
+
+            <c-col xs="12" md="1" class="mb-3">
+              <div class="stat-item">
+                <h5 class="text-info mb-1">{{ formatTime(quizResult.total_time) }}</h5>
+                <p class="text-muted mb-0">總時間</p>
+              </div>
+            </c-col>
+          </c-row>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+
+  <c-row class="mb-4" *ngIf="quizResult.wrong_count > 0">
+    <c-col xs="12">
+      <c-card class="learning-guide-card border-primary">
+        <c-card-body class="text-center">
+          <h5 class="text-primary mb-3">
+            <c-icon name="cilLightbulb" class="me-2"></c-icon> 開始智能學習
+          </h5>
+          <p class="text-muted mb-3">
+            發現 {{ getWrongQuestionsCount() }} 道錯題
+            <span *ngIf="getMarkedWrongQuestionsCount() > 0">
+              （含 {{ getMarkedWrongQuestionsCount() }} 道標記錯題）
+            </span>
+          </p>
+          <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <button
+              type="button"
+              class="btn btn-primary btn-lg"
+              (click)="startErrorLearning()"
+              [cTooltip]="'開始 AI 智能教學，針對錯題進行個性化輔導'"
+              placement="top">
+              <c-icon name="cilBook" class="me-2"></c-icon> 開始鞏固 {{ getWrongQuestionsCount() }} 道錯題
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              (click)="viewAllQuestions()">
+              <c-icon name="cilList" class="me-2"></c-icon> 查看所有題目
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              (click)="generateAnalysisReport()">
+              <c-icon name="cilChart" class="me-2"></c-icon> 分析報告
+            </button>
+          </div>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+
+  <c-row class="mb-4" *ngIf="quizResult.wrong_count === 0">
+    <c-col xs="12">
+      <c-card class="border-success">
+        <c-card-body class="text-center">
+          <h5 class="text-success mb-3">
+            <c-icon name="cilCheckCircle" class="me-2"></c-icon> 恭喜！完美答題
+          </h5>
+          <p class="text-muted mb-3">您沒有錯題，表現優秀！</p>
+          <button
+            type="button"
+            class="btn btn-outline-success"
+            (click)="generateAnalysisReport()">
+            查看分析報告 </button> </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+
+  <c-row>
+    <c-col xs="12">
+      <c-card>
+        <c-card-header class="d-flex justify-content-between align-items-center flex-wrap">
+          <h5 class="mb-0">題目詳細</h5>
+
+          <div class="btn-group" role="group">
+            <button
+              type="button"
+              class="btn btn-sm {{ getFilterButtonClass('all') }}"
+              (click)="setFilter('all')">
+              全部 ({{ quizResult.answers.length }})
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm {{ getFilterButtonClass('wrong') }}"
+              (click)="setFilter('wrong')"
+              *ngIf="quizResult.wrong_count > 0">
+              錯題 ({{ quizResult.wrong_count }})
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm {{ getFilterButtonClass('marked') }}"
+              (click)="setFilter('marked')"
+              *ngIf="quizResult.marked_count > 0">
+              標記 ({{ quizResult.marked_count }})
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm {{ getFilterButtonClass('correct') }}"
+              (click)="setFilter('correct')">
+              正確 ({{ quizResult.correct_count }})
+            </button>
+          </div>
+        </c-card-header>
+
+        <c-card-body>
+          <c-row class="g-3">
+            <c-col
+              xs="12"
+              sm="6"
+              md="4"
+              lg="3"
+              *ngFor="let question of filteredQuestions; let i = index">
+              <div
+                class="question-card p-3 border rounded cursor-pointer h-100 d-flex flex-column"
+                [class.border-success]="question.is_correct"
+                [class.border-danger]="!question.is_correct"
+                (click)="showQuestionDetail(question)">
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-bold">第 {{ i + 1 }} 題</span>
+                  <div class="d-flex align-items-center gap-1">
+                    <c-icon
+                      [name]="getQuestionStatusIcon(question)"
+                      [class]="'text-' + getQuestionStatusColor(question)"
+                    ></c-icon> <c-badge
+                      *ngIf="question.is_marked"
+                      color="warning"
+                      class="ms-1">
+                      標記
+                    </c-badge>
+                  </div>
+                </div>
+
+                <div class="question-preview flex-grow-1">
+                  <p class="text-muted small mb-2 text-truncate">
+                    {{ question.question_text }}
+                  </p>
+                </div>
+
+                <div class="answer-status mt-auto">
+                  <small class="text-muted">
+                    <span *ngIf="question.is_correct" class="text-success">
+                      ✓ 答對
+                    </span>
+                    <span *ngIf="!question.is_correct" class="text-danger">
+                      ✗ 答錯
+                    </span>
+                  </small>
+                </div>
+              </div>
+            </c-col>
+          </c-row>
+
+          <div *ngIf="filteredQuestions.length === 0" class="text-center py-4">
+            <p class="text-muted">沒有符合篩選條件的題目</p>
+          </div>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+</div>
+
+<c-modal
+  [visible]="showDetailModal"
+  (visibleChange)="showDetailModal = $event"
+  size="lg">
+  <c-modal-header>
+    <h4 c-modal-title>題目詳細資訊</h4>
+    <button
+      type="button"
+      class="btn-close"
+      (click)="closeDetailModal()">
+    </button>
+  </c-modal-header>
+
+  <c-modal-body *ngIf="selectedQuestion">
+    <div class="mb-4">
+      <h6 class="text-muted">題目內容</h6>
+      <div class="p-3 bg-light rounded">
+        {{ selectedQuestion.question_text }}
+      </div>
+    </div>
+
+    <c-row>
+      <c-col xs="12" md="6">
+        <h6 class="text-muted">您的答案</h6>
+        <div
+          class="p-3 rounded"
+          [class.bg-danger-subtle]="!selectedQuestion.is_correct"
+          [class.bg-success-subtle]="selectedQuestion.is_correct">
+          <span
+            [class.text-danger]="!selectedQuestion.is_correct"
+            [class.text-success]="selectedQuestion.is_correct">
+            {{ selectedQuestion.user_answer }}
+          </span>
+        </div>
+      </c-col>
+
+      <c-col xs="12" md="6">
+        <h6 class="text-muted">正確答案</h6>
+        <div class="p-3 bg-success-subtle rounded">
+          <span class="text-success">
+            {{ selectedQuestion.correct_answer }}
+          </span>
+        </div>
+      </c-col>
+    </c-row>
+
+    <div class="mt-3" *ngIf="selectedQuestion.is_marked">
+      <c-badge color="warning">
+        <c-icon name="cilCloud" class="me-1"></c-icon> 您標記了此題
+      </c-badge>
+    </div>
+  </c-modal-body>
+
+  <c-modal-footer>
+    <button
+      type="button"
+      class="btn btn-secondary"
+      (click)="closeDetailModal()">
+      關閉
+    </button>
+  </c-modal-footer>
+</c-modal>

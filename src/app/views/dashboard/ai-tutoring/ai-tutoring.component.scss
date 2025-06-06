@@ -1,0 +1,386 @@
+.ai-tutoring-container {
+  height: calc(100vh - 120px);
+  padding: 1rem;
+  
+  &.mobile-layout {
+    padding: 0.5rem;
+    height: calc(100vh - 100px);
+  }
+}
+
+// 進度條頭部
+.progress-header {
+  .card {
+    border-radius: 0.5rem;
+  }
+}
+
+// 主要內容區
+.main-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  
+  .question-card {
+    flex-shrink: 0;
+    
+    .answer-comparison {
+      .answer-box {
+        .bg-danger-subtle {
+          background-color: rgba(220, 53, 69, 0.1) !important;
+        }
+        
+        .bg-success-subtle {
+          background-color: rgba(25, 135, 84, 0.1) !important;
+        }
+      }
+    }
+  }
+  
+  .chat-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    
+    .chat-container {
+      height: 100%;
+      min-height: 400px;
+      
+      .chat-messages {
+        overflow-y: auto;
+        max-height: calc(100vh - 400px);
+        
+        .message-wrapper {
+          &.user-message {
+            display: flex;
+            justify-content: flex-end;
+            
+            .message-content {
+              max-width: 80%;
+              
+              .message-bubble {
+                background-color: var(--cui-primary);
+                color: white;
+                margin-left: auto;
+              }
+            }
+          }
+          
+          &.ai-message {
+            display: flex;
+            justify-content: flex-start;
+            
+            .message-content {
+              max-width: 85%;
+              
+              .message-bubble {
+                background-color: #f8f9fa;
+                border: 1px solid #e9ecef;
+              }
+            }
+          }
+        }
+        
+        .message-text {
+          white-space: pre-wrap;
+          word-wrap: break-word;
+          line-height: 1.5;
+        }
+        
+        .message-time {
+          display: block;
+          margin-top: 0.5rem;
+          font-size: 0.75rem;
+        }
+      }
+      
+      .chat-input-area {
+        flex-shrink: 0;
+        background-color: #fff;
+        
+        .quick-actions {
+          .btn {
+            font-size: 0.75rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+// 工具側邊欄
+.tools-sidebar {
+  height: 100%;
+  
+  .progress-stats {
+    .stat-item {
+      text-align: center;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      background-color: #f8f9fa;
+    }
+  }
+  
+  .note-item {
+    .small {
+      font-size: 0.8rem;
+      line-height: 1.3;
+    }
+  }
+  
+  .knowledge-points {
+    c-badge {
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        transform: scale(1.05);
+      }
+    }
+  }
+}
+
+// 手機版佈局調整
+@media (max-width: 768px) {
+  .ai-tutoring-container {
+    .main-content {
+      .chat-card {
+        .chat-container {
+          .chat-messages {
+            max-height: calc(100vh - 350px);
+          }
+        }
+      }
+    }
+    
+    .chat-controls {
+      .btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+      }
+    }
+    
+    .quick-actions {
+      .btn {
+        flex: 1;
+        font-size: 0.7rem;
+      }
+    }
+  }
+  
+  .mobile-tools {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    
+    .btn {
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+  }
+}
+
+// 載入動畫
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  
+  span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #6c757d;
+    animation: typing 1.4s infinite ease-in-out;
+    
+    &:nth-child(1) { animation-delay: -0.32s; }
+    &:nth-child(2) { animation-delay: -0.16s; }
+    &:nth-child(3) { animation-delay: 0s; }
+  }
+}
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// 模態框樣式
+.modal-body {
+  .drawing-area {
+    text-align: center;
+    
+    canvas {
+      cursor: crosshair;
+      background-color: #fff;
+    }
+  }
+  
+  .note-item {
+    .btn-outline-danger {
+      --cui-btn-border-color: #dc3545;
+      --cui-btn-color: #dc3545;
+    }
+  }
+}
+
+// 卡片樣式增強
+.card {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: none;
+  
+  .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    
+    h6 {
+      color: #495057;
+      font-weight: 600;
+    }
+  }
+}
+
+// 按鈕樣式
+.btn {
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-1px);
+  }
+  
+  &:disabled {
+    transform: none;
+  }
+}
+
+// 進度條樣式
+c-progress {
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+// 徽章樣式
+c-badge {
+  font-size: 0.75rem;
+  padding: 0.35em 0.65em;
+}
+
+// 響應式調整
+@media (max-width: 576px) {
+  .ai-tutoring-container {
+    padding: 0.25rem;
+    
+    .progress-header {
+      margin-bottom: 0.5rem !important;
+    }
+    
+    .question-card {
+      .answer-comparison {
+        .col-md-6 {
+          margin-bottom: 0.5rem;
+        }
+      }
+    }
+    
+    .chat-card {
+      .card-header {
+        padding: 0.5rem;
+        
+        .chat-controls {
+          .btn {
+            padding: 0.2rem 0.4rem;
+            font-size: 0.7rem;
+          }
+        }
+      }
+      
+      .chat-container {
+        .chat-messages {
+          padding: 0.5rem;
+          max-height: calc(100vh - 300px);
+        }
+        
+        .chat-input-area {
+          padding: 0.5rem;
+        }
+      }
+    }
+  }
+}
+
+// 滾動條樣式
+.chat-messages {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+    
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
+}
+
+// 動畫效果
+.message-wrapper {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 工具提示
+.btn[title] {
+  position: relative;
+}
+
+// 高對比度模式支持
+@media (prefers-contrast: high) {
+  .message-bubble {
+    border: 2px solid currentColor !important;
+  }
+  
+  .card {
+    border: 1px solid #000 !important;
+  }
+}
+
+// 減少動畫模式支持
+@media (prefers-reduced-motion: reduce) {
+  .typing-indicator span {
+    animation: none;
+  }
+  
+  .message-wrapper {
+    animation: none;
+  }
+  
+  .btn {
+    transition: none;
+  }
+}

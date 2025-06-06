@@ -73,7 +73,7 @@
             <!-- AI助理訊息 -->
             <div *ngIf="message.type === 'assistant'" class="assistant-bubble">
               <div class="assistant-avatar">
-                <svg cIcon name="cilRobot"></svg>
+                <svg cIcon name="cilUser"></svg>
               </div>
               <div class="assistant-content">
                 <div class="message-text" [innerHTML]="message.content | markdown"></div>
@@ -95,7 +95,7 @@
           <div class="message-content">
             <div class="assistant-bubble">
               <div class="assistant-avatar">
-                <svg cIcon name="cilRobot"></svg>
+                <svg cIcon name="cilUser"></svg>
               </div>
               <div class="assistant-content">
                 <div class="typing-indicator">

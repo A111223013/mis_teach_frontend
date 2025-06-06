@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
 import { OverviewComponent } from './overview/overview.component';
-import { TestAiComponent } from './test-ai/test-ai.component';
 
 export const routes: Routes = [
     {
@@ -13,7 +12,31 @@ export const routes: Routes = [
         component: OverviewComponent
     },
     {
-        path: 'test_ai',
-        component: TestAiComponent
+        path: 'ai-chat',
+        loadComponent: () => import('./ai-chat/ai-chat.component').then(m => m.AiChatComponent),
+        data: {
+          title: 'AI 助手'
+        }
+    },
+    {
+        path: 'quiz-result/:resultId',
+        loadComponent: () => import('./quiz-result/quiz-result.component').then(m => m.QuizResultComponent),
+        data: {
+          title: '測驗結果'
+        }
+    },
+    {
+        path: 'ai-tutoring/:sessionId',
+        loadComponent: () => import('./ai-tutoring/ai-tutoring.component').then(m => m.AiTutoringComponent),
+        data: {
+          title: 'AI 智能教學'
+        }
+    },
+    {
+        path: 'quiz-demo',
+        loadComponent: () => import('./quiz-demo/quiz-demo.component').then(m => m.QuizDemoComponent),
+        data: {
+          title: '測驗演示'
+        }
     }
 ];

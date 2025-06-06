@@ -56,7 +56,7 @@ export interface ExamGuidance {
   providedIn: 'root'
 })
 export class RagAssistantService {
-  private apiUrl = `${environment.apiUrl}/rag_assistant`;
+  private apiUrl = `${environment.apiUrl}/ai_teacher`;
   private messagesSubject = new BehaviorSubject<ChatMessage[]>([]);
   private isTypingSubject = new BehaviorSubject<boolean>(false);
   private currentAiModelSubject = new BehaviorSubject<'gemini'>('gemini');
@@ -80,9 +80,9 @@ export class RagAssistantService {
    * 發送聊天訊息
    */
   sendMessage(
-    question: string, 
+    question: string,
     conversationType: 'general' | 'tutoring' | 'analysis' = 'general',
-    aiModel: 'gemini'
+    aiModel: 'gemini' = 'gemini'
   ): Observable<ChatResponse> {
     // 添加用戶訊息到聊天記錄
     this.addMessage({
@@ -136,6 +136,72 @@ export class RagAssistantService {
               aiModel: 'gemini'
             });
             
+            observer.error(error);
+          }
+        });
+    });
+  }
+
+  /**
+   * 發送帶有會話ID的訊息（用於教學對話）
+   */
+  sendMessageWithSession(
+    message: string,
+    conversationType: 'general' | 'tutoring' = 'tutoring',
+    sessionId: string
+  ): Observable<ChatResponse> {
+    // 添加用戶訊息到聊天記錄
+    this.addMessage({
+      id: this.generateId(),
+      type: 'user',
+      content: message,
+      timestamp: new Date(),
+      conversationType: conversationType as any,
+      aiModel: 'gemini'
+    });
+
+    this.isTypingSubject.next(true);
+
+    const payload = {
+      question: message,
+      type: conversationType,
+      session_id: sessionId
+    };
+
+    return new Observable<ChatResponse>(observer => {
+      this.http.post<ChatResponse>(`${this.apiUrl}/chat`, payload, this.httpOptions)
+        .subscribe({
+          next: (response) => {
+            this.isTypingSubject.next(false);
+
+            if (response.success && response.response) {
+              // 添加AI回應到聊天記錄
+              this.addMessage({
+                id: this.generateId(),
+                type: 'assistant',
+                content: response.response,
+                timestamp: new Date(),
+                conversationType: response.conversation_type as any,
+                aiModel: response.ai_model as any
+              });
+            }
+
+            observer.next(response);
+            observer.complete();
+          },
+          error: (error) => {
+            this.isTypingSubject.next(false);
+            console.error('Chat error:', error);
+
+            // 添加錯誤訊息
+            this.addMessage({
+              id: this.generateId(),
+              type: 'assistant',
+              content: '抱歉，發生了錯誤。請稍後再試。',
+              timestamp: new Date(),
+              aiModel: 'gemini'
+            });
+
             observer.error(error);
           }
         });
@@ -255,5 +321,65 @@ export class RagAssistantService {
     } catch (error) {
       console.warn('Failed to load chat history:', error);
     }
+  }
+
+  // ==================== 學習系統 API ====================
+
+  /**
+   * 提交測驗結果
+   */
+  submitQuizResults(quizData: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/submit-quiz-results`, quizData, this.httpOptions);
+  }
+
+  /**
+   * 獲取測驗結果
+   */
+  getQuizResult(resultId: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/get-quiz-result/${resultId}`, this.httpOptions);
+  }
+
+  /**
+   * 開始錯題學習
+   */
+  startErrorLearning(resultId: string): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/start-error-learning`, { result_id: resultId }, this.httpOptions);
+  }
+
+  /**
+   * AI 智能教學
+   */
+  aiTutoring(data: {
+    session_id: string;
+    question_data: any;
+    user_input: string;
+    action: string;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/ai-tutoring`, data, this.httpOptions);
+  }
+
+  /**
+   * 獲取學習進度
+   */
+  getLearningProgress(sessionId: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/learning-progress/${sessionId}`, this.httpOptions);
+  }
+
+  /**
+   * 完成題目學習
+   */
+  completeQuestionLearning(data: {
+    session_id: string;
+    question_id: string;
+    understanding_level: number;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/complete-question-learning`, data, this.httpOptions);
+  }
+
+  /**
+   * 獲取對話歷史
+   */
+  getConversationHistory(limit: number = 20): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/conversation-history?limit=${limit}`, this.httpOptions);
   }
 }

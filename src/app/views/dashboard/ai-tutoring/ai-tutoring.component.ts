@@ -1,0 +1,387 @@
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { take } from 'rxjs/operators';
+import {
+  CardModule,
+  ButtonModule,
+  ProgressModule,
+  BadgeModule,
+  ModalModule,
+  GridModule,
+  UtilitiesModule,
+  FormModule,
+  SidebarModule,
+  OffcanvasModule,
+  TooltipModule
+} from '@coreui/angular';
+import { IconModule } from '@coreui/icons-angular';
+import { RagAssistantService } from '../../../service/rag-assistant.service';
+
+interface QuestionData {
+  question_id: string;
+  question_text: string;
+  user_answer: string;
+  correct_answer: string;
+  is_correct: boolean;
+  is_marked: boolean;
+  topic?: string;
+  difficulty?: number;
+}
+
+interface LearningProgress {
+  total_questions: number;
+  completed_questions: number;
+  current_question_index: number;
+  progress_percentage: number;
+  remaining_questions: number;
+  session_status: string;
+}
+
+interface Note {
+  id: string;
+  content: string;
+  timestamp: string;
+  question_id?: string;
+}
+
+@Component({
+  selector: 'app-ai-tutoring',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    CardModule,
+    ButtonModule,
+    ProgressModule,
+    BadgeModule,
+    ModalModule,
+    GridModule,
+    UtilitiesModule,
+    FormModule,
+    SidebarModule,
+    OffcanvasModule,
+    TooltipModule,
+    IconModule
+  ],
+  templateUrl: './ai-tutoring.component.html',
+  styleUrls: ['./ai-tutoring.component.scss']
+})
+export class AiTutoringComponent implements OnInit, OnDestroy {
+  
+  @ViewChild('chatContainer') chatContainer!: ElementRef;
+  @ViewChild('drawingCanvas') drawingCanvas!: ElementRef;
+  
+  sessionId: string = '';
+  currentQuestion: QuestionData | null = null;
+  learningProgress: LearningProgress | null = null;
+  
+  // 對話相關
+  chatMessages: Array<{
+    type: 'user' | 'ai';
+    content: string;
+    timestamp: string;
+  }> = [];
+  userInput = '';
+  isLoading = false;
+  
+  // UI 狀態
+  showSidebar = false;
+  showNotesModal = false;
+  showDrawingModal = false;
+  isMobile = false;
+  
+  // 筆記功能
+  notes: Note[] = [];
+  currentNote = '';
+  
+  // 繪圖功能
+  isDrawing = false;
+  drawingContext: CanvasRenderingContext2D | null = null;
+  
+  // 學習路徑
+  learningPath: QuestionData[] = [];
+  currentQuestionIndex = 0;
+
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private ragService: RagAssistantService
+  ) {
+    this.checkMobile();
+  }
+
+  ngOnInit(): void {
+    this.route.params.subscribe(params => {
+      this.sessionId = params['sessionId'];
+      if (this.sessionId) {
+        this.initializeLearningSession();
+      } else {
+        this.router.navigate(['/dashboard']);
+      }
+    });
+    
+    window.addEventListener('resize', () => this.checkMobile());
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('resize', () => this.checkMobile());
+  }
+
+  checkMobile(): void {
+    this.isMobile = window.innerWidth < 768;
+  }
+
+  async initializeLearningSession(): Promise<void> {
+    try {
+      await this.loadLearningProgress();
+      await this.loadCurrentQuestion();
+      this.addWelcomeMessage();
+    } catch (error) {
+      console.error('初始化學習會話錯誤:', error);
+    }
+  }
+
+  async loadLearningProgress(): Promise<void> {
+    try {
+      const response = await this.ragService.getLearningProgress(this.sessionId).toPromise();
+      if (response?.success) {
+        this.learningProgress = response.progress;
+      }
+    } catch (error) {
+      console.error('載入學習進度錯誤:', error);
+    }
+  }
+
+  async loadCurrentQuestion(): Promise<void> {
+    // 這裡應該從後端獲取當前題目
+    // 暫時使用模擬數據
+    this.currentQuestion = {
+      question_id: 'q1',
+      question_text: '什麼是作業系統中的死鎖（Deadlock）？',
+      user_answer: '程式停止運行',
+      correct_answer: '兩個或多個程序互相等待對方釋放資源而無法繼續執行的狀態',
+      is_correct: false,
+      is_marked: true,
+      topic: '作業系統',
+      difficulty: 3
+    };
+  }
+
+  addWelcomeMessage(): void {
+    if (this.currentQuestion) {
+      const welcomeMessage = `🎓 歡迎來到 AI 智能教學！
+
+我們將一起學習您的錯題。讓我們從第一道題開始：
+
+**題目：** ${this.currentQuestion.question_text}
+
+我看到您的答案是「${this.currentQuestion.user_answer}」，正確答案是「${this.currentQuestion.correct_answer}」。
+
+讓我們一起探討這個概念。您有什麼問題想問我嗎？`;
+
+      this.addMessage('ai', welcomeMessage);
+    }
+  }
+
+  addMessage(type: 'user' | 'ai', content: string): void {
+    this.chatMessages.push({
+      type,
+      content,
+      timestamp: new Date().toISOString()
+    });
+    
+    setTimeout(() => this.scrollToBottom(), 100);
+  }
+
+  scrollToBottom(): void {
+    if (this.chatContainer) {
+      const element = this.chatContainer.nativeElement;
+      element.scrollTop = element.scrollHeight;
+    }
+  }
+
+  async sendMessage(): Promise<void> {
+    if (!this.userInput.trim() || this.isLoading) return;
+
+    const message = this.userInput.trim();
+    this.userInput = '';
+    this.addMessage('user', message);
+
+    this.isLoading = true;
+
+    try {
+      // 使用已測試的 MultiAITutor 聊天端點，傳遞 session_id
+      const response = await this.ragService.sendMessageWithSession(message, 'tutoring', this.sessionId).pipe(
+        take(1)
+      ).toPromise() as any;
+
+      if (response?.success && response.response) {
+        this.addMessage('ai', response.response);
+      } else {
+        this.addMessage('ai', '抱歉，處理您的回答時發生錯誤。請重試。');
+      }
+    } catch (error) {
+      console.error('發送訊息錯誤:', error);
+      this.addMessage('ai', '連接錯誤，請檢查網路連接。');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async requestHint(): Promise<void> {
+    this.isLoading = true;
+
+    try {
+      const hintMessage = `請給我關於「${this.currentQuestion?.question_text}」的學習提示`;
+      const response = await this.ragService.sendMessage(hintMessage, 'tutoring', 'gemini').toPromise();
+
+      if (response?.success && response.response) {
+        this.addMessage('ai', response.response);
+      } else {
+        this.addMessage('ai', '抱歉，無法獲取提示。請重試。');
+      }
+    } catch (error) {
+      console.error('請求提示錯誤:', error);
+      this.addMessage('ai', '抱歉，無法獲取提示。請重試。');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async explainQuestion(): Promise<void> {
+    this.isLoading = true;
+
+    try {
+      const explainMessage = `請詳細解釋「${this.currentQuestion?.question_text}」這道題目`;
+      const response = await this.ragService.sendMessage(explainMessage, 'tutoring', 'gemini').toPromise();
+
+      if (response?.success && response.response) {
+        this.addMessage('ai', response.response);
+      } else {
+        this.addMessage('ai', '抱歉，無法解釋題目。請重試。');
+      }
+    } catch (error) {
+      console.error('解釋題目錯誤:', error);
+      this.addMessage('ai', '抱歉，無法解釋題目。請重試。');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async completeCurrentQuestion(): Promise<void> {
+    if (!this.currentQuestion) return;
+
+    this.addMessage('ai', '✅ 很好！您已經理解了這道題目。讓我們繼續下一個學習內容。');
+
+    // 簡化版本：直接顯示完成訊息
+    // 實際應用中可以導航到下一題或返回結果頁面
+    setTimeout(() => {
+      this.addMessage('ai', '🎉 恭喜！您已完成這道錯題的學習。您可以繼續提問或返回結果頁面查看其他題目。');
+    }, 1000);
+  }
+
+  toggleSidebar(): void {
+    this.showSidebar = !this.showSidebar;
+  }
+
+  openNotesModal(): void {
+    this.showNotesModal = true;
+  }
+
+  closeNotesModal(): void {
+    this.showNotesModal = false;
+  }
+
+  saveNote(): void {
+    if (this.currentNote.trim()) {
+      const note: Note = {
+        id: Date.now().toString(),
+        content: this.currentNote.trim(),
+        timestamp: new Date().toISOString(),
+        question_id: this.currentQuestion?.question_id
+      };
+      
+      this.notes.push(note);
+      this.currentNote = '';
+      this.closeNotesModal();
+    }
+  }
+
+  deleteNote(noteId: string): void {
+    this.notes = this.notes.filter(note => note.id !== noteId);
+  }
+
+  openDrawingModal(): void {
+    this.showDrawingModal = true;
+    setTimeout(() => this.initializeCanvas(), 100);
+  }
+
+  closeDrawingModal(): void {
+    this.showDrawingModal = false;
+  }
+
+  initializeCanvas(): void {
+    if (this.drawingCanvas) {
+      const canvas = this.drawingCanvas.nativeElement;
+      this.drawingContext = canvas.getContext('2d');
+      
+      if (this.drawingContext) {
+        this.drawingContext.strokeStyle = '#000';
+        this.drawingContext.lineWidth = 2;
+        this.drawingContext.lineCap = 'round';
+      }
+    }
+  }
+
+  startDrawing(event: MouseEvent): void {
+    this.isDrawing = true;
+    if (this.drawingContext) {
+      const rect = this.drawingCanvas.nativeElement.getBoundingClientRect();
+      this.drawingContext.beginPath();
+      this.drawingContext.moveTo(
+        event.clientX - rect.left,
+        event.clientY - rect.top
+      );
+    }
+  }
+
+  draw(event: MouseEvent): void {
+    if (!this.isDrawing || !this.drawingContext) return;
+    
+    const rect = this.drawingCanvas.nativeElement.getBoundingClientRect();
+    this.drawingContext.lineTo(
+      event.clientX - rect.left,
+      event.clientY - rect.top
+    );
+    this.drawingContext.stroke();
+  }
+
+  stopDrawing(): void {
+    this.isDrawing = false;
+  }
+
+  clearCanvas(): void {
+    if (this.drawingContext && this.drawingCanvas) {
+      const canvas = this.drawingCanvas.nativeElement;
+      this.drawingContext.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  formatTimestamp(timestamp: string): string {
+    return new Date(timestamp).toLocaleTimeString();
+  }
+
+  getProgressPercentage(): number {
+    return this.learningProgress?.progress_percentage || 0;
+  }
+
+  getCurrentQuestionNumber(): number {
+    return (this.learningProgress?.current_question_index || 0) + 1;
+  }
+
+  getTotalQuestions(): number {
+    return this.learningProgress?.total_questions || 0;
+  }
+}

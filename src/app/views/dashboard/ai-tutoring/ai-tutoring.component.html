@@ -1,0 +1,355 @@
+<!-- 桌面版佈局 -->
+<div class="ai-tutoring-container" [class.mobile-layout]="isMobile">
+  <!-- 主要內容區域 -->
+  <c-row class="h-100">
+    <!-- 主要區域：AI 對話框 -->
+    <c-col [xs]="12" [lg]="9" class="main-content">
+      
+        <c-card>
+          <c-card-body>
+          <!-- 答案對比 -->
+          <c-row class="answer-comparison">
+            <c-col xs="12" md="6" class="mb-2">
+              <div class="answer-box user-answer">
+                <small class="text-muted">您的答案</small>
+                <div class="p-2 bg-danger-subtle rounded">
+                  <span class="text-danger">{{ currentQuestion?.user_answer }}</span>
+                </div>
+              </div>
+            </c-col>
+            <c-col xs="12" md="6" class="mb-2">
+              <div class="answer-box correct-answer">
+                <small class="text-muted">正確答案</small>
+                <div class="p-2 bg-success-subtle rounded">
+                  <span class="text-success">{{ currentQuestion?.correct_answer }}</span>
+                </div>
+              </div>
+            </c-col>
+          </c-row>
+          <!-- 題目標記 -->
+          <div class="mt-2" *ngIf="currentQuestion?.is_marked">
+            <c-badge color="warning">
+              <c-icon name="cilFlag" class="me-1"></c-icon>
+              您標記了此題
+            </c-badge>
+          </div>
+        </c-card-body>
+      </c-card>
+
+
+      <!-- AI 智能教學互動區 -->
+      <c-card class="chat-card flex-grow-1">
+        <c-card-header class="d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <c-icon name="cilSpeech" class="me-2"></c-icon>
+            AI 教學對話
+          </h6>
+          <div class="chat-controls">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-primary me-2"
+              (click)="requestHint()"
+              [disabled]="isLoading"
+              [cTooltip]="'獲取學習提示，幫助您理解概念'"
+              placement="top">
+              <c-icon name="cilLightbulb" class="me-1"></c-icon>
+              提示
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              (click)="explainQuestion()"
+              [disabled]="isLoading"
+              [cTooltip]="'詳細解釋題目和答案'"
+              placement="top">
+              <c-icon name="cilInfo" class="me-1"></c-icon>
+              解釋
+            </button>
+          </div>
+        </c-card-header>
+        
+        <c-card-body class="p-0 d-flex flex-column chat-container">
+          <!-- 對話訊息區 -->
+          <div 
+            class="chat-messages flex-grow-1 p-3"
+            #chatContainer>
+            <div 
+              *ngFor="let message of chatMessages"
+              class="message-wrapper mb-3"
+              [class.user-message]="message.type === 'user'"
+              [class.ai-message]="message.type === 'ai'">
+              
+              <div class="message-content">
+                <div class="message-bubble p-3 rounded">
+                  <div class="message-text" [innerHTML]="message.content"></div>
+                  <small class="message-time text-muted">
+                    {{ formatTimestamp(message.timestamp) }}
+                  </small>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 載入指示器 -->
+            <div *ngIf="isLoading" class="message-wrapper ai-message mb-3">
+              <div class="message-content">
+                <div class="message-bubble p-3 rounded">
+                  <div class="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 輸入區 -->
+          <div class="chat-input-area p-3 border-top">
+            <div class="input-group">
+              <input 
+                type="text" 
+                class="form-control"
+                placeholder="輸入您的回答或問題..."
+                [(ngModel)]="userInput"
+                (keyup.enter)="sendMessage()"
+                [disabled]="isLoading">
+              <button 
+                class="btn btn-primary"
+                type="button"
+                (click)="sendMessage()"
+                [disabled]="isLoading || !userInput.trim()">
+                <c-icon name="cilSend"></c-icon>
+              </button>
+            </div>
+            
+            <!-- 快速操作按鈕 -->
+            <div class="quick-actions mt-2 d-flex gap-2 flex-wrap">
+              <button 
+                type="button" 
+                class="btn btn-sm btn-outline-success"
+                (click)="completeCurrentQuestion()">
+                <c-icon name="cilCheckCircle" class="me-1"></c-icon>
+                我明白了
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-sm btn-outline-info"
+                (click)="openNotesModal()">
+                <c-icon name="cilNotes" class="me-1"></c-icon>
+                記筆記
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-sm btn-outline-secondary"
+                (click)="openDrawingModal()">
+                <c-icon name="cilPencil" class="me-1"></c-icon>
+                草稿
+              </button>
+            </div>
+          </div>
+        </c-card-body>
+      </c-card>
+    </c-col>
+
+    <!-- 右側：輔助工具區（桌面版）/ 底部工具（手機版） -->
+    <c-col [xs]="12" [lg]="3" class="tools-sidebar" *ngIf="!isMobile">
+      
+      <!-- 學習進度概覽 -->
+      <c-card class="mb-3">
+        <c-card-header>
+          <h6 class="mb-0">
+            <c-icon name="cilChart" class="me-2"></c-icon>
+            學習進度
+          </h6>
+        </c-card-header>
+        <c-card-body>
+          <div class="progress-stats">
+            <div class="stat-item mb-2">
+              <small class="text-muted">已完成</small>
+              <div class="fw-bold">{{ learningProgress?.completed_questions || 0 }} 題</div>
+            </div>
+            <div class="stat-item mb-2">
+              <small class="text-muted">剩餘</small>
+              <div class="fw-bold">{{ learningProgress?.remaining_questions || 0 }} 題</div>
+            </div>
+            <div class="stat-item">
+              <small class="text-muted">完成率</small>
+              <div class="fw-bold text-primary">{{ getProgressPercentage().toFixed(1) }}%</div>
+            </div>
+          </div>
+        </c-card-body>
+      </c-card>
+
+      <!-- 筆記區 -->
+      <c-card class="mb-3">
+        <c-card-header>
+          <h6 class="mb-0">
+            <c-icon name="cilNotes" class="me-2"></c-icon>
+            學習筆記
+          </h6>
+        </c-card-header>
+        <c-card-body>
+          <div *ngIf="notes.length === 0" class="text-muted text-center py-3">
+            <small>尚無筆記</small>
+          </div>
+          <div *ngFor="let note of notes.slice(-3)" class="note-item mb-2">
+            <div class="small bg-light p-2 rounded">
+              {{ note.content }}
+              <div class="text-muted mt-1" style="font-size: 0.75rem;">
+                {{ formatTimestamp(note.timestamp) }}
+              </div>
+            </div>
+          </div>
+          <button 
+            type="button" 
+            class="btn btn-sm btn-outline-primary w-100"
+            (click)="openNotesModal()">
+            <c-icon name="cilPlus" class="me-1"></c-icon>
+            新增筆記
+          </button>
+        </c-card-body>
+      </c-card>
+
+      <!-- 相關知識點 -->
+      <c-card>
+        <c-card-header>
+          <h6 class="mb-0">
+            <c-icon name="cilLibrary" class="me-2"></c-icon>
+            相關知識點
+          </h6>
+        </c-card-header>
+        <c-card-body>
+          <div class="knowledge-points">
+            <c-badge 
+              color="info" 
+              class="me-1 mb-1"
+              *ngIf="currentQuestion?.topic">
+              {{ currentQuestion?.topic }}
+            </c-badge>
+            <c-badge color="secondary" class="me-1 mb-1">作業系統</c-badge>
+            <c-badge color="secondary" class="me-1 mb-1">程序管理</c-badge>
+            <c-badge color="secondary" class="me-1 mb-1">同步機制</c-badge>
+          </div>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+
+  <!-- 手機版工具按鈕 -->
+  <div class="mobile-tools" *ngIf="isMobile">
+    <button 
+      type="button" 
+      class="btn btn-primary btn-sm"
+      (click)="toggleSidebar()">
+      <c-icon name="cilMenu"></c-icon>
+    </button>
+  </div>
+</div>
+
+<!-- 筆記模態框 -->
+<c-modal 
+  [visible]="showNotesModal" 
+  (visibleChange)="showNotesModal = $event"
+  size="lg">
+  <c-modal-header>
+    <h4 c-modal-title>學習筆記</h4>
+    <button 
+      type="button" 
+      class="btn-close" 
+      (click)="closeNotesModal()">
+    </button>
+  </c-modal-header>
+  
+  <c-modal-body>
+    <!-- 新增筆記 -->
+    <div class="mb-3">
+      <label class="form-label">新增筆記</label>
+      <textarea 
+        class="form-control"
+        rows="3"
+        placeholder="記錄您的學習心得..."
+        [(ngModel)]="currentNote">
+      </textarea>
+    </div>
+    
+    <!-- 現有筆記 -->
+    <div *ngIf="notes.length > 0">
+      <h6>已保存的筆記</h6>
+      <div *ngFor="let note of notes" class="note-item mb-2">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="flex-grow-1">
+            <div class="bg-light p-2 rounded">{{ note.content }}</div>
+            <small class="text-muted">{{ formatTimestamp(note.timestamp) }}</small>
+          </div>
+          <button 
+            type="button" 
+            class="btn btn-sm btn-outline-danger ms-2"
+            (click)="deleteNote(note.id)">
+            <c-icon name="cilTrash"></c-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </c-modal-body>
+  
+  <c-modal-footer>
+    <button 
+      type="button" 
+      class="btn btn-secondary"
+      (click)="closeNotesModal()">
+      取消
+    </button>
+    <button 
+      type="button" 
+      class="btn btn-primary"
+      (click)="saveNote()"
+      [disabled]="!currentNote.trim()">
+      保存筆記
+    </button>
+  </c-modal-footer>
+</c-modal>
+
+<!-- 繪圖模態框 -->
+<c-modal 
+  [visible]="showDrawingModal" 
+  (visibleChange)="showDrawingModal = $event"
+  size="xl">
+  <c-modal-header>
+    <h4 c-modal-title>草稿板</h4>
+    <button 
+      type="button" 
+      class="btn-close" 
+      (click)="closeDrawingModal()">
+    </button>
+  </c-modal-header>
+  
+  <c-modal-body>
+    <div class="drawing-area">
+      <canvas 
+        #drawingCanvas
+        width="800" 
+        height="400"
+        class="border rounded"
+        (mousedown)="startDrawing($event)"
+        (mousemove)="draw($event)"
+        (mouseup)="stopDrawing()"
+        (mouseleave)="stopDrawing()">
+      </canvas>
+    </div>
+  </c-modal-body>
+  
+  <c-modal-footer>
+    <button 
+      type="button" 
+      class="btn btn-outline-secondary"
+      (click)="clearCanvas()">
+      清除
+    </button>
+    <button 
+      type="button" 
+      class="btn btn-secondary"
+      (click)="closeDrawingModal()">
+      關閉
+    </button>
+  </c-modal-footer>
+</c-modal>
