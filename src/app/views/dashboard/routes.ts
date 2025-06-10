@@ -15,7 +15,7 @@ export const routes: Routes = [
         path: 'ai-chat',
         loadComponent: () => import('./ai-chat/ai-chat.component').then(m => m.AiChatComponent),
         data: {
-          title: 'AI 助手'
+          title: 'AI 導師'
         }
     },
     {
@@ -37,6 +37,13 @@ export const routes: Routes = [
         loadComponent: () => import('./quiz-demo/quiz-demo.component').then(m => m.QuizDemoComponent),
         data: {
           title: '測驗演示'
+        }
+    },
+    {
+        path: 'web-ai-assistant',
+        loadComponent: () => import('./web-ai-assistant/web-ai-assistant.component').then(m => m.WebAiAssistantComponent),
+        data: {
+          title: '網頁 AI 助理'
         }
     }
 ];

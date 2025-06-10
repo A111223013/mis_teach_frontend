@@ -26,7 +26,20 @@ import {
   cilPlus,
   cilMenu,
   cilTrash,
-  cilCloud
+  cilCloud,
+  cilCog,
+  cilSpeedometer,
+  cilPeople,
+  cilChartPie,
+  cilBrush,
+  cilAccountLogout,
+  cilBookmark,
+  cilStar,
+  cilMap,
+  cilCalendar,
+  cilEducation,
+  cilArrowRight,
+  cilReload
 } from '@coreui/icons';
 
 bootstrapApplication(AppComponent, {
@@ -57,7 +70,20 @@ bootstrapApplication(AppComponent, {
           cilPlus,
           cilMenu,
           cilTrash,
-          cilCloud
+          cilCloud,
+          cilCog,
+          cilSpeedometer,
+          cilPeople,
+          cilChartPie,
+          cilBrush,
+          cilAccountLogout,
+          cilBookmark,
+          cilStar,
+          cilMap,
+          cilCalendar,
+          cilEducation,
+          cilArrowRight,
+          cilReload
         };
         return iconSetService;
       }

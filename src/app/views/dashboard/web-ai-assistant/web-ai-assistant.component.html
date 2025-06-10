@@ -1,63 +1,49 @@
-<!-- AI聊天助理 - 全屏頁面 -->
-<div class="ai-chat-page">
-
-  <!-- 頁面標題 -->
-  <div class="page-header">
+<!-- Web AI 助手 - 懸浮窗口 -->
+<div class="web-ai-container" [class.expanded]="isExpanded">
+  
+  <!-- 聊天窗口標題欄 -->
+  <div class="chat-header" (click)="toggleExpanded()">
     <div class="header-content">
       <div class="ai-avatar">
-        <img src="assets/logo.png" alt="AI Assistant" class="avatar-image">
+        <!-- 使用 misHelper.jpg 頭像，通過 CSS 背景圖片顯示 -->
       </div>
-      <div class="header-text">
-        <h4 class="title">AI 導師</h4>
-        <p class="subtitle">{{ getAiModelLabel(currentAiModel) }} • 專業學習指導與問題解答</p>
+      <div class="header-text" *ngIf="isExpanded">
+        <span class="title">網站助手</span>
+        <span class="subtitle">智能導覽 • 學習規劃</span>
       </div>
     </div>
-    <div class="header-actions">
-      <c-badge
-        *ngIf="messages.length > 0"
-        color="primary"
+    <div class="header-actions" *ngIf="isExpanded">
+      <c-badge 
+        *ngIf="messages.length > 0" 
+        color="success" 
         shape="rounded-pill">
-        {{ messages.length }} 條對話
+        {{ messages.length }}
       </c-badge>
+      <svg cIcon name="cilMinus" class="toggle-icon" (click)="toggleExpanded(); $event.stopPropagation()"></svg>
     </div>
   </div>
 
-  <!-- 聊天主要內容 -->
-  <div class="chat-content">
+  <!-- 聊天窗口內容 -->
+  <div class="chat-content" *ngIf="isExpanded">
     
-    <!-- 工具欄 -->
-    <div class="chat-toolbar">
-
-      <!-- 操作按鈕 -->
-      <div class="toolbar-actions">
-        <button
-          cButton
-          variant="ghost"
-          size="sm"
-          (click)="resetConversation()"
-          [disabled]="isTyping"
-          title="重置對話">
-          <svg cIcon name="cilReload"></svg>
-        </button>
-        <button
-          cButton
-          variant="ghost"
-          size="sm"
-          (click)="clearMessages()"
-          [disabled]="isTyping"
-          title="清除記錄">
-          <svg cIcon name="cilTrash"></svg>
-        </button>
-      </div>
+    <!-- 快速操作區 -->
+    <div class="quick-actions-bar">
+      <button
+        *ngFor="let item of quickActions"
+        type="button"
+        class="btn btn-sm btn-outline-primary quick-btn"
+        (click)="quickAction(item.action)"
+        [title]="item.label">
+        <svg cIcon [name]="item.icon" class="me-1"></svg>
+        {{ item.label }}
+      </button>
     </div>
 
     <!-- 訊息區域 -->
     <div class="messages-container" #messagesContainer>
-      
-      <!-- 訊息列表 -->
       <div class="messages-list">
         <div 
-          *ngFor="let message of messages; trackBy: trackByMessageId" 
+          *ngFor="let message of messages; trackBy: trackByMessageId"
           class="message-wrapper"
           [class.user-message]="message.type === 'user'"
           [class.assistant-message]="message.type === 'assistant'">
@@ -74,15 +60,15 @@
             <!-- AI助理訊息 -->
             <div *ngIf="message.type === 'assistant'" class="assistant-bubble">
               <div class="assistant-avatar">
-                <img src="assets/logo.png" alt="AI Assistant" class="avatar-image">
+                <svg cIcon [name]="getCategoryIcon(message.category)" class="category-icon"></svg>
               </div>
               <div class="assistant-content">
                 <div class="message-text" [innerHTML]="message.content | markdown"></div>
                 <div class="message-meta">
                   <small class="text-muted">
                     {{ formatTime(message.timestamp) }}
-                    <span *ngIf="message.aiModel" class="ms-2">
-                      • {{ getAiModelLabel(message.aiModel) }}
+                    <span *ngIf="message.category" class="ms-2 category-tag">
+                      • {{ message.category }}
                     </span>
                   </small>
                 </div>
@@ -96,16 +82,16 @@
           <div class="message-content">
             <div class="assistant-bubble">
               <div class="assistant-avatar">
-                <img src="assets/logo.png" alt="AI Assistant" class="avatar-image">
+                <svg cIcon name="cilSpeech" class="category-icon"></svg>
               </div>
               <div class="assistant-content">
                 <div class="typing-indicator">
+                  <span>網站助手正在思考</span>
                   <div class="typing-dots">
                     <span></span>
                     <span></span>
                     <span></span>
                   </div>
-                  <small class="text-muted ms-2">AI正在思考中...</small>
                 </div>
               </div>
             </div>
@@ -117,26 +103,30 @@
     <!-- 輸入區域 -->
     <div class="input-container">
       <div class="input-wrapper">
-        <textarea 
+        <textarea
           #messageInput
           [(ngModel)]="currentMessage"
           (keydown)="onKeyPress($event)"
-          placeholder="輸入您的問題..."
+          [disabled]="isTyping"
           class="message-input"
-          rows="1"
-          [disabled]="isTyping"></textarea>
-        
+          placeholder="詢問網站功能、學習進度或規劃建議..."
+          rows="1">
+        </textarea>
         <button
-          cButton
-          color="primary"
-          size="sm"
+          type="button"
+          class="btn btn-primary send-button"
           (click)="sendMessage()"
-          [disabled]="!currentMessage.trim() || isTyping"
-          class="send-button">
-          <svg cIcon name="cilArrowRight" *ngIf="!isTyping"></svg>
-          <c-spinner size="sm" *ngIf="isTyping"></c-spinner>
+          [disabled]="!currentMessage.trim() || isTyping">
+          <svg cIcon name="cilSend"></svg>
         </button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- 懸浮按鈕提示 -->
+<div class="floating-hint" *ngIf="!isExpanded && messages.length === 1">
+  <div class="hint-bubble">
+    <span>💬 有問題嗎？點我開始對話！</span>
   </div>
 </div>

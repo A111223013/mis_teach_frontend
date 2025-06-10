@@ -59,15 +59,17 @@ export const navItems: INavData[] = [
   },
   {
     name: '智能學習系統',
-    iconComponent: { name: 'cilBook' },
+    iconComponent: { name: 'cilCog' },
     children: [
       {
         name: '測驗演示',
-        url: '/dashboard/quiz-demo'
+        url: '/dashboard/quiz-demo',
+        iconComponent: { name: 'cilClipboard' }
       },
       {
-        name: 'AI 助理',
-        url: '/dashboard/ai-chat'
+        name: 'AI 導師',
+        url: '/dashboard/ai-chat',
+        iconComponent: { name: 'cilSpeech' }
       }
     ]
   }

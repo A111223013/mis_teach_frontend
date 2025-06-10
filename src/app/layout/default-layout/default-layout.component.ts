@@ -4,6 +4,8 @@ import { RouterOutlet } from '@angular/router';
 import { ContainerComponent } from '@coreui/angular';
 import { DefaultHeaderComponent } from './header/default-header.component';
 import { DefaultFooterComponent } from './footer/default-footer.component';
+import { WebAiAssistantComponent } from '../../views/dashboard/web-ai-assistant/web-ai-assistant.component';
+
 
 @Component({
     selector: 'app-default-layout',
@@ -14,6 +16,7 @@ import { DefaultFooterComponent } from './footer/default-footer.component';
         ContainerComponent,
         DefaultHeaderComponent,
         DefaultFooterComponent,
+        WebAiAssistantComponent
     ],
     templateUrl: './default-layout.component.html',
     styleUrls: ['./default-layout.component.scss']

@@ -1,0 +1,93 @@
+/* 詳細導覽系統樣式 */
+
+/* 詳細導覽高亮效果 - 綠色邊框 */
+.detailed-guide-highlight {
+  position: relative;
+  z-index: 9999 !important;
+  border: 3px solid #28a745 !important;
+  border-radius: 8px !important;
+  background-color: rgba(40, 167, 69, 0.1) !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 0 15px rgba(40, 167, 69, 0.3) !important;
+}
+
+/* 詳細導覽頭像 */
+.detailed-guide-avatar {
+  position: fixed;
+  z-index: 10001;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  animation: avatarBounce 2s infinite ease-in-out;
+}
+
+.detailed-guide-avatar:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4) !important;
+}
+
+/* 頭像彈跳動畫 */
+@keyframes avatarBounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+/* 詳細說明文字 */
+.detailed-guide-description {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  animation: descriptionFadeIn 0.3s ease-out;
+}
+
+.detailed-guide-description button {
+  transition: all 0.2s ease;
+}
+
+.detailed-guide-description button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 說明文字淡入動畫 */
+@keyframes descriptionFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 歡迎訊息動畫 */
+@keyframes welcomeFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .detailed-guide-avatar {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .detailed-guide-description {
+    max-width: calc(100vw - 40px);
+    left: 20px !important;
+    right: 20px !important;
+    transform: none !important;
+  }
+}

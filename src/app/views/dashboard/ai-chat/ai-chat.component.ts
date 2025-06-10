@@ -34,7 +34,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   messages: ChatMessage[] = [];
   currentMessage = '';
   isTyping = false;
-  isExpanded = false;
+
   currentAiModel: 'gemini' = 'gemini';;  // 固定使用Gemini
   conversationType: 'general' = 'general';  // 固定為一般模式，由後端判斷
 
@@ -150,18 +150,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  /**
-   * 切換聊天窗口展開狀態
-   */
-  toggleExpanded(): void {
-    this.isExpanded = !this.isExpanded;
-    if (this.isExpanded) {
-      setTimeout(() => {
-        this.focusInput();
-        this.scrollToBottom();
-      }, 100);
-    }
-  }
+
 
 
 
