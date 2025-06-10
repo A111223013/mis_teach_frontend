@@ -1,11 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import {
   ButtonDirective,
-  CardBodyComponent,
+  
   CardComponent,
-  CardImgDirective,
-  CardTextDirective,
-  CardTitleDirective
+
+  
 } from '@coreui/angular';
 import { FormsModule } from '@angular/forms';
 import { IconSetService } from '@coreui/icons-angular';
@@ -16,7 +15,7 @@ import { Router } from '@angular/router';
 
 @Component({
     selector: 'app-past-choice',
-    imports: [CardComponent, CardImgDirective, CardBodyComponent, CardTitleDirective, CardTextDirective, ButtonDirective, FormsModule, CommonModule],
+    imports: [CardComponent,  FormsModule, CommonModule],
     templateUrl: './past-choice.component.html',
     standalone: true,
     styleUrl: './past-choice.component.scss'
@@ -47,16 +46,20 @@ export class PastChoiceComponent implements OnInit {
     this.selectedOption = selectElement.value;
   }
 
-  // 學校、年度、科目選項
+  // 學校、年度、科目、系所選項
   schools = ['台大', '清大', '交大', '成大'];
   years = ['2022', '2023', '2024'];
   subjects = ['數學', '英文', '物理'];
+  departments: string[] = [];
+  filteredDepartments: string[] = [];
+  examData: any[] = []; // 儲存完整的考試資料
 
   // 表單資料
   formData = {
     school: '',
     year: '',
-    subject: ''
+    subject: '',
+    department: ''
   };
 
   ngOnInit(): void {
@@ -67,33 +70,63 @@ export class PastChoiceComponent implements OnInit {
   get_exam(): void {
     this.dashboardService.get_exam().subscribe(
       (data: any) => {
+        // 儲存完整的考試資料
+        this.examData = data.exams;
+        
         // 使用 Set 來儲存不重複的值
         const uniqueSchools = new Set<string>();
         const uniqueYears = new Set<string>();
         const uniqueSubjects = new Set<string>();
-
+        const uniqueDepartments = new Set<string>();
+        console.log(data);
         // 遍歷所有考試資料
         data.exams.forEach((exam: any) => {
           uniqueSchools.add(exam.school);
           uniqueYears.add(exam.year);
           // 假設 predicted_category 作為科目
           uniqueSubjects.add(exam.predicted_category);
+          // 添加系所資料
+          if (exam.department) {
+            uniqueDepartments.add(exam.department);
+          }
         });
 
         // 將 Set 轉換為陣列並排序
         this.schools = Array.from(uniqueSchools).sort();
         this.years = Array.from(uniqueYears).sort();
         this.subjects = Array.from(uniqueSubjects).sort();
+        this.departments = Array.from(uniqueDepartments).sort();
 
         console.log('學校列表:', this.schools);
         console.log('年度列表:', this.years);
         console.log('科目列表:', this.subjects);
+        console.log('系所列表:', this.departments);
       },
       (error: any) => {
         console.error('Error fetching exam data:', error);
       }
     );
   }
+
+  // 當學校選擇改變時，篩選對應的系所
+  onSchoolChange(): void {
+    if (this.formData.school) {
+      // 根據選擇的學校篩選系所
+      const schoolExams = this.examData.filter(exam => exam.school === this.formData.school);
+      const uniqueDepartments = new Set<string>();
+      schoolExams.forEach(exam => {
+        if (exam.department) {
+          uniqueDepartments.add(exam.department);
+        }
+      });
+      this.filteredDepartments = Array.from(uniqueDepartments).sort();
+    } else {
+      this.filteredDepartments = [];
+    }
+    // 清空系所選擇
+    this.formData.department = '';
+  }
+
   // 搜尋按鈕事件
   onSearch() {
     // 這裡可以根據 formData 做查詢
@@ -102,7 +135,8 @@ export class PastChoiceComponent implements OnInit {
       queryParams: {
         school: this.formData.school,
         year: this.formData.year,
-        subject: this.formData.subject
+        subject: this.formData.subject,
+        department: this.formData.department
       }
     });
   }
@@ -114,7 +148,8 @@ export class PastChoiceComponent implements OnInit {
       queryParams: {
         school: this.formData.school,
         year: this.formData.year,
-        subject: this.formData.subject
+        subject: this.formData.subject,
+        department: this.formData.department
       }
     });
   }
