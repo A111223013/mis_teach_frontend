@@ -1,21 +1,37 @@
 <c-card class="p-4">
     <form (ngSubmit)="onSearch()" #searchForm="ngForm">
       <div class="row mb-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="school" class="form-label">學校</label>
           <select
             id="school"
             class="form-select"
             name="school"
             [(ngModel)]="formData.school"
+            (change)="onSchoolChange()"
             required
           >
             <option value="">請選擇學校</option>
             <option *ngFor="let school of schools" [value]="school">{{ school }}</option>
           </select>
         </div>
+
+        <div class="col-md-3">
+          <label for="department" class="form-label">系所</label>
+          <select
+            id="department"
+            class="form-select"
+            name="department"
+            [(ngModel)]="formData.department"
+            [disabled]="!formData.school"
+            required
+          >
+            <option value="">請選擇系所</option>
+            <option *ngFor="let department of filteredDepartments" [value]="department">{{ department }}</option>
+          </select>
+        </div>
   
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="year" class="form-label">年度</label>
           <select
             id="year"
@@ -29,7 +45,7 @@
           </select>
         </div>
   
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="subject" class="form-label">科目</label>
           <select
             id="subject"

@@ -51,7 +51,8 @@ export class PastAnswerExamComponent {
   searchParams = {
     school: '',
     year: '',
-    subject: ''
+    subject: '',
+    department: ''
   };
 
   examData: any[] = [];
@@ -94,7 +95,8 @@ export class PastAnswerExamComponent {
       this.searchParams.school = params['school'] || '';
       this.searchParams.year = params['year'] || '';
       this.searchParams.subject = params['subject'] || '';
-      
+      this.searchParams.department = params['department'] || '';
+
       // 輸出收到的參數
       console.log('過去考題收到的搜尋條件：', this.searchParams);
       
@@ -107,7 +109,15 @@ export class PastAnswerExamComponent {
     this.dashboardService.get_exam_to_object(this.searchParams.school, this.searchParams.year, this.searchParams.subject).subscribe(
       (data: any) => {
         console.log('獲取的考題資料:', data);
-        this.examData = data.exams || [];
+        let exams = data.exams || [];
+        
+        // 如果有選擇系所，進行前端過濾
+        if (this.searchParams.department) {
+          exams = exams.filter((exam: any) => exam.department === this.searchParams.department);
+          console.log('根據系所過濾後的考題資料:', exams);
+        }
+        
+        this.examData = exams;
         
         // 統計各類型題目數量
         this.countExamsByType();
