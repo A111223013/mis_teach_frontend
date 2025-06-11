@@ -56,35 +56,16 @@ export class PastAnswerExamComponent {
   };
 
   examData: any[] = [];
-  filteredExams: any[] = [];
   
-  // 題目類型統計
-  examStats = {
-    'single-choice': 0,
-    'multiple-choice': 0,
-    'true-false': 0,
-    'short-answer': 0,
-    'long-answer': 0,
-    'coding-answer': 0
-  };
-
-  // 獲取題型統計數量的安全方法
-  getExamStatCount(type: string): number {
-    return (this.examStats as any)[type] || 0;
-  }
-
-  // 檢查題型是否有題目
-  hasExamsOfType(type: string): boolean {
-    return this.getExamStatCount(type) > 0;
-  }
-
-  // 當前選擇的題型和題目
-  currentType: string = 'single-choice';
+  // 當前選擇的題目
   currentQuestion: any = null;
   currentIndex: number = 0;
   
   // 使用者答案
   userAnswers: { [key: string]: any } = {};
+  
+  // 標記的題目
+  flaggedQuestions: { [key: string]: boolean } = {};
   
   // 選擇題選項
   choiceOptions = ['a', 'b', 'c', 'd'];
@@ -117,13 +98,22 @@ export class PastAnswerExamComponent {
           console.log('根據系所過濾後的考題資料:', exams);
         }
         
+        // 按照題號排序所有題目
+        exams.sort((a: any, b: any) => {
+          const numA = parseInt(a.question_number) || 0;
+          const numB = parseInt(b.question_number) || 0;
+          return numA - numB;
+        });
+        
         this.examData = exams;
         
-        // 統計各類型題目數量
-        this.countExamsByType();
-        
-        // 預設顯示第一種有題目的類型
-        this.selectFirstAvailableType();
+        // 如果有題目，顯示第一題
+        if (this.examData.length > 0) {
+          this.currentIndex = 0;
+          this.showQuestion(0);
+        } else {
+          this.currentQuestion = null;
+        }
         
         // 等待 DOM 更新後渲染數學公式
         setTimeout(() => {
@@ -136,60 +126,11 @@ export class PastAnswerExamComponent {
     );
   }
   
-  // 統計各類型題目數量
-  countExamsByType(): void {
-    // 重置計數
-    for (const key in this.examStats) {
-      this.examStats[key as keyof typeof this.examStats] = 0;
-    }
-    
-    // 計算各類型題目數量
-    this.examData.forEach(exam => {
-      if (this.examStats.hasOwnProperty(exam.type)) {
-        this.examStats[exam.type as keyof typeof this.examStats]++;
-      }
-    });
-    
-    console.log('題目類型統計:', this.examStats);
-  }
-  
-  // 選擇第一個有題目的類型
-  selectFirstAvailableType(): void {
-    for (const type in this.examStats) {
-      if (this.examStats[type as keyof typeof this.examStats] > 0) {
-        this.filterExamsByType(type);
-        break;
-      }
-    }
-  }
-  
-  // 根據類型篩選題目
-  filterExamsByType(type: string): void {
-    this.currentType = type;
-    this.filteredExams = this.examData.filter(exam => exam.type === type);
-    
-    // 按照題號排序
-    this.filteredExams.sort((a, b) => {
-      // 將題號轉換為數字進行排序
-      const numA = parseInt(a.question_number);
-      const numB = parseInt(b.question_number);
-      return numA - numB;
-    });
-    
-    // 顯示第一題
-    if (this.filteredExams.length > 0) {
-      this.currentIndex = 0;
-      this.showQuestion(0);
-    } else {
-      this.currentQuestion = null;
-    }
-  }
-  
   // 顯示指定索引的題目
   showQuestion(index: number): void {
-    if (index >= 0 && index < this.filteredExams.length) {
+    if (index >= 0 && index < this.examData.length) {
       this.currentIndex = index;
-      this.currentQuestion = this.filteredExams[index];
+      this.currentQuestion = this.examData[index];
       
       // 如果還沒有該題的答案，初始化
       const questionId = this.currentQuestion.id;
@@ -262,7 +203,7 @@ export class PastAnswerExamComponent {
   
   // 切換到下一題
   nextQuestion(): void {
-    if (this.currentIndex < this.filteredExams.length - 1) {
+    if (this.currentIndex < this.examData.length - 1) {
       this.showQuestion(this.currentIndex + 1);
     }
   }
@@ -300,5 +241,55 @@ export class PastAnswerExamComponent {
     
     const option = this.choiceOptions[optionIndex];
     return this.userAnswers[questionId].includes(option);
+  }
+
+  // 獲取題型顯示名稱
+  getTypeDisplayName(type: string): string {
+    const typeNames: { [key: string]: string } = {
+      'single-choice': '單選題',
+      'multiple-choice': '多選題',
+      'true-false': '是非題',
+      'short-answer': '簡答題',
+      'long-answer': '長答題',
+      'coding-answer': '程式設計題'
+    };
+    return typeNames[type] || type;
+  }
+
+  // 獲取已作答題目數量
+  getAnsweredCount(): number {
+    return this.examData.filter(exam => this.isQuestionAnswered(exam.id)).length;
+  }
+
+  // 獲取已標記題目數量
+  getFlaggedCount(): number {
+    return Object.values(this.flaggedQuestions).filter(flag => flag).length;
+  }
+
+  // 檢查題目是否已作答
+  isQuestionAnswered(questionId: string): boolean {
+    const answer = this.userAnswers[questionId];
+    if (answer === null || answer === undefined || answer === '') {
+      return false;
+    }
+    if (Array.isArray(answer)) {
+      return answer.length > 0;
+    }
+    if (typeof answer === 'object') {
+      return Object.values(answer).some(value => value === true);
+    }
+    return true;
+  }
+
+  // 切換標記狀態
+  toggleFlag(questionId: string): void {
+    this.flaggedQuestions[questionId] = !this.flaggedQuestions[questionId];
+  }
+
+  // 跳轉到指定題目
+  goToQuestion(index: number): void {
+    if (index >= 0 && index < this.examData.length) {
+      this.showQuestion(index);
+    }
   }
 }
