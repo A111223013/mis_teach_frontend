@@ -143,8 +143,8 @@ export class PastChoiceComponent implements OnInit {
 
   // 作答題目按鈕事件
   onAnswer() {
-    console.log('開始作答，條件：', this.formData);
-    this.router.navigate(['/dashboard/students/past-answer-exam'], {
+    console.log('開始作答，條件：', this.formData);//先修正成範例畫面
+    this.router.navigate(['/dashboard/students/past-exam-review'], {
       queryParams: {
         school: this.formData.school,
         year: this.formData.year,

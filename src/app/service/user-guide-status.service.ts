@@ -14,7 +14,7 @@ export interface UserGuideStatus {
   providedIn: 'root'
 })
 export class UserGuideStatusService {
-  private apiUrl = 'http://localhost:3000/api/user-guide';
+  private apiUrl = 'http://localhost:5000/api/user-guide';
   private guideStatusSubject = new BehaviorSubject<UserGuideStatus | null>(null);
   public guideStatus$ = this.guideStatusSubject.asObservable();
 

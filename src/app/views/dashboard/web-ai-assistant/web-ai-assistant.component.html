@@ -28,13 +28,13 @@
     
     <!-- 快速操作區 -->
     <div class="quick-actions-bar">
+
       <button
         *ngFor="let item of quickActions"
         type="button"
         class="btn btn-sm btn-outline-primary quick-btn"
         (click)="quickAction(item.action)"
         [title]="item.label">
-        <svg cIcon [name]="item.icon" class="me-1"></svg>
         {{ item.label }}
       </button>
     </div>
