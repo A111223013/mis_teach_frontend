@@ -70,6 +70,11 @@ export const navItems: INavData[] = [
         name: 'AI 導師',
         url: '/dashboard/ai-chat',
         iconComponent: { name: 'cilSpeech' }
+      },
+      {
+        name: '測驗分析',
+        url: '/dashboard/quiz-analyze',
+        iconComponent: { name: 'cilChartPie' }
       }
     ]
   }

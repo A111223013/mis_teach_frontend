@@ -45,5 +45,12 @@ export const routes: Routes = [
         data: {
           title: '網頁 AI 助理'
         }
+    },
+    {
+        path: 'quiz-analyze',
+        loadComponent: () => import('./quiz-analyze/quiz-analyze.component').then(m => m.QuizAnalyzeComponent),
+        data: {
+          title: '測驗分析'
+        }
     }
 ];

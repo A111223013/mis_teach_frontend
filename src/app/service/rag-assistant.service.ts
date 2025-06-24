@@ -382,4 +382,10 @@ export class RagAssistantService {
   getConversationHistory(limit: number = 20): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/conversation-history?limit=${limit}`, this.httpOptions);
   }
+
+  get_user_answer_object(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/get_user_answer_object`, this.httpOptions);
+  }
+
+
 }

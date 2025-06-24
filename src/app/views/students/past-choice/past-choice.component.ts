@@ -72,7 +72,7 @@ export class PastChoiceComponent implements OnInit {
       (data: any) => {
         // 儲存完整的考試資料
         this.examData = data.exams;
-        
+        console.log(this.examData);
         // 使用 Set 來儲存不重複的值
         const uniqueSchools = new Set<string>();
         const uniqueYears = new Set<string>();
@@ -84,7 +84,7 @@ export class PastChoiceComponent implements OnInit {
           uniqueSchools.add(exam.school);
           uniqueYears.add(exam.year);
           // 假設 predicted_category 作為科目
-          uniqueSubjects.add(exam.predicted_category);
+          uniqueSubjects.add(exam.subject);
           // 添加系所資料
           if (exam.department) {
             uniqueDepartments.add(exam.department);
@@ -144,7 +144,7 @@ export class PastChoiceComponent implements OnInit {
   // 作答題目按鈕事件
   onAnswer() {
     console.log('開始作答，條件：', this.formData);//先修正成範例畫面
-    this.router.navigate(['/dashboard/students/past-exam-review'], {
+    this.router.navigate(['/dashboard/students/past-answer-exam'], {
       queryParams: {
         school: this.formData.school,
         year: this.formData.year,

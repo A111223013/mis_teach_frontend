@@ -17,6 +17,7 @@ import {
 } from '@coreui/angular';
 import { IconModule } from '@coreui/icons-angular';
 import { MathJaxService } from '../../../service/mathjax.service';
+import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-past-answer-exam',
@@ -45,7 +46,8 @@ export class PastAnswerExamComponent {
     private route: ActivatedRoute, 
     private dashboardService: DashboardService,
     private router: Router,
-    private mathJaxService: MathJaxService
+    private mathJaxService: MathJaxService,
+    private domSanitizer: DomSanitizer
   ) {}
 
   searchParams = {
@@ -69,6 +71,13 @@ export class PastAnswerExamComponent {
   
   // 選擇題選項
   choiceOptions = ['a', 'b', 'c', 'd'];
+  
+  // 圖片展開相關屬性
+  expandedImageIndex: number = -1; // 當前展開的圖片索引，-1 表示沒有展開的圖片
+  
+  // 圖片縮放相關屬性
+  imageZoomLevel: number = 1;
+  isImageZoomed: boolean = false;
 
   ngOnInit(): void {
     // 訂閱路由參數的變化
@@ -84,6 +93,9 @@ export class PastAnswerExamComponent {
       // 獲取考題資料
       this.get_exam_to_object();
     });
+
+    // 監聽答案變更（用於 debug）
+    this.onAnswerChange = this.onAnswerChange.bind(this);
   }
 
   get_exam_to_object(): void {
@@ -105,7 +117,26 @@ export class PastAnswerExamComponent {
           return numA - numB;
         });
         
+        // 為每個題目確保有唯一的 ID
+        exams.forEach((exam: any, index: number) => {
+          // 總是創建一個基於索引的唯一 ID，這樣可以確保每個題目都有不同的 ID
+          const originalId = exam.id || exam._id;
+          exam.id = `question_${index}_${exam.school || 'unknown'}_${exam.year || 'unknown'}_${exam.question_number || index}`;
+          
+          console.log(`題目 ${index + 1} - 原始ID: ${originalId}, 新ID: ${exam.id}`);
+          console.log(`題目內容:`, {
+            question_number: exam.question_number,
+            school: exam.school,
+            department: exam.department,
+            type: exam.type,
+            question_text: exam.question_text?.substring(0, 50) + '...'
+          });
+        });
+        
         this.examData = exams;
+        
+        // 處理圖片資料
+        this.processImageData();
         
         // 如果有題目，顯示第一題
         if (this.examData.length > 0) {
@@ -134,6 +165,10 @@ export class PastAnswerExamComponent {
       
       // 如果還沒有該題的答案，初始化
       const questionId = this.currentQuestion.id;
+      
+      console.log(`🔍 顯示題目 ${index + 1}, ID: ${questionId}, 題型: ${this.currentQuestion.type}`);
+      console.log(`📝 目前所有答案:`, this.userAnswers);
+      
       if (!this.userAnswers[questionId]) {
         // 根據題型初始化不同的答案格式
         switch (this.currentQuestion.type) {
@@ -150,6 +185,9 @@ export class PastAnswerExamComponent {
             this.userAnswers[questionId] = '';
             break;
         }
+        console.log(`✨ 初始化題目 ${questionId} 的答案:`, this.userAnswers[questionId]);
+      } else {
+        console.log(`📋 題目 ${questionId} 已有答案:`, this.userAnswers[questionId]);
       }
       
       // 渲染數學公式
@@ -218,6 +256,8 @@ export class PastAnswerExamComponent {
   // 多選題切換選項
   toggleMultipleChoice(optionIndex: number): void {
     const questionId = this.currentQuestion.id;
+    console.log(`🔘 多選題切換選項 - 題目ID: ${questionId}, 選項索引: ${optionIndex}`);
+    
     if (!this.userAnswers[questionId]) {
       this.userAnswers[questionId] = [];
     }
@@ -227,9 +267,13 @@ export class PastAnswerExamComponent {
     
     if (index === -1) {
       this.userAnswers[questionId].push(option);
+      console.log(`✅ 新增選項 ${option} 到題目 ${questionId}`);
     } else {
       this.userAnswers[questionId].splice(index, 1);
+      console.log(`❌ 移除選項 ${option} 從題目 ${questionId}`);
     }
+    
+    console.log(`📝 題目 ${questionId} 目前答案:`, this.userAnswers[questionId]);
   }
   
   // 檢查多選題選項是否已選
@@ -291,5 +335,109 @@ export class PastAnswerExamComponent {
     if (index >= 0 && index < this.examData.length) {
       this.showQuestion(index);
     }
+  }
+
+  /**
+   * 處理考題中的圖片資料，將 base64 轉換為可用的 URL
+   */
+  processImageData(): void {
+    this.examData.forEach(exam => {
+      if (exam.images && exam.images.length > 0) {
+        exam.processedImages = exam.images.map((img: any) => ({
+          filename: img.filename,
+          safeUrl: this.createImageUrl(img.data)
+        }));
+      }
+    });
+  }
+
+  /**
+   * 將 base64 圖片資料轉換為安全的 URL
+   */
+  createImageUrl(base64Data: string): SafeUrl {
+    const imageUrl = `data:image/png;base64,${base64Data}`;
+    return this.domSanitizer.bypassSecurityTrustUrl(imageUrl);
+  }
+
+  /**
+   * 切換圖片展開狀態
+   */
+  toggleImageExpansion(imageIndex: number): void {
+    console.log('🖼️ Toggling image expansion for index:', imageIndex);
+    
+    if (this.expandedImageIndex === imageIndex) {
+      // 如果當前圖片已展開，則收起
+      this.expandedImageIndex = -1;
+      this.imageZoomLevel = 1;
+      this.isImageZoomed = false;
+      console.log('📦 Image collapsed');
+    } else {
+      // 展開指定圖片
+      this.expandedImageIndex = imageIndex;
+      this.imageZoomLevel = 1.5; // 預設放大到 150%
+      this.isImageZoomed = true;
+      console.log('🔍 Image expanded to 150%');
+    }
+  }
+
+  /**
+   * 縮放圖片
+   */
+  zoomImage(direction: 'in' | 'out', event?: Event): void {
+    if (event) {
+      event.stopPropagation(); // 防止觸發圖片點擊事件
+    }
+    
+    const oldLevel = this.imageZoomLevel;
+    
+    if (direction === 'in') {
+      this.imageZoomLevel = Math.min(this.imageZoomLevel + 0.25, 3);
+    } else {
+      this.imageZoomLevel = Math.max(this.imageZoomLevel - 0.25, 0.5);
+    }
+    
+    this.isImageZoomed = this.imageZoomLevel !== 1;
+    
+    console.log(`🔍 Zoom ${direction}: ${oldLevel.toFixed(2)} → ${this.imageZoomLevel.toFixed(2)} (${(this.imageZoomLevel * 100).toFixed(0)}%)`);
+  }
+
+  /**
+   * 重置圖片縮放
+   */
+  resetImageZoom(event?: Event): void {
+    if (event) {
+      event.stopPropagation(); // 防止觸發圖片點擊事件
+    }
+    
+    console.log('🔄 Reset image zoom');
+    const oldLevel = this.imageZoomLevel;
+    this.imageZoomLevel = 1;
+    this.isImageZoomed = false;
+    
+    console.log(`🔄 Reset: ${oldLevel.toFixed(2)} → ${this.imageZoomLevel.toFixed(2)}`);
+  }
+
+  /**
+   * 開啟原圖在新視窗
+   */
+  openImageInNewTab(image: any, event?: Event): void {
+    if (event) {
+      event.stopPropagation(); // 防止觸發圖片點擊事件
+    }
+    
+    if (image && image.safeUrl) {
+      // 將 SafeUrl 轉換為字串
+      const imageUrl = image.safeUrl.changingThisBreaksApplicationSecurity || image.safeUrl;
+      window.open(imageUrl, '_blank');
+      console.log('🗗 Opened image in new tab');
+    }
+  }
+
+  /**
+   * 監聽答案變更（用於 debug）
+   */
+  onAnswerChange(questionId: string, newValue: any): void {
+    console.log(`📝 答案變更 - 題目ID: ${questionId}, 新值:`, newValue);
+    console.log(`🗂️ 所有答案狀態:`, this.userAnswers);
   }
 }

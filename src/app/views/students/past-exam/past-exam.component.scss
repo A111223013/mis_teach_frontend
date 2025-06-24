@@ -1,0 +1,201 @@
+/* 圖片顯示樣式 */
+.image-container {
+  .card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+  }
+  
+  .card-img-top {
+    transition: transform 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.05);
+    }
+  }
+}
+
+/* 圖片模態框樣式 - 重新設計 */
+#imageModal {
+  .modal-dialog {
+    max-width: 95vw !important;
+    width: 95vw !important;
+    margin: 2.5vh auto !important;
+  }
+
+  .modal-content {
+    height: 95vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .modal-header {
+    flex-shrink: 0 !important;
+    padding: 1rem !important;
+    border-bottom: 1px solid #dee2e6 !important;
+  }
+
+  .modal-body {
+    flex: 1 !important;
+    padding: 1rem !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+}
+
+/* 圖片縮放控制按鈕 */
+.image-controls {
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  
+  .btn {
+    font-size: 0.875rem !important;
+    padding: 0.375rem 0.75rem !important;
+    border-radius: 0.375rem !important;
+    font-weight: 500 !important;
+  }
+}
+
+/* 可縮放的圖片容器 - 完全重寫 */
+.zoomable-image-container {
+  flex: 1 !important;
+  overflow: auto !important;
+  border: 2px solid #e9ecef !important;
+  border-radius: 8px !important;
+  background: #f8f9fa !important;
+  position: relative !important;
+  min-height: 300px !important;
+  
+  img {
+    display: block !important;
+    margin: 20px auto !important;
+    transition: transform 0.3s ease !important;
+    transform-origin: center center !important;
+    border-radius: 4px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    background: white !important;
+    padding: 10px !important;
+    
+    /* 確保圖片可以被縮放 */
+    max-width: none !important;
+    max-height: none !important;
+    width: auto !important;
+    height: auto !important;
+    
+    &:hover {
+      cursor: zoom-in !important;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    &.zoomed {
+      cursor: zoom-out !important;
+    }
+  }
+}
+
+/* 縮放資訊顯示 */
+.zoom-info {
+  flex-shrink: 0 !important;
+  padding: 0.75rem !important;
+  background: rgba(248, 249, 250, 0.95) !important;
+  border-top: 1px solid #dee2e6 !important;
+  margin-top: auto !important;
+}
+
+/* 新的圖片在原處展開樣式 */
+.image-zoom-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  
+  &.zoomed {
+    overflow: visible;
+    z-index: 10;
+    
+    .zoomable-image {
+      position: relative;
+      z-index: 15;
+      border: 3px solid #007bff;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      background: white;
+      padding: 5px;
+    }
+  }
+  
+  .zoomable-image {
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+    object-fit: contain;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    transform-origin: center center;
+    
+    &:hover {
+      transform: scale(1.02);
+    }
+    
+    &.expanded {
+      max-height: none !important;
+      width: auto !important;
+      max-width: 150% !important;
+      cursor: zoom-out;
+      
+      &:hover {
+        transform: none;
+      }
+    }
+  }
+}
+
+/* 縮放控制按鈕樣式 */
+.zoom-controls {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  
+  .btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    line-height: 1.2;
+    border-radius: 0.25rem;
+  }
+}
+
+/* 圖片卡片特殊樣式 */
+.card {
+  transition: all 0.3s ease;
+  
+  &:has(.image-zoom-container.zoomed) {
+    transform: scale(1.05);
+    z-index: 10;
+    position: relative;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .image-zoom-container {
+    &.zoomed .zoomable-image.expanded {
+      max-width: 120% !important;
+    }
+  }
+  
+  .zoom-controls {
+    .btn {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.4rem;
+    }
+  }
+}
