@@ -3,6 +3,7 @@ import { PastExamReviewComponent } from './past-exam-review/past-exam-review.com
 import {PastChoiceComponent} from './past-choice/past-choice.component'
 import {PastExamComponent} from './past-exam/past-exam.component'
 import {PastAnswerExamComponent} from './past-answer-exam/past-answer-exam.component'
+import { ErrorRetrievalComponent } from './error-retrieval/error-retrieval.component';
 export const routes: Routes = [
     {
         path: '',
@@ -29,5 +30,10 @@ export const routes: Routes = [
         path: 'past-answer-exam',
         component: PastAnswerExamComponent,
         data: { title: '作答題目' }
+    },
+    {
+        path: 'error-retrieval',
+        component: ErrorRetrievalComponent,
+        data: { title: '錯誤檢索' }
     }
 ];

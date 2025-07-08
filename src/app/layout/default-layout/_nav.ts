@@ -50,7 +50,13 @@ export const navItems: INavData[] = [
   {
     name: '錯誤分析',
     url: '/dashboard/analytics',
-    iconComponent: { name: 'cilChartPie' }
+    iconComponent: { name: 'cilChartPie' },
+    children: [
+      {
+        name: '錯誤檢索',
+        url: '/dashboard/students/error-retrieval'
+      }
+    ]
   },
   {
     name: '繪圖板',
