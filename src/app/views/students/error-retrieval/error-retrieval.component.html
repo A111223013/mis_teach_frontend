@@ -73,18 +73,18 @@
                   <td>
                     <div>{{ formatSubmitTime(record.submit_time) }}</div>
                     <small class="text-muted">
-                      共 {{ record.grading_results?.processed_count || 0 }} 題
+                      共 {{ record.grading_results ? record.grading_results.processed_count : 0 }} 題
                     </small>
                   </td>
                   <td>
                     <div class="d-flex align-items-center mb-1">
                       <span class="me-2">平均分:</span>
-                      <c-badge [color]="getScoreColor(record.grading_results?.average_score || 0)">
-                        {{ record.grading_results?.average_score || 0 }} 分
+                      <c-badge [color]="getScoreColor(record.grading_results ? record.grading_results.average_score : 0)">
+                        {{ record.grading_results ? record.grading_results.average_score : 0 }} 分
                       </c-badge>
                     </div>
                     <div class="small text-muted">
-                      正確率: {{ record.grading_results?.accuracy_rate || 0 }}%
+                      正確率: {{ record.grading_results ? record.grading_results.accuracy_rate : 0 }}%
                     </div>
                   </td>
                   <td>
@@ -93,7 +93,7 @@
                       <span class="fw-bold text-danger">{{ getErrorCount(record) }} 題</span>
                     </div>
                     <div class="small text-muted">
-                      正確: {{ record.grading_results?.correct_count || 0 }} 題
+                      正確: {{ record.grading_results ? record.grading_results.correct_count : 0 }} 題
                     </div>
                   </td>
                   <td>

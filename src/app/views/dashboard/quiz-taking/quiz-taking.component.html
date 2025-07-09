@@ -1,0 +1,361 @@
+<div class="container-fluid exam-page-layout">
+  <div class="row">
+    <!-- Question Navigation Panel -->
+    <div class="col-md-3 col-lg-2 question-nav-panel">
+      <h5>題目導覽</h5>
+      
+      <!-- 題目總數資訊 -->
+      <div class="exam-info mb-3" *ngIf="questions.length > 0">
+        <div class="info-item">
+          <small class="text-muted">總題數：{{ questions.length }}</small>
+        </div>
+        <div class="info-item">
+          <small class="text-muted">已作答：{{ answeredCount }}</small>
+        </div>
+        <div class="info-item">
+          <small class="text-muted">已標記：{{ markedCount }}</small>
+        </div>
+      </div>
+      
+      <div class="question-grid" *ngIf="questions.length > 0">
+        <button 
+          *ngFor="let question of questions; let i = index"
+          class="btn question-nav-btn"
+          [class.current]="i === currentQuestionIndex"
+          [class.answered]="!!userAnswers[i]"
+          [class.flagged]="markedQuestions[i]"
+          (click)="goToQuestion(i)">
+          {{ i + 1 }}
+          <span *ngIf="markedQuestions[i]" class="flag-indicator">★</span>
+        </button>
+      </div>
+      
+      <div class="legend mt-3" *ngIf="questions.length > 0">
+         <div><span class="indicator answered"></span> 已作答</div>
+         <div><span class="indicator unanswered"></span> 未作答</div>
+         <div><span class="indicator flagged">★</span> 已標記</div>
+         <div><span class="indicator current"></span> 目前題目</div>
+      </div>
+    </div>
+
+    <!-- Main Question Area -->
+    <div class="col-md-9 col-lg-10">
+      <div class="exam-container" *ngIf="currentQuestion">
+        <div class="exam-header">
+          <h2>{{ quizTitle }}</h2>
+          <div>
+            <span>第 {{ currentQuestionIndex + 1 }} / {{ questions.length }} 題</span>
+            <span class="badge bg-light text-dark ms-3">
+              <c-icon name="cilClock" class="me-1"></c-icon> {{ formatTime(timer) }}
+            </span>
+            <button class="btn btn-success ms-3" (click)="showSubmitConfirmation = true">提交答案</button>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="question-area">
+          <div class="question-header">
+            <div class="question-info">
+              <div class="question-title">
+                <div class="question-meta-top mb-2">
+                  <span *ngIf="quizType === 'pastexam'" class="badge bg-info me-2">{{ getSchoolName() }}</span>
+                  <span *ngIf="quizType === 'knowledge'" class="badge bg-secondary me-2">{{ getTopicName() }}</span>
+                  <span class="badge bg-primary me-2">{{ getQuestionTypeDisplayName(getQuestionType(currentQuestion)) }}</span>
+                </div>
+                <p class="question-text">{{ currentQuestion.question_text }}</p>
+              </div>
+              <div class="question-actions">
+                <button class="btn btn-sm btn-outline-warning flag-btn" (click)="toggleMarkQuestion()">
+                  {{ markedQuestions[currentQuestionIndex] ? '取消標記' : '標記此題' }} ★
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Answer options -->
+          <div class="answer-section">
+            <!-- 單選題 -->
+            <div *ngIf="getQuestionType(currentQuestion) === 'single-choice'" class="options-list">
+              <div *ngFor="let option of currentQuestion.options; let i = index" class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="radio" 
+                  [name]="'question_' + currentQuestionIndex" 
+                  [id]="'option' + currentQuestionIndex + '-' + i"
+                  [checked]="isSingleChoiceSelected(option)"
+                  (change)="selectSingleChoice(option)">
+                <label class="form-check-label" [for]="'option' + currentQuestionIndex + '-' + i">
+                  {{ option }}
+                </label>
+              </div>
+            </div>
+
+            <!-- 多選題 -->
+            <div *ngIf="getQuestionType(currentQuestion) === 'multiple-choice'" class="options-list">
+              <div *ngFor="let option of currentQuestion.options; let i = index" class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="checkbox" 
+                  [id]="'checkbox' + currentQuestionIndex + '-' + i"
+                  [checked]="isMultipleChoiceSelected(option)"
+                  (change)="toggleMultipleChoice(option)">
+                <label class="form-check-label" [for]="'checkbox' + currentQuestionIndex + '-' + i">
+                  {{ option }}
+                </label>
+              </div>
+            </div>
+
+            <!-- 是非題 -->
+            <div *ngIf="getQuestionType(currentQuestion) === 'true-false'" class="options-list">
+              <div class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="radio" 
+                  [name]="'question_' + currentQuestionIndex" 
+                  id="true_option"
+                  [checked]="isTrueFalseSelected(true)"
+                  (change)="selectTrueFalse(true)">
+                <label class="form-check-label" for="true_option">
+                  是 / True
+                </label>
+              </div>
+              <div class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="radio" 
+                  [name]="'question_' + currentQuestionIndex" 
+                  id="false_option"
+                  [checked]="isTrueFalseSelected(false)"
+                  (change)="selectTrueFalse(false)">
+                <label class="form-check-label" for="false_option">
+                  否 / False
+                </label>
+              </div>
+            </div>
+
+            <!-- 填空題 -->
+            <div *ngIf="getQuestionType(currentQuestion) === 'fill-in-the-blank'" class="fill-blank-section">
+              <label class="form-label">請填入答案：</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                [value]="getTextAnswer()"
+                (input)="updateTextAnswer($any($event).target.value)"
+                placeholder="請輸入答案...">
+            </div>
+
+            <!-- 簡答題 -->
+            <div *ngIf="getQuestionType(currentQuestion) === 'short-answer'" class="text-answer-section">
+              <label class="form-label">簡答：</label>
+              <textarea 
+                class="form-control" 
+                rows="4" 
+                [value]="getTextAnswer()"
+                (input)="updateTextAnswer($any($event).target.value)"
+                placeholder="請輸入簡答..."></textarea>
+            </div>
+
+            <!-- 長答題 -->
+            <div *ngIf="getQuestionType(currentQuestion) === 'long-answer'" class="text-answer-section">
+              <label class="form-label">申論題：</label>
+              <textarea 
+                class="form-control" 
+                rows="8" 
+                [value]="getTextAnswer()"
+                (input)="updateTextAnswer($any($event).target.value)"
+                placeholder="請輸入詳細答案..."></textarea>
+            </div>
+
+            <!-- 選填題 -->
+            <div *ngIf="getQuestionType(currentQuestion) === 'choice-answer'" class="choice-answer-section">
+              <label class="form-label">選填題：</label>
+              <div class="options-list mb-3">
+                <div *ngFor="let option of currentQuestion.options; let i = index" class="form-check">
+                  <input 
+                    class="form-check-input" 
+                    type="radio" 
+                    [name]="'question_' + currentQuestionIndex" 
+                    [id]="'choice_option' + currentQuestionIndex + '-' + i"
+                    [checked]="isSingleChoiceSelected(option)"
+                    (change)="selectSingleChoice(option)">
+                  <label class="form-check-label" [for]="'choice_option' + currentQuestionIndex + '-' + i">
+                    {{ option }}
+                  </label>
+                </div>
+              </div>
+              <div class="mt-3">
+                <label class="form-label">或填入自訂答案：</label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [value]="getCustomAnswer()"
+                  (input)="updateCustomAnswer($any($event).target.value)"
+                  placeholder="請輸入自訂答案...">
+              </div>
+            </div>
+
+            <!-- 畫圖題 -->
+            <div *ngIf="getQuestionType(currentQuestion) === 'draw-answer'" class="draw-answer-section">
+              <label class="form-label">畫圖答案：</label>
+              <div class="drawing-area">
+                <canvas 
+                  #drawingCanvas 
+                  width="600" 
+                  height="400" 
+                  class="drawing-canvas"
+                  (mousedown)="startDrawing($event)"
+                  (mousemove)="draw($event)"
+                  (mouseup)="stopDrawing()"
+                  (mouseleave)="stopDrawing()">
+                </canvas>
+                <div class="drawing-controls mt-2">
+                  <button class="btn btn-sm btn-outline-secondary me-2" (click)="clearCanvas()">
+                    清除
+                  </button>
+                  <button class="btn btn-sm btn-outline-primary me-2" (click)="saveDrawing()">
+                    儲存繪圖
+                  </button>
+                  <div class="d-inline-block">
+                    <label class="form-label me-2">筆刷大小：</label>
+                    <input type="range" min="1" max="10" [(ngModel)]="brushSize" class="form-range d-inline-block" style="width: 100px;">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 程式撰寫題 -->
+            <div *ngIf="getQuestionType(currentQuestion) === 'coding-answer'" class="coding-answer-section">
+              <label class="form-label">程式碼：</label>
+              <textarea 
+                class="form-control code-editor" 
+                rows="12" 
+                [value]="getCodingAnswer()"
+                (input)="updateCodingAnswer($any($event).target.value)"
+                placeholder="請輸入程式碼..."
+                spellcheck="false"></textarea>
+              <div class="code-helper mt-2">
+                <small class="text-muted">
+                  <i class="fas fa-info-circle me-1"></i>
+                  支援多種程式語言：C, C++, Java, Python, JavaScript 等
+                </small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 顯示圖片 (如果有的話) -->
+          <div class="mt-3" *ngIf="hasQuestionImages()">
+            <p class="fw-bold mb-2">題目圖片：</p>
+            <div class="row">
+              <div *ngFor="let imageUrl of getQuestionImageUrls(); let i = index" class="col-md-6 col-lg-4 mb-3">
+                <div class="card">
+                  <div class="image-container">
+                    <img 
+                      [src]="imageUrl" 
+                      class="card-img-top img-fluid" 
+                      [alt]="'題目圖片 ' + (i+1)"
+                      (error)="onImageError($event)"
+                      (load)="onImageLoad($event)">
+                    <div class="image-loading" *ngIf="!isImageLoaded(imageUrl)">
+                      <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="sr-only">載入中...</span>
+                      </div>
+                    </div>
+                    <div class="image-error" *ngIf="isImageError(imageUrl)">
+                      <i class="fas fa-exclamation-triangle"></i>
+                      <small>圖片載入失敗</small>
+                    </div>
+                  </div>
+                  <div class="card-body p-2">
+                    <small class="text-muted">題目圖片 {{ i+1 }}</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="navigation-buttons">
+          <button 
+            class="btn btn-secondary me-2" 
+            (click)="previousQuestion()" 
+            [disabled]="currentQuestionIndex === 0">
+            上一題
+          </button>
+          
+          <!-- Show Next button if not the last question -->
+          <button 
+            *ngIf="currentQuestionIndex < questions.length - 1"
+            class="btn btn-primary" 
+            (click)="nextQuestion()">
+            下一題
+          </button>
+
+          <!-- Show completion message if it's the last question -->
+          <span class="ms-3 text-muted" *ngIf="currentQuestionIndex === questions.length - 1">
+            這是最後一題，完成後請點擊提交答案
+          </span>
+        </div>
+      </div>
+      
+      <div *ngIf="!currentQuestion && questions.length === 0" class="exam-container">
+        <div class="alert alert-info">
+          正在載入考題資料...
+        </div>
+      </div>
+      
+      <div *ngIf="!currentQuestion && questions.length > 0" class="exam-container">
+        <div class="alert alert-warning">
+          沒有找到符合條件的考題。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 提交確認模態框 -->
+<c-modal 
+  [visible]="showSubmitConfirmation" 
+  (visibleChange)="showSubmitConfirmation = $event"
+  alignment="center">
+  <c-modal-header>
+    <h5 cModalTitle>確認提交</h5>
+  </c-modal-header>
+  <c-modal-body>
+    <p>您確定要提交此測驗嗎？</p>
+    
+    <div class="submission-summary mb-3">
+      <div class="d-flex justify-content-between mb-2">
+        <span>總題數：</span>
+        <span>{{ questions.length }}</span>
+      </div>
+      <div class="d-flex justify-content-between mb-2">
+        <span>已作答：</span>
+        <span>{{ answeredCount }}</span>
+      </div>
+      <div class="d-flex justify-content-between mb-2">
+        <span>未作答：</span>
+        <span>{{ questions.length - answeredCount }}</span>
+      </div>
+      <div class="d-flex justify-content-between mb-2">
+        <span>已標記：</span>
+        <span>{{ markedCount }}</span>
+      </div>
+    </div>
+    
+    <c-alert color="warning" *ngIf="questions.length - answeredCount > 0">
+      <c-icon name="cilWarning" class="me-2"></c-icon>
+      您還有 {{ questions.length - answeredCount }} 題未作答
+    </c-alert>
+  </c-modal-body>
+  <c-modal-footer>
+    <button cButton color="secondary" (click)="showSubmitConfirmation = false">
+      返回測驗
+    </button>
+    <button cButton color="primary" (click)="submitQuiz()">
+      確認提交
+    </button>
+  </c-modal-footer>
+</c-modal>

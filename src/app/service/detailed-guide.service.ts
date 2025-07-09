@@ -661,7 +661,7 @@ export class DetailedGuideService {
     if (step.page.includes('/dashboard/overview')) {
       navSelector = 'c-nav-item[ng-reflect-router-link="/dashboard/overview"]';
       navText = '概覽';
-    } else if (step.page.includes('/dashboard/students/past-choice') || step.page.includes('/dashboard/students/past-exam-review')) {
+    } else if (step.page.includes('/dashboard/quiz-center') || step.page.includes('/dashboard/mistake-analysis')) {
       // For student-related pages, we assume it's under the '學生' dropdown
       navSelector = 'c-dropdown[variant="nav-item"] a[cDropdownToggle]'; // Selector for the '學生' dropdown trigger
       navText = '學生';

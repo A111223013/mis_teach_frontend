@@ -31,10 +31,25 @@ export class DashboardService {
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
     return this.http.post(`${environment.apiBaseUrl}/dashboard/get-exam`, {}, { headers });
    }
+   
    get_exam_to_object(school: string, year: string, subject: string): Observable<any> {
     const token = localStorage.getItem('token');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
     return this.http.post(`${environment.apiBaseUrl}/dashboard/get-exam-to-object`, {school, year, subject}, { headers });
+   }
+
+   // 獲取測驗詳情
+   getQuiz(quizId: number): Observable<any> {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.post(`${environment.apiBaseUrl}/dashboard/get-quiz`, { quiz_id: quizId }, { headers });
+   }
+
+   // 提交測驗答案
+   submitQuiz(submissionData: any): Observable<any> {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.post(`${environment.apiBaseUrl}/dashboard/submit-quiz`, submissionData, { headers });
    }
 
    submitAnswers(answers: any[]): Observable<any> {
@@ -47,5 +62,16 @@ export class DashboardService {
     const token = localStorage.getItem('token');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
     return this.http.post(`${environment.apiBaseUrl}/dashboard/getUserSubmissions`, {}, { headers });
+   }
+
+   getSubmissionDetail(submissionId: string): Observable<any> {
+    const token = localStorage.getItem('token');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    return this.http.post(`${environment.apiBaseUrl}/dashboard/getSubmissionDetail`, { submission_id: submissionId }, { headers });
+   }
+
+   // 獲取基礎API URL
+   getBaseUrl(): string {
+    return environment.apiBaseUrl;
    }
 }

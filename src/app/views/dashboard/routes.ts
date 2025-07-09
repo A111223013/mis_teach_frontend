@@ -33,10 +33,38 @@ export const routes: Routes = [
         }
     },
     {
-        path: 'quiz-demo',
-        loadComponent: () => import('./quiz-demo/quiz-demo.component').then(m => m.QuizDemoComponent),
+        path: 'ai-tutoring',
+        loadComponent: () => import('./ai-tutoring/ai-tutoring.component').then(m => m.AiTutoringComponent),
         data: {
-          title: '測驗演示'
+          title: 'AI 錯題復習'
+        }
+    },
+    {
+        path: 'quiz-center',
+        loadComponent: () => import('./quiz-center/quiz-center.component').then(m => m.QuizCenterComponent),
+        data: {
+          title: '測驗中心'
+        }
+    },
+    {
+        path: 'mistake-analysis',
+        loadComponent: () => import('./mistake-analysis/mistake-analysis.component').then(m => m.MistakeAnalysisComponent),
+        data: {
+          title: '錯題分析'
+        }
+    },
+    {
+        path: 'quiz-taking/:quizId',
+        loadComponent: () => import('./quiz-taking/quiz-taking.component').then(m => m.QuizTakingComponent),
+        data: {
+          title: '測驗進行中'
+        }
+    },
+    {
+        path: 'quiz-taking',
+        loadComponent: () => import('./quiz-taking/quiz-taking.component').then(m => m.QuizTakingComponent),
+        data: {
+          title: '測驗進行中'
         }
     },
     {
@@ -46,11 +74,15 @@ export const routes: Routes = [
           title: '網頁 AI 助理'
         }
     },
+    // 相容性路由重導向
     {
-        path: 'quiz-analyze',
-        loadComponent: () => import('./quiz-analyze/quiz-analyze.component').then(m => m.QuizAnalyzeComponent),
-        data: {
-          title: '測驗分析'
-        }
+        path: 'students/past-answer-exam',
+        redirectTo: 'quiz-taking',
+        pathMatch: 'full'
+    },
+    {
+        path: 'analytics',
+        redirectTo: 'overview',
+        pathMatch: 'full'
     }
 ];

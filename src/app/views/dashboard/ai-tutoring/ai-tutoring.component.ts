@@ -115,7 +115,15 @@ export class AiTutoringComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.route.params.subscribe(params => {
       this.sessionId = params['sessionId'];
-      if (this.sessionId) {
+    });
+    
+    // 檢查查詢參數是否有錯題復習模式
+    this.route.queryParams.subscribe(queryParams => {
+      if (queryParams['mode'] === 'mistake_review' && queryParams['questionId']) {
+        this.initializeMistakeReview(queryParams['questionId']);
+      } else if (queryParams['mode'] === 'batch_review' && queryParams['mistakeIds']) {
+        this.initializeBatchReview(queryParams['mistakeIds']);
+      } else if (this.sessionId) {
         this.initializeLearningSession();
       } else {
         this.router.navigate(['/dashboard']);
@@ -383,5 +391,59 @@ export class AiTutoringComponent implements OnInit, OnDestroy {
 
   getTotalQuestions(): number {
     return this.learningProgress?.total_questions || 0;
+  }
+
+  async initializeMistakeReview(questionId: string): Promise<void> {
+    try {
+      console.log('初始化單個錯題復習:', questionId);
+      // 這裡可以從錯題數據中找到對應的題目並設置為當前題目
+      // 暫時使用一個示例錯題
+      this.currentQuestion = {
+        question_id: questionId,
+        question_text: '這是您之前做錯的題目，讓我們一起複習這個概念...',
+        user_answer: '您的錯誤答案',
+        correct_answer: '正確答案',
+        is_correct: false,
+        is_marked: false,
+        topic: '錯題復習',
+        difficulty: 3
+      };
+      this.addWelcomeMessage();
+    } catch (error) {
+      console.error('初始化錯題復習錯誤:', error);
+    }
+  }
+
+  async initializeBatchReview(mistakeIds: string): Promise<void> {
+    try {
+      console.log('初始化批量錯題復習:', mistakeIds);
+      const ids = mistakeIds.split(',');
+      
+      // 設置第一個錯題為當前題目
+      this.currentQuestion = {
+        question_id: ids[0],
+        question_text: `您選擇了 ${ids.length} 道錯題進行復習。讓我們從第一道開始...`,
+        user_answer: '您的錯誤答案',
+        correct_answer: '正確答案',
+        is_correct: false,
+        is_marked: false,
+        topic: '批量錯題復習',
+        difficulty: 3
+      };
+      
+      // 設置學習進度
+      this.learningProgress = {
+        total_questions: ids.length,
+        completed_questions: 0,
+        current_question_index: 0,
+        progress_percentage: 0,
+        remaining_questions: ids.length,
+        session_status: 'mistake_review'
+      };
+      
+      this.addWelcomeMessage();
+    } catch (error) {
+      console.error('初始化批量錯題復習錯誤:', error);
+    }
   }
 }

@@ -387,5 +387,30 @@ export class RagAssistantService {
     return this.http.get<any>(`${this.apiUrl}/get_user_answer_object`, this.httpOptions);
   }
 
+  /**
+   * 獲取知識點測驗題目
+   */
+  getKnowledgeQuestions(params: { topic: string; difficulty: string; count: number }): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/knowledge-questions`, { 
+      ...this.httpOptions, 
+      params: params as any 
+    });
+  }
 
+  /**
+   * 獲取考古題測驗題目
+   */
+  getPastExamQuestions(params: { school: string; year: string; department: string }): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/past-exam-questions`, { 
+      ...this.httpOptions, 
+      params: params as any 
+    });
+  }
+
+  /**
+   * 提交測驗答案
+   */
+  submitQuizAnswers(quizData: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/submit-quiz-answers`, quizData, this.httpOptions);
+  }
 }

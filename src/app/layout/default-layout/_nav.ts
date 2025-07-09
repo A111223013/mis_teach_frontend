@@ -6,10 +6,6 @@ export const navItems: INavData[] = [
     name: '概覽',
     url: '/dashboard/overview',
     iconComponent: { name: 'cilSpeedometer' },
-    // badge: {
-    //   color: 'info',
-    //   text: 'NEW'
-    // }
   },
   {
     name: '課程',
@@ -21,42 +17,19 @@ export const navItems: INavData[] = [
     iconComponent: { name: 'cilPeople' },
     children: [
       {
-        name: '考古題複習',
-        url: '/dashboard/students/past-exam-review'
+        name: '測驗中心',
+        url: '/dashboard/quiz-center'
       },
       {
-        name: '錯題複習',
-        url: '/dashboard/students/mistake-review'
-      },
-      {
-        name: 'AI出題',
-        url: '/dashboard/students/ai-quiz'
-      },
-      {
-         name: '選擇考古題',
-        url: '/dashboard/students/past-choice'
-
-      },
-      {
-        name: '考古題複習',
-        url: '/dashboard/students/past-exam'
-      },
-      {
-        name: '作答考古題',
-        url: '/dashboard/students/past-answer-exam'
+        name: '錯題分析',
+        url: '/dashboard/mistake-analysis'
       }
     ]
   },
   {
     name: '錯誤分析',
     url: '/dashboard/analytics',
-    iconComponent: { name: 'cilChartPie' },
-    children: [
-      {
-        name: '錯誤檢索',
-        url: '/dashboard/students/error-retrieval'
-      }
-    ]
+    iconComponent: { name: 'cilChartPie' }
   },
   {
     name: '繪圖板',
@@ -68,21 +41,10 @@ export const navItems: INavData[] = [
     iconComponent: { name: 'cilCog' },
     children: [
       {
-        name: '測驗演示',
-        url: '/dashboard/quiz-demo',
-        iconComponent: { name: 'cilClipboard' }
-      },
-      {
         name: 'AI 導師',
         url: '/dashboard/ai-chat',
         iconComponent: { name: 'cilSpeech' }
-      },
-      {
-        name: '測驗分析',
-        url: '/dashboard/quiz-analyze',
-        iconComponent: { name: 'cilChartPie' }
       }
     ]
   }
-  // Add other navigation items here
 ]; 

@@ -5,6 +5,7 @@ import { RagAssistantService } from '../../../service/rag-assistant.service';
   selector: 'app-quiz-analyze',
   imports: [],
   templateUrl: './quiz-analyze.component.html',
+  standalone:true,
   styleUrl: './quiz-analyze.component.scss'
 })
 export class QuizAnalyzeComponent {
