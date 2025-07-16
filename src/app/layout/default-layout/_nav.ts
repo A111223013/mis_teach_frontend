@@ -13,15 +13,15 @@ export const navItems: INavData[] = [
     iconComponent: { name: 'cilBook' }
   },
   {
-    name: '學生',
-    iconComponent: { name: 'cilPeople' },
+    name: '學習中心',
+    iconComponent: { name: 'cilSchool' },
     children: [
       {
         name: '測驗中心',
         url: '/dashboard/quiz-center'
       },
       {
-        name: '錯題分析',
+        name: '錯題統整',
         url: '/dashboard/mistake-analysis'
       }
     ]

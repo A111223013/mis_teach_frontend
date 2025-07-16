@@ -1,0 +1,28 @@
+.mistake-analysis-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.stat-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.question-text {
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mistake-card {
+  transition: transform 0.2s;
+  border: 1px solid #f1f1f1;
+}
+
+.mistake-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+} 

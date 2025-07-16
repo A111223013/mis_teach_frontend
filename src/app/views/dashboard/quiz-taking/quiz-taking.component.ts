@@ -13,7 +13,8 @@ import {
   TooltipModule
 } from '@coreui/angular';
 import { IconModule } from '@coreui/icons-angular';
-import { DashboardService } from '../../../service/dashboard.service';
+import { QuizService } from '../../../service/quiz.service';
+import { AuthService } from '../../../service/auth.service';
 import { Subscription, interval } from 'rxjs';
 
 interface QuizQuestion {
@@ -23,10 +24,11 @@ interface QuizQuestion {
   options?: string[];
   image_file?: string;
   correct_answer?: any;
+  original_exam_id?: string;
 }
 
 interface QuizResponse {
-  quiz_id: number;
+  quiz_id: string;
   title: string;
   questions: QuizQuestion[];
   time_limit?: number;
@@ -52,7 +54,7 @@ interface QuizResponse {
   styleUrls: ['./quiz-taking.component.css']
 })
 export class QuizTakingComponent implements OnInit, OnDestroy {
-  quizId: number = 0;
+  quizId: string = '';
   quizTitle: string = '';
   questions: QuizQuestion[] = [];
   currentQuestionIndex: number = 0;
@@ -80,14 +82,15 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private dashboardService: DashboardService
+    private quizService: QuizService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
     this.route.params.subscribe(params => {
-      const id = parseInt(params['id'], 10);
-      if (id) {
-        this.quizId = id;
+      const quizId = params['quizId']; // 修改：使用正確的參數名稱 'quizId'
+      if (quizId) {
+        this.quizId = quizId;
         this.loadQuiz();
       } else {
         this.error = '無效的測驗ID';
@@ -106,32 +109,72 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = '';
     
-    this.dashboardService.getQuiz(this.quizId).subscribe({
+    console.log('🔍 開始載入測驗，quiz ID:', this.quizId);
+    
+    // 檢查登錄狀態
+    if (!this.authService.isLoggedIn()) {
+      this.error = '請先登錄';
+      this.isLoading = false;
+      this.authService.logout();
+      return;
+    }
+    
+    this.quizService.getQuiz(this.quizId).subscribe({
       next: (response: QuizResponse) => {
-        this.quizTitle = response.title;
-        this.questions = response.questions || [];
+        console.log('✅ 測驗 API 回應:', response);
+        
+        if (!response) {
+          console.error('❌ API 回應為空');
+          this.error = '測驗數據載入失敗：API 回應為空';
+          this.isLoading = false;
+          return;
+        }
+        
+        if (!response.questions || !Array.isArray(response.questions)) {
+          console.error('❌ 測驗題目數據格式錯誤:', response);
+          this.error = '測驗題目格式錯誤，請聯繫管理員';
+          this.isLoading = false;
+          return;
+        }
+        
+        this.quizTitle = response.title || '未命名測驗';
+        this.questions = response.questions;
         this.timeLimit = response.time_limit || 0;
+        
+        console.log('📊 測驗基本資訊:');
+        console.log('  - 標題:', this.quizTitle);
+        console.log('  - 題目數量:', this.questions.length);
+        console.log('  - 時間限制:', this.timeLimit, '分鐘');
         
         if (this.questions.length > 0) {
           this.currentQuestion = this.questions[0];
+          this.resetImageLoadState();
           this.initializeTimer();
+          console.log('✅ 測驗載入成功');
+          
+          if (this.hasQuestionImages()) {
+            this.preloadQuestionImages();
+          }
         } else {
-          this.error = '此測驗沒有題目';
+          console.warn('⚠️ 測驗沒有題目');
+          this.error = '此測驗沒有題目，請聯繫管理員';
         }
         
         this.isLoading = false;
       },
       error: (error: any) => {
-        console.error('載入測驗失敗:', error);
+        console.error('❌ 載入測驗失敗:', error);
         
-        // 檢查是否為 401 錯誤
-        if (error.status === 401) {
-          console.log('未授權，導向登入頁面');
-          this.router.navigate(['/login']);
-          return;
+        if (error.status === 404) {
+          this.error = `測驗 ID ${this.quizId} 不存在或已被刪除`;
+        } else if (error.status === 500) {
+          this.error = '伺服器內部錯誤，請稍後再試';
+        } else if (error.status === 0) {
+          this.error = '網路連線錯誤，請檢查網路連接';
+        } else {
+          this.error = error.error?.message || `載入測驗失敗 (錯誤代碼: ${error.status})`;
         }
         
-        this.error = error.error?.message || '載入測驗失敗，請稍後再試';
         this.isLoading = false;
       }
     });
@@ -154,6 +197,13 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       this.currentQuestionIndex = index;
       this.currentQuestion = this.questions[index];
       this.resetImageLoadState(); // 重置圖片載入狀態
+      
+      // 預載入新題目的圖片
+      if (this.hasQuestionImages()) {
+        this.preloadQuestionImages();
+      }
+      
+      console.log(`📝 切換到題目 ${index + 1}: ${this.currentQuestion.question_text?.substring(0, 50)}...`);
     }
   }
 
@@ -309,8 +359,15 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
                       this.currentQuestion.image_file.trim() : '';
     if (!imageFile) return [];
     
-    const baseUrl = this.dashboardService.getBaseUrl();
-    const url = imageFile.startsWith('http') ? imageFile : `${baseUrl}/static/images/${imageFile}`;
+    // 如果是完整URL，直接返回
+    if (imageFile.startsWith('http')) {
+      return [imageFile];
+    }
+    
+    // 使用後端的靜態圖片服務
+    const baseUrl = this.quizService.getBaseUrl();
+    const url = `${baseUrl}/static/images/${imageFile}`;
+    console.log(`🖼️ 組合圖片URL: ${url}`);
     return [url];
   }
 
@@ -326,8 +383,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       return cleanImageFile;
     }
     
-    // 否則組合API基礎URL
-    const baseUrl = this.dashboardService.getBaseUrl();
+    // 使用後端的靜態圖片服務
+    const baseUrl = this.quizService.getBaseUrl();
     return `${baseUrl}/static/images/${cleanImageFile}`;
   }
 
@@ -354,6 +411,19 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   // 重置圖片載入狀態（切換題目時調用）
   private resetImageLoadState(): void {
     this.imageLoadState.clear();
+  }
+
+  // 預載入圖片
+  private preloadQuestionImages(): void {
+    const imageUrls = this.getQuestionImageUrls();
+    if (imageUrls.length > 0) {
+      imageUrls.forEach(url => {
+        const img = new Image();
+        img.src = url;
+        img.onload = () => this.imageLoadState.set(url, 'loaded');
+        img.onerror = () => this.imageLoadState.set(url, 'error');
+      });
+    }
   }
 
   // 計算已作答和已標記的題目數量
@@ -396,10 +466,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     this.isLoading = true;
 
     // 檢查登入狀態
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.log('未找到登入 token，導向登入頁面');
-      this.router.navigate(['/login']);
+    if (!this.authService.isLoggedIn()) {
+      console.log('登入狀態無效，導向登入頁面');
+      this.authService.logout();
       return;
     }
 
@@ -410,22 +479,41 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       time_taken: this.timeLimit > 0 ? (this.timeLimit * 60 - this.timer) : 0
     };
 
-    this.dashboardService.submitQuiz(submissionData).subscribe({
+    this.quizService.submitQuiz(submissionData).subscribe({
       next: (response: any) => {
         console.log('測驗提交成功:', response);
-        alert('測驗提交成功！');
-        this.router.navigate(['/dashboard/quiz-center']);
+        
+        // 準備錯題和標記題目的資料
+        const wrongQuestions = this.getWrongQuestions();
+        const markedQuestions = this.getMarkedQuestions();
+        
+        // 將測驗結果存入 sessionStorage 供 AI tutoring 使用
+        const quizResultData = {
+          quiz_id: this.quizId,
+          quiz_title: this.quizTitle,
+          quiz_type: this.quizType,
+          total_questions: this.questions.length,
+          wrong_questions: wrongQuestions,
+          marked_questions: markedQuestions,
+          submission_id: response.submission_id,
+          user_answers: this.userAnswers,
+          time_taken: submissionData.time_taken
+        };
+        
+        sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
+        
+        // 導向 AI tutoring 頁面，傳遞 session ID
+        const sessionId = response.submission_id || `session_${Date.now()}`;
+        this.router.navigate(['/dashboard/ai-tutoring', sessionId], {
+          queryParams: { 
+            source: 'quiz_completion',
+            quiz_id: this.quizId,
+            quiz_type: this.quizType 
+          }
+        });
       },
       error: (error: any) => {
         console.error('提交測驗失敗:', error);
-        
-        // 檢查是否為 401 錯誤
-        if (error.status === 401) {
-          console.log('未授權，導向登入頁面');
-          this.router.navigate(['/login']);
-          return;
-        }
-        
         this.isLoading = false;
         alert(error.error?.message || '提交失敗，請稍後再試');
       }
@@ -533,5 +621,106 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       'software': '軟體工程'
     };
     return topicNames[this.topic] || this.topic;
+  }
+
+  // 獲取錯題資料
+  private getWrongQuestions(): any[] {
+    const wrongQuestions: any[] = [];
+    
+    Object.keys(this.userAnswers).forEach(questionIndex => {
+      const questionIdx = parseInt(questionIndex);
+      const question = this.questions[questionIdx];
+      const userAnswer = this.userAnswers[questionIdx];
+      
+      if (question && userAnswer !== null && userAnswer !== undefined && userAnswer !== '') {
+        // 檢查答案是否正確
+        const isCorrect = this.checkAnswerCorrectness(question, userAnswer);
+        
+        if (!isCorrect) {
+          wrongQuestions.push({
+            question_id: question.id,
+            question_text: question.question_text,
+            question_type: question.type,
+            user_answer: userAnswer,
+            correct_answer: question.correct_answer,
+            options: question.options || [],
+            image_file: question.image_file || '',
+            original_exam_id: question.original_exam_id || '',
+            question_index: questionIdx
+          });
+        }
+      }
+    });
+    
+    console.log(`🔍 找到 ${wrongQuestions.length} 道錯題:`, wrongQuestions);
+    return wrongQuestions;
+  }
+
+  // 檢查答案正確性
+  private checkAnswerCorrectness(question: QuizQuestion, userAnswer: any): boolean {
+    const correctAnswer = question.correct_answer;
+    
+    if (!correctAnswer) {
+      // 如果沒有正確答案，暫時視為錯誤以便AI教學
+      return false;
+    }
+
+    switch (question.type) {
+      case 'single-choice':
+        return userAnswer === correctAnswer;
+        
+      case 'multiple-choice':
+        if (Array.isArray(userAnswer) && Array.isArray(correctAnswer)) {
+          return userAnswer.sort().join(',') === correctAnswer.sort().join(',');
+        }
+        return false;
+        
+      case 'true-false':
+        return userAnswer === correctAnswer || 
+               (userAnswer === true && (correctAnswer === '是' || correctAnswer === 'True' || correctAnswer === true)) ||
+               (userAnswer === false && (correctAnswer === '否' || correctAnswer === 'False' || correctAnswer === false));
+        
+      case 'fill-in-the-blank':
+      case 'short-answer':
+      case 'long-answer':
+        // 對於文字答案，進行簡單的比較（可以後續改進為語義比較）
+        const userText = userAnswer.toString().trim().toLowerCase();
+        const correctText = correctAnswer.toString().trim().toLowerCase();
+        return userText === correctText || userText.includes(correctText) || correctText.includes(userText);
+        
+      default:
+        // 對於其他類型，暫時視為錯誤以便AI教學
+        return false;
+    }
+  }
+
+  // 獲取標記題目資料
+  private getMarkedQuestions(): any[] {
+    const markedQuestions: any[] = [];
+    
+    Object.keys(this.markedQuestions).forEach(questionIndex => {
+      const questionIdx = parseInt(questionIndex);
+      if (this.markedQuestions[questionIdx]) {
+        const question = this.questions[questionIdx];
+        const userAnswer = this.userAnswers[questionIdx];
+        
+        if (question) {
+          markedQuestions.push({
+            question_id: question.id,
+            question_text: question.question_text,
+            question_type: question.type,
+            user_answer: userAnswer,
+            correct_answer: question.correct_answer,
+            options: question.options || [],
+            image_file: question.image_file || '',
+            original_exam_id: question.original_exam_id || '',
+            question_index: questionIdx
+          });
+        }
+      }
+    });
+    
+    console.log(`🏷️ 找到 ${markedQuestions.length} 道標記題目:`, markedQuestions);
+    return markedQuestions;
   }
 }

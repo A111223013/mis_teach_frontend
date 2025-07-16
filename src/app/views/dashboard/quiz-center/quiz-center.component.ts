@@ -11,7 +11,8 @@ import {
 } from '@coreui/angular';
 import { IconModule } from '@coreui/icons-angular';
 import { Router } from '@angular/router';
-import { DashboardService } from '../../../service/dashboard.service';
+import { QuizService } from '../../../service/quiz.service';
+import { AuthService } from '../../../service/auth.service';
 
 @Component({
   selector: 'app-quiz-center',
@@ -27,202 +28,8 @@ import { DashboardService } from '../../../service/dashboard.service';
     BadgeModule,
     IconModule
   ],
-  template: `
-    <div class="quiz-center-container p-4">
-      <c-card>
-        <c-card-header class="bg-primary text-white">
-          <h3 class="mb-0">
-            <c-icon name="cilNotes" class="me-2"></c-icon>
-            測驗中心
-          </h3>
-        </c-card-header>
-        <c-card-body>
-          <div class="mb-4">
-            <div class="btn-group w-100 mb-4">
-              <button 
-                class="btn"
-                [class.btn-primary]="activeTab === 'knowledge'"
-                [class.btn-outline-primary]="activeTab !== 'knowledge'"
-                (click)="activeTab = 'knowledge'">
-                知識點測驗
-              </button>
-              <button 
-                class="btn"
-                [class.btn-primary]="activeTab === 'pastexam'"
-                [class.btn-outline-primary]="activeTab !== 'pastexam'"
-                (click)="activeTab = 'pastexam'">
-                學校考古題測驗
-              </button>
-            </div>
-            
-            <!-- 知識點測驗 -->
-            <div *ngIf="activeTab === 'knowledge'">
-              <div class="p-3">
-                <h5 class="mb-3">知識點測驗</h5>
-                <p class="text-muted mb-4">
-                  根據特定知識點進行測驗，鞏固理解並查找知識漏洞
-                </p>
-                
-                <c-card class="mb-4 border-info">
-                  <c-card-body>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                      <h6 class="mb-0">選擇知識點</h6>
-                    </div>
-                    
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                      <button 
-                        *ngFor="let subject of availableSubjects" 
-                        class="btn btn-outline-primary" 
-                        [class.active]="selectedTopic === subject"
-                        (click)="selectedTopic = subject">
-                        {{ subject }} 
-                        <c-badge *ngIf="selectedTopic === subject" color="primary" shape="rounded-pill" class="ms-2">
-                          已選 ({{ getSubjectCount(subject) }}題)
-                        </c-badge>
-                      </button>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                      <h6 class="mb-0">選擇難度</h6>
-                    </div>
-                    
-                    <div class="d-flex align-items-center gap-2 mb-4">
-                      <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="difficulty" id="easy" value="easy" [(ngModel)]="selectedDifficulty">
-                        <label class="form-check-label" for="easy">簡單</label>
-                      </div>
-                      <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="difficulty" id="medium" value="medium" [(ngModel)]="selectedDifficulty">
-                        <label class="form-check-label" for="medium">中等</label>
-                      </div>
-                      <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="difficulty" id="hard" value="hard" [(ngModel)]="selectedDifficulty">
-                        <label class="form-check-label" for="hard">困難</label>
-                      </div>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                      <h6 class="mb-0">題目數量</h6>
-                    </div>
-                    
-                    <div class="d-flex align-items-center gap-2 mb-4">
-                      <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="questionCount" id="ten" value="10" [(ngModel)]="questionCount">
-                        <label class="form-check-label" for="ten">10題</label>
-                      </div>
-                      <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="questionCount" id="twenty" value="20" [(ngModel)]="questionCount">
-                        <label class="form-check-label" for="twenty">20題</label>
-                      </div>
-                      <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="questionCount" id="thirty" value="30" [(ngModel)]="questionCount">
-                        <label class="form-check-label" for="thirty">30題</label>
-                      </div>
-                    </div>
-                    
-                    <div class="d-grid">
-                      <button class="btn btn-primary btn-lg" (click)="startKnowledgeQuiz()" [disabled]="!selectedTopic || !selectedDifficulty || !questionCount">
-                        <c-icon name="cilMediaPlay" class="me-2"></c-icon>
-                        開始測驗
-                      </button>
-                    </div>
-                  </c-card-body>
-                </c-card>
-              </div>
-            </div>
-            
-            <!-- 學校考古題測驗 -->
-            <div *ngIf="activeTab === 'pastexam'">
-              <div class="p-3">
-                <h5 class="mb-3">學校考古題測驗</h5>
-                <p class="text-muted mb-4">
-                  選擇特定學校、年度和系所的考古題進行測驗
-                </p>
-                
-                <c-card class="mb-4 border-info">
-                  <c-card-body>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                      <h6 class="mb-0">選擇學校</h6>
-                    </div>
-                    
-                    <div class="mb-3">
-                      <select class="form-select" [(ngModel)]="selectedSchool" (ngModelChange)="onSchoolChange()">
-                        <option value="">請選擇學校</option>
-                        <option *ngFor="let school of availableSchools" [value]="school">{{ school }}</option>
-                      </select>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                      <h6 class="mb-0">選擇年度</h6>
-                    </div>
-                    
-                    <div class="mb-3">
-                      <select class="form-select" [(ngModel)]="selectedYear" (ngModelChange)="onYearChange()">
-                        <option value="">請選擇年度</option>
-                        <option *ngFor="let year of availableYears" [value]="year">{{ year }}年</option>
-                      </select>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                      <h6 class="mb-0">選擇系所</h6>
-                    </div>
-                    
-                    <div class="mb-4">
-                      <select class="form-select" [(ngModel)]="selectedDepartment" (ngModelChange)="onDepartmentChange()">
-                        <option value="">請選擇系所</option>
-                        <option *ngFor="let dept of availableDepartments" [value]="dept">{{ dept }}</option>
-                      </select>
-                    </div>
-                    
-                    <div *ngIf="selectedSchool && selectedYear && selectedDepartment && actualQuestionCount > 0" class="alert alert-info mb-4">
-                      <div class="d-flex align-items-center">
-                        <c-icon name="cilInfo" class="me-2"></c-icon>
-                        <span>找到 {{ actualQuestionCount }} 道題目</span>
-                      </div>
-                    </div>
-                    
-                    <div *ngIf="selectedSchool && selectedYear && selectedDepartment && actualQuestionCount === 0" class="alert alert-warning mb-4">
-                      <div class="d-flex align-items-center">
-                        <c-icon name="cilWarning" class="me-2"></c-icon>
-                        <span>該條件下沒有找到考題</span>
-                      </div>
-                    </div>
-                    
-                    <div class="d-grid">
-                      <button class="btn btn-primary btn-lg" (click)="startPastExamQuiz()" [disabled]="!selectedSchool || !selectedYear || !selectedDepartment || actualQuestionCount === 0">
-                        <c-icon name="cilMediaPlay" class="me-2"></c-icon>
-                        開始測驗
-                      </button>
-                    </div>
-                  </c-card-body>
-                </c-card>
-              </div>
-            </div>
-          </div>
-        </c-card-body>
-      </c-card>
-    </div>
-  `,
-  styles: [`
-    .quiz-center-container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    
-    .btn.active {
-      background-color: #321fdb;
-      color: white;
-    }
-    
-    .form-select {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-    }
-    
-    .alert {
-      border-radius: 0.25rem;
-    }
-  `]
+  templateUrl: './quiz-center.component.html',
+  styleUrls: ['./quiz-center.component.css']
 })
 export class QuizCenterComponent implements OnInit {
   // 真實資料變數
@@ -249,7 +56,8 @@ export class QuizCenterComponent implements OnInit {
 
   constructor(
     private router: Router,
-    private dashboardService: DashboardService
+    private quizService: QuizService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -257,8 +65,7 @@ export class QuizCenterComponent implements OnInit {
   }
 
   loadRealData(): void {
-    // 使用現有的 DashboardService API 獲取考題資料
-    this.dashboardService.get_exam().subscribe({
+    this.quizService.getExams().subscribe({
       next: (response: any) => {
         if (response && response.exams) {
           this.examData = response.exams;
@@ -267,6 +74,7 @@ export class QuizCenterComponent implements OnInit {
       },
       error: (error: any) => {
         console.error('載入考題資料失敗:', error);
+        // AuthService會自動處理401錯誤
       }
     });
   }
@@ -362,32 +170,86 @@ export class QuizCenterComponent implements OnInit {
 
   // 開始知識點測驗
   startKnowledgeQuiz(): void {
-    // 生成一個測驗ID（實際應用中應該從後端獲取）
-    const quizId = Math.floor(Math.random() * 1000) + 1;
-    
-    // 跳轉到測驗頁面
-    this.router.navigate(['/dashboard/quiz-taking', quizId], {
-      queryParams: {
-        type: 'knowledge',
-        topic: this.selectedTopic,
-        difficulty: this.selectedDifficulty,
-        count: this.questionCount
+    const quizParams = {
+      type: 'knowledge',
+      topic: this.selectedTopic,
+      difficulty: this.selectedDifficulty,
+      count: this.questionCount
+    };
+
+    console.log('🎯 創建知識點測驗:', quizParams);
+
+    this.quizService.createQuiz(quizParams).subscribe({
+      next: (response: any) => {
+        console.log('✅ 測驗創建成功:', response);
+        if (response.quiz_id) {
+          // 直接跳轉到測驗頁面
+          this.router.navigate(['/dashboard/quiz-taking', response.quiz_id], {
+            queryParams: {
+              type: 'knowledge',
+              topic: this.selectedTopic,
+              difficulty: this.selectedDifficulty,
+              count: this.questionCount
+            }
+          });
+        } else {
+          alert('測驗創建失敗：未獲得測驗ID');
+        }
+      },
+      error: (error: any) => {
+        console.error('❌ 創建測驗失敗:', error);
+        if (error.status === 404) {
+          alert('找不到符合條件的題目，請嘗試其他選擇');
+        } else {
+          alert(error.error?.message || '創建測驗失敗，請稍後再試');
+        }
       }
     });
   }
 
   // 開始考古題測驗
   startPastExamQuiz(): void {
-    // 生成一個測驗ID（實際應用中應該從後端獲取）
-    const quizId = Math.floor(Math.random() * 1000) + 1;
-    
-    // 跳轉到測驗頁面
-    this.router.navigate(['/dashboard/quiz-taking', quizId], {
-      queryParams: {
-        type: 'pastexam',
-        school: this.selectedSchool,
-        year: this.selectedYear,
-        department: this.selectedDepartment
+    if (!this.selectedSchool || !this.selectedYear || !this.selectedDepartment) {
+      alert('請選擇學校、年度和系所');
+      return;
+    }
+
+    const quizParams = {
+      type: 'pastexam',
+      school: this.selectedSchool,
+      year: this.selectedYear,
+      department: this.selectedDepartment
+    };
+
+    console.log('🎯 創建考古題測驗:', quizParams);
+
+    this.quizService.createQuiz(quizParams).subscribe({
+      next: (response: any) => {
+        console.log('✅ 考古題測驗創建成功:', response);
+        
+        if (response && response.quiz_id) {
+          // 直接跳轉到測驗頁面
+          const quizUrl = `/dashboard/quiz-taking/${response.quiz_id}`;
+          const queryParams = {
+            type: 'pastexam',
+            school: this.selectedSchool,
+            year: this.selectedYear,
+            department: this.selectedDepartment
+          };
+          
+          console.log('🔄 導覽到測驗頁面:', quizUrl);
+          this.router.navigate([quizUrl], { queryParams });
+        } else {
+          alert('測驗創建失敗：無效的回應格式');
+        }
+      },
+      error: (error: any) => {
+        console.error('❌ 創建考古題測驗失敗:', error);
+        if (error.status === 404) {
+          alert('找不到符合條件的考題，請嘗試其他選擇');
+        } else {
+          alert(error.error?.message || '創建測驗失敗，請稍後再試');
+        }
       }
     });
   }

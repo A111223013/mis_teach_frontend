@@ -662,13 +662,13 @@ export class DetailedGuideService {
       navSelector = 'c-nav-item[ng-reflect-router-link="/dashboard/overview"]';
       navText = '概覽';
     } else if (step.page.includes('/dashboard/quiz-center') || step.page.includes('/dashboard/mistake-analysis')) {
-      // For student-related pages, we assume it's under the '學生' dropdown
-      navSelector = 'c-dropdown[variant="nav-item"] a[cDropdownToggle]'; // Selector for the '學生' dropdown trigger
-      navText = '學生';
+      // For learning center related pages, we assume it's under the '學習中心' dropdown
+      navSelector = 'c-dropdown[variant="nav-item"] a[cDropdownToggle]'; // Selector for the '學習中心' dropdown trigger
+      navText = '學習中心';
       isDropdown = true;
     } else if (step.page.includes('/dashboard/quiz-result')) { // NEW CONDITION FOR QUIZ RESULT
-      navSelector = 'c-dropdown[variant="nav-item"] a[cDropdownToggle]'; // Assuming '學生' dropdown for Quiz Result
-      navText = '學生';
+      navSelector = 'c-dropdown[variant="nav-item"] a[cDropdownToggle]'; // Assuming '學習中心' dropdown for Quiz Result
+      navText = '學習中心';
       isDropdown = true;
     } else if (step.page.includes('/dashboard/quiz-demonstration') || step.page.includes('/dashboard/ai-tutoring')) {
       // For quiz demonstration and AI tutoring, they are under '智能學習系統'

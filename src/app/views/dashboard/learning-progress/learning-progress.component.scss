@@ -1,0 +1,25 @@
+.learning-progress-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.progress-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.chart-placeholder {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.recommendation-item {
+  background-color: #f8f9fa;
+  transition: background-color 0.2s;
+}
+
+.recommendation-item:hover {
+  background-color: #e9ecef;
+} 

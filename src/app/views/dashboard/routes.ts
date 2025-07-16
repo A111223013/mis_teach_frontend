@@ -74,12 +74,6 @@ export const routes: Routes = [
           title: '網頁 AI 助理'
         }
     },
-    // 相容性路由重導向
-    {
-        path: 'students/past-answer-exam',
-        redirectTo: 'quiz-taking',
-        pathMatch: 'full'
-    },
     {
         path: 'analytics',
         redirectTo: 'overview',

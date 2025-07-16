@@ -117,9 +117,12 @@ export class AiTutoringComponent implements OnInit, OnDestroy {
       this.sessionId = params['sessionId'];
     });
     
-    // 檢查查詢參數是否有錯題復習模式
+    // 檢查查詢參數是否有不同的模式
     this.route.queryParams.subscribe(queryParams => {
-      if (queryParams['mode'] === 'mistake_review' && queryParams['questionId']) {
+      if (queryParams['source'] === 'quiz_completion') {
+        // 從測驗完成後導向 AI tutoring
+        this.initializeFromQuizCompletion(queryParams);
+      } else if (queryParams['mode'] === 'mistake_review' && queryParams['questionId']) {
         this.initializeMistakeReview(queryParams['questionId']);
       } else if (queryParams['mode'] === 'batch_review' && queryParams['mistakeIds']) {
         this.initializeBatchReview(queryParams['mistakeIds']);
@@ -445,5 +448,105 @@ export class AiTutoringComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('初始化批量錯題復習錯誤:', error);
     }
+  }
+
+  async initializeFromQuizCompletion(queryParams: any): Promise<void> {
+    try {
+      console.log('從測驗完成導向 AI tutoring');
+      
+      // 從 sessionStorage 讀取測驗結果資料
+      const quizResultData = sessionStorage.getItem('quiz_result_data');
+      if (!quizResultData) {
+        console.error('找不到測驗結果資料');
+        this.router.navigate(['/dashboard/quiz-center']);
+        return;
+      }
+      
+      const quizData = JSON.parse(quizResultData);
+      console.log('測驗結果資料:', quizData);
+      
+      // 設置學習進度
+      this.learningProgress = {
+        total_questions: quizData.wrong_questions?.length || 0,
+        completed_questions: 0,
+        current_question_index: 0,
+        progress_percentage: 0,
+        remaining_questions: quizData.wrong_questions?.length || 0,
+        session_status: 'quiz_review'
+      };
+      
+      // 設置學習路徑為錯題和標記題目
+      this.learningPath = [
+        ...(quizData.wrong_questions || []),
+        ...(quizData.marked_questions || [])
+      ];
+      
+      // 去除重複的題目
+      this.learningPath = this.learningPath.filter((question, index, self) => 
+        index === self.findIndex(q => q.question_id === question.question_id)
+      );
+      
+      if (this.learningPath.length > 0) {
+        // 設置第一個題目為當前題目
+        this.currentQuestion = this.learningPath[0];
+        this.currentQuestionIndex = 0;
+        
+        // 添加歡迎訊息
+        this.addQuizCompletionWelcomeMessage(quizData);
+      } else {
+        // 沒有錯題或標記題目，給予完成訊息
+        this.addNoMistakesMessage(quizData);
+      }
+      
+      // 清除 sessionStorage 資料
+      sessionStorage.removeItem('quiz_result_data');
+      
+    } catch (error) {
+      console.error('從測驗完成導向 AI tutoring 錯誤:', error);
+      this.router.navigate(['/dashboard/quiz-center']);
+    }
+  }
+  
+  private addQuizCompletionWelcomeMessage(quizData: any): void {
+    const welcomeMessage = `🎉 測驗完成！
+
+**測驗資訊：**
+- 測驗標題：${quizData.quiz_title}
+- 總題數：${quizData.total_questions}
+- 錯題數：${quizData.wrong_questions?.length || 0}
+- 標記題數：${quizData.marked_questions?.length || 0}
+
+我將協助您複習答錯和標記的題目，幫助您掌握相關概念。
+
+讓我們開始第一道題目的學習：
+
+**題目：** ${this.currentQuestion?.question_text}
+
+${this.currentQuestion?.user_answer ? `您的答案：${this.currentQuestion.user_answer}` : ''}
+${this.currentQuestion?.correct_answer ? `正確答案：${this.currentQuestion.correct_answer}` : ''}
+
+有什麼問題想要問我嗎？`;
+
+    this.addMessage('ai', welcomeMessage);
+  }
+  
+  private addNoMistakesMessage(quizData: any): void {
+    const message = `🎉 恭喜！測驗完成！
+
+**測驗資訊：**
+- 測驗標題：${quizData.quiz_title}
+- 總題數：${quizData.total_questions}
+- 表現：沒有錯題需要複習
+
+您的表現很棒！所有題目都答對了，沒有需要特別複習的地方。
+
+如果您想要：
+1. 回到測驗中心進行更多測驗
+2. 查看錯題統整功能
+3. 或者有其他學習相關的問題
+
+隨時告訴我，我很樂意協助您！`;
+
+    this.addMessage('ai', message);
   }
 }

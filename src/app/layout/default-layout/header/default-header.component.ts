@@ -14,8 +14,8 @@ import { IconDirective, IconModule, IconSetService } from '@coreui/icons-angular
 import { navItems } from '../_nav';
 import { 
   cilAccountLogout, 
-  cilSpeedometer, cilBook, cilPeople, cilChartPie,
-  cilBrush
+  cilSpeedometer, cilBook, cilSchool, cilChartPie,
+  cilBrush, cilCog, cilSpeech
 } from '@coreui/icons';
 
 @Component({
@@ -43,8 +43,8 @@ export class DefaultHeaderComponent {
   constructor(private iconSetService: IconSetService) {
     iconSetService.icons = { 
       cilAccountLogout, 
-      cilSpeedometer, cilBook, cilPeople, cilChartPie, 
-      cilBrush
+      cilSpeedometer, cilBook, cilSchool, cilChartPie, 
+      cilBrush, cilCog, cilSpeech
     };
   }
 } 

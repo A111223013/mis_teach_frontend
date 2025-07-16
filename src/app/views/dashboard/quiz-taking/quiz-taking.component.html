@@ -300,15 +300,46 @@
         </div>
       </div>
       
-      <div *ngIf="!currentQuestion && questions.length === 0" class="exam-container">
-        <div class="alert alert-info">
-          正在載入考題資料...
+      <div *ngIf="!currentQuestion && questions.length === 0 && isLoading" class="exam-container">
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 400px;">
+          <div class="text-center">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+              <span class="visually-hidden">載入中...</span>
+            </div>
+            <h5 class="text-muted">正在載入測驗資料</h5>
+            <p class="text-muted">請稍候，正在從伺服器獲取測驗內容...</p>
+            <small class="text-muted">測驗 ID: {{ quizId }}</small>
+          </div>
+        </div>
+      </div>
+      
+      <div *ngIf="!currentQuestion && questions.length === 0 && !isLoading && error" class="exam-container">
+        <div class="d-flex justify-content-center align-items-center" style="min-height: 400px;">
+          <div class="text-center">
+            <c-alert color="danger" class="d-inline-block text-start">
+              <c-icon name="cilWarning" class="me-2"></c-icon>
+              <strong>載入測驗失敗</strong>
+              <hr>
+              <p class="mb-2">{{ error }}</p>
+              <div class="mt-3">
+                <button class="btn btn-primary btn-sm me-2" (click)="loadQuiz()">
+                  <c-icon name="cilReload" class="me-1"></c-icon>
+                  重新載入
+                </button>
+                <button class="btn btn-secondary btn-sm" (click)="goBack()">
+                  <c-icon name="cilArrowLeft" class="me-1"></c-icon>
+                  返回測驗中心
+                </button>
+              </div>
+            </c-alert>
+          </div>
         </div>
       </div>
       
       <div *ngIf="!currentQuestion && questions.length > 0" class="exam-container">
-        <div class="alert alert-warning">
-          沒有找到符合條件的考題。
+        <div class="alert alert-warning text-center">
+          <c-icon name="cilInfo" class="me-2"></c-icon>
+          沒有找到符合條件的考題，請檢查測驗設定。
         </div>
       </div>
     </div>

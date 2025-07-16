@@ -1,77 +1,56 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders  } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment'
-
-
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Observable, catchError, throwError } from 'rxjs';
+import { environment } from '../../environments/environment';
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DashboardService {
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private authService: AuthService) {}
 
-   }
+  // 統一錯誤處理
+  private handleError = (error: any) => {
+    if (error.status === 401) {
+      this.authService.handleAuthError(error);
+    }
+    return throwError(() => error);
+  }
 
-   getUserInfo(): Observable<any> {
-    const token = localStorage.getItem('token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.post(`${environment.apiBaseUrl}/dashboard/get-user-name`, {}, { headers });
-   }
+  // 獲取用戶信息
+  getUserInfo(): Observable<any> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post(`${environment.apiBaseUrl}/dashboard/get-user-name`, {}, { headers })
+    ).pipe(catchError(this.handleError));
+  }
 
-   ask(question: string): Observable<string> {
-    const token = localStorage.getItem('token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.post<string>(`${environment.apiBaseUrl}/ai_agent/ask`, { question }, { headers });
-   }
+  // AI問答
+  ask(question: string): Observable<string> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<string>(`${environment.apiBaseUrl}/ai_agent/ask`, { question }, { headers })
+    ).pipe(catchError(this.handleError));
+  }
 
-   get_exam(): Observable<any> {
-    const token = localStorage.getItem('token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.post(`${environment.apiBaseUrl}/dashboard/get-exam`, {}, { headers });
-   }
-   
-   get_exam_to_object(school: string, year: string, subject: string): Observable<any> {
-    const token = localStorage.getItem('token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.post(`${environment.apiBaseUrl}/dashboard/get-exam-to-object`, {school, year, subject}, { headers });
-   }
+  // 獲取用戶提交記錄
+  getUserSubmissions(): Observable<any> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post(`${environment.apiBaseUrl}/dashboard/getUserSubmissions`, {}, { headers })
+    ).pipe(catchError(this.handleError));
+  }
 
-   // 獲取測驗詳情
-   getQuiz(quizId: number): Observable<any> {
-    const token = localStorage.getItem('token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.post(`${environment.apiBaseUrl}/dashboard/get-quiz`, { quiz_id: quizId }, { headers });
-   }
+  // 獲取提交詳情
+  getSubmissionDetail(submissionId: string): Observable<any> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post(`${environment.apiBaseUrl}/dashboard/getSubmissionDetail`, { submission_id: submissionId }, { headers })
+    ).pipe(catchError(this.handleError));
+  }
 
-   // 提交測驗答案
-   submitQuiz(submissionData: any): Observable<any> {
-    const token = localStorage.getItem('token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.post(`${environment.apiBaseUrl}/dashboard/submit-quiz`, submissionData, { headers });
-   }
-
-   submitAnswers(answers: any[]): Observable<any> {
-    const token = localStorage.getItem('token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.post(`${environment.apiBaseUrl}/dashboard/submit-answers`, { answers }, { headers });
-   }
-
-   getUserSubmissions(): Observable<any> {
-    const token = localStorage.getItem('token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.post(`${environment.apiBaseUrl}/dashboard/getUserSubmissions`, {}, { headers });
-   }
-
-   getSubmissionDetail(submissionId: string): Observable<any> {
-    const token = localStorage.getItem('token');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.post(`${environment.apiBaseUrl}/dashboard/getSubmissionDetail`, { submission_id: submissionId }, { headers });
-   }
-
-   // 獲取基礎API URL
-   getBaseUrl(): string {
-    return environment.apiBaseUrl;
-   }
+  // 提交答案（舊版本，保留兼容性）
+  submitAnswers(answers: any[]): Observable<any> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post(`${environment.apiBaseUrl}/dashboard/submit-answers`, { answers }, { headers })
+    ).pipe(catchError(this.handleError));
+  }
 }
