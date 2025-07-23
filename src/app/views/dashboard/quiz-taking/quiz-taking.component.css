@@ -225,6 +225,125 @@ img[src=""]:after {
   margin-top: 20px;
 }
 
+/* 單選題美化樣式 */
+.options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.options-list .form-check {
+  position: relative;
+  padding: 16px 20px;
+  margin-bottom: 0;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #ffffff, #f8f9fa);
+  transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  user-select: none;
+}
+
+.options-list .form-check:hover {
+  background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+  border-color: #321fdb;
+  box-shadow: 0 4px 12px rgba(50, 31, 219, 0.15);
+  transform: translateY(-2px);
+}
+
+.options-list .form-check-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.options-list .form-check-label {
+  position: relative;
+  padding-left: 40px;
+  font-size: 1rem;
+  line-height: 1.5;
+  cursor: pointer;
+  color: #495057;
+  font-weight: 500;
+  transition: color 0.3s ease;
+  display: block;
+  min-height: 24px;
+  pointer-events: none;
+  width: 100%;
+}
+
+/* 隱藏原生單選按鈕，只顯示字母標示 */
+.options-list .form-check-label::before {
+  content: counter(option-counter, upper-alpha);
+  counter-increment: option-counter;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ced4da;
+  border-radius: 50%;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c757d;
+  transition: all 0.3s ease;
+}
+
+/* 計數器重置 */
+.options-list {
+  counter-reset: option-counter;
+}
+
+/* 選中狀態樣式 */
+.options-list .form-check-input:checked + .form-check-label {
+  color: #321fdb;
+  font-weight: 600;
+}
+
+.options-list .form-check-input:checked + .form-check-label::before {
+  border-color: #321fdb;
+  background-color: #321fdb;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(50, 31, 219, 0.1);
+}
+
+/* 使用 JavaScript 添加的選中類別 */
+.options-list .form-check.selected {
+  border-color: #321fdb;
+  background: linear-gradient(145deg, #f0f4ff, #e7f2ff);
+  box-shadow: 0 4px 20px rgba(50, 31, 219, 0.2);
+  transform: translateY(-1px);
+}
+
+/* 焦點狀態 */
+.options-list .form-check-input:focus + .form-check-label::before {
+  outline: 2px solid #321fdb;
+  outline-offset: 2px;
+}
+
+/* 禁用狀態 */
+.options-list .form-check-input:disabled + .form-check-label {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.options-list .form-check:has(.form-check-input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.options-list .form-check:has(.form-check-input:disabled):hover {
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
 .text-answer-section .form-control,
 .fill-blank-section .form-control {
   font-size: 1rem;
@@ -263,31 +382,6 @@ img[src=""]:after {
 
 .drawing-controls {
   text-align: center;
-}
-
-/* 多選題樣式 */
-.options-list .form-check {
-  padding: 12px;
-  margin-bottom: 8px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-.options-list .form-check:hover {
-  background-color: #f8f9fa;
-  border-color: #321fdb;
-}
-
-.options-list .form-check-input:checked + .form-check-label {
-  font-weight: 600;
-  color: #321fdb;
-}
-
-/* 是非題特殊樣式 */
-.options-list .form-check input[type="radio"]:checked + label {
-  color: #321fdb;
-  font-weight: 600;
 }
 
 /* 程式撰寫題樣式 */

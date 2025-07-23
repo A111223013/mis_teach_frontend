@@ -246,6 +246,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   selectSingleChoice(option: string): void {
     if (!this.currentQuestion) return;
     this.userAnswers[this.currentQuestionIndex] = option;
+  
   }
 
   isSingleChoiceSelected(option: string): boolean {

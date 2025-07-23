@@ -72,6 +72,7 @@ export class LoginComponent implements OnInit {
       this.loginService.loginUser(this.loginForm.value).subscribe(
         response => {
           this.errorMessage = '';
+          //this.router.navigate(['/dashboard']);
           // 保存token到localStorage
           if (response.token) {
             localStorage.setItem('token', response.token);
