@@ -70,6 +70,7 @@ export class QuizCenterComponent implements OnInit {
         if (response && response.exams) {
           this.examData = response.exams;
           this.processExamData();
+          console.log(this.examData);
         }
       },
       error: (error: any) => {
@@ -90,7 +91,7 @@ export class QuizCenterComponent implements OnInit {
     // 處理考題資料
     this.examData.forEach(exam => {
       // 收集知識點/科目
-      const subject = exam.subject || exam['主要學科'] || '其他';
+      const subject = exam.key_points || exam['主要學科'] || '其他';
       if (subject && subject !== '其他') {
         subjects.add(subject);
         this.subjectCountMap.set(subject, (this.subjectCountMap.get(subject) || 0) + 1);
