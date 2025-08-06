@@ -25,6 +25,7 @@ interface QuizQuestion {
   image_file?: string;
   correct_answer?: any;
   original_exam_id?: string;
+  key_points?: string;
 }
 
 interface QuizResponse {
@@ -67,6 +68,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   error: string = '';
   showSubmitConfirmation: boolean = false;
   
+  // 添加缺失的属性
+  totalQuestions: number = 0;
+  answers: any[] = [];
+  
   // 路由參數 (為了與舊模板兼容)
   quizType: 'knowledge' | 'pastexam' = 'knowledge';
   topic: string = '';
@@ -106,78 +111,34 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   }
 
   loadQuiz(): void {
-    this.isLoading = true;
-    this.error = '';
-    
-    console.log('🔍 開始載入測驗，quiz ID:', this.quizId);
-    
-    // 檢查登錄狀態
-    if (!this.authService.isLoggedIn()) {
-      this.error = '請先登錄';
-      this.isLoading = false;
-      this.authService.logout();
+    if (!this.quizId) {
+      this.router.navigate(['/quiz-center']);
       return;
     }
-    
-    this.quizService.getQuiz(this.quizId).subscribe({
-      next: (response: QuizResponse) => {
-        console.log('✅ 測驗 API 回應:', response);
+
+    this.quizService.getQuiz(this.quizId).subscribe(
+      response => {
+        this.quizTitle = response.quiz_title || '測驗';
+        this.questions = response.questions || [];
+        this.timeLimit = response.time_limit || 60;
+        this.totalQuestions = this.questions.length;
         
-        if (!response) {
-          console.error('❌ API 回應為空');
-          this.error = '測驗數據載入失敗：API 回應為空';
-          this.isLoading = false;
-          return;
-        }
+        // 初始化答題狀態
+        this.answers = new Array(this.totalQuestions).fill(null);
+        this.markedQuestions = {};
         
-        if (!response.questions || !Array.isArray(response.questions)) {
-          console.error('❌ 測驗題目數據格式錯誤:', response);
-          this.error = '測驗題目格式錯誤，請聯繫管理員';
-          this.isLoading = false;
-          return;
-        }
+        // 設置計時器
+        this.initializeTimer();
         
-        this.quizTitle = response.title || '未命名測驗';
-        this.questions = response.questions;
-        this.timeLimit = response.time_limit || 0;
-        
-        console.log('📊 測驗基本資訊:');
-        console.log('  - 標題:', this.quizTitle);
-        console.log('  - 題目數量:', this.questions.length);
-        console.log('  - 時間限制:', this.timeLimit, '分鐘');
-        
-        if (this.questions.length > 0) {
-          this.currentQuestion = this.questions[0];
-          this.resetImageLoadState();
-          this.initializeTimer();
-          console.log('✅ 測驗載入成功');
-          
-          if (this.hasQuestionImages()) {
-            this.preloadQuestionImages();
-          }
-        } else {
-          console.warn('⚠️ 測驗沒有題目');
-          this.error = '此測驗沒有題目，請聯繫管理員';
-        }
-        
-        this.isLoading = false;
+        // 載入第一題
+        this.currentQuestionIndex = 0;
+        this.loadCurrentQuestion();
       },
-      error: (error: any) => {
-        console.error('❌ 載入測驗失敗:', error);
-        
-        if (error.status === 404) {
-          this.error = `測驗 ID ${this.quizId} 不存在或已被刪除`;
-        } else if (error.status === 500) {
-          this.error = '伺服器內部錯誤，請稍後再試';
-        } else if (error.status === 0) {
-          this.error = '網路連線錯誤，請檢查網路連接';
-        } else {
-          this.error = error.error?.message || `載入測驗失敗 (錯誤代碼: ${error.status})`;
-        }
-        
-        this.isLoading = false;
+      error => {
+        console.error('載入測驗失敗:', error);
+        this.router.navigate(['/quiz-center']);
       }
-    });
+    );
   }
 
   initializeTimer(): void {
@@ -192,6 +153,18 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     }
   }
 
+  loadCurrentQuestion(): void {
+    if (this.currentQuestionIndex >= 0 && this.currentQuestionIndex < this.questions.length) {
+      this.currentQuestion = this.questions[this.currentQuestionIndex];
+      this.resetImageLoadState(); // 重置圖片載入狀態
+      
+      // 預載入新題目的圖片
+      if (this.hasQuestionImages()) {
+        this.preloadQuestionImages();
+      }
+    }
+  }
+
   goToQuestion(index: number): void {
     if (index >= 0 && index < this.questions.length) {
       this.currentQuestionIndex = index;
@@ -203,7 +176,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         this.preloadQuestionImages();
       }
       
-      console.log(`📝 切換到題目 ${index + 1}: ${this.currentQuestion.question_text?.substring(0, 50)}...`);
     }
   }
 
@@ -290,11 +262,15 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   // 填空題、簡答題、長答題處理
   updateTextAnswer(value: string): void {
     if (!this.currentQuestion) return;
+    console.log(`Debug: 更新文字答案 - 題目 ${this.currentQuestionIndex}, 答案: "${value}"`);
     this.userAnswers[this.currentQuestionIndex] = value;
+    console.log(`Debug: 當前用戶答案對象:`, this.userAnswers);
   }
 
   getTextAnswer(): string {
-    return this.userAnswers[this.currentQuestionIndex] || '';
+    const answer = this.userAnswers[this.currentQuestionIndex] || '';
+    console.log(`Debug: 獲取文字答案 - 題目 ${this.currentQuestionIndex}, 答案: "${answer}"`);
+    return answer;
   }
 
   // 程式撰寫題處理
@@ -368,7 +344,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     // 使用後端的靜態圖片服務
     const baseUrl = this.quizService.getBaseUrl();
     const url = `${baseUrl}/static/images/${imageFile}`;
-    console.log(`🖼️ 組合圖片URL: ${url}`);
     return [url];
   }
 
@@ -390,7 +365,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   }
 
   onImageError(event: any): void {
-    console.log('圖片載入失敗:', event.target.src);
     const imageUrl = event.target.src;
     this.imageLoadState.set(imageUrl, 'error');
     event.target.style.display = 'none';
@@ -429,11 +403,18 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 計算已作答和已標記的題目數量
   get answeredCount(): number {
-    return Object.keys(this.userAnswers).length;
+    // 修正：計算實際有答案的題目數量
+    return Object.values(this.userAnswers).filter(answer => 
+      answer !== undefined && answer !== null && answer !== ''
+    ).length;
   }
 
   get markedCount(): number {
     return Object.values(this.markedQuestions).filter(marked => marked).length;
+  }
+
+  get unansweredCount(): number {
+    return this.questions.length - this.answeredCount;
   }
 
   // 時間格式化
@@ -468,9 +449,32 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
     // 檢查登入狀態
     if (!this.authService.isLoggedIn()) {
-      console.log('登入狀態無效，導向登入頁面');
+      console.log('Debug: 用戶未登錄，導向登入頁面');
       this.authService.logout();
       return;
+    }
+
+    // 檢查 token 是否有效
+    if (!this.authService.isTokenValid()) {
+      console.log('Debug: Token 無效，導向登入頁面');
+      this.authService.logout();
+      return;
+    }
+
+    console.log('Debug: Token 狀態正常，準備提交測驗');
+    
+    // 添加詳細的答案調試信息
+    console.log('Debug: 答案收集詳情:');
+    console.log('  - 總題數:', this.questions.length);
+    console.log('  - 當前題目索引:', this.currentQuestionIndex);
+    console.log('  - 用戶答案對象:', this.userAnswers);
+    console.log('  - 答案鍵值:', Object.keys(this.userAnswers));
+    console.log('  - 答案值:', Object.values(this.userAnswers));
+    
+    // 檢查每題的答案狀態
+    for (let i = 0; i < this.questions.length; i++) {
+      const hasAnswer = this.userAnswers[i] !== undefined && this.userAnswers[i] !== null && this.userAnswers[i] !== '';
+      console.log(`  - 題目 ${i}: ${hasAnswer ? '已作答' : '未作答'} (${this.userAnswers[i]})`);
     }
 
     // 準備提交資料
@@ -480,10 +484,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       time_taken: this.timeLimit > 0 ? (this.timeLimit * 60 - this.timer) : 0
     };
 
+    console.log('Debug: 提交資料:', submissionData);
+
     this.quizService.submitQuiz(submissionData).subscribe({
       next: (response: any) => {
-        console.log('測驗提交成功:', response);
-        
         // 準備錯題和標記題目的資料
         const wrongQuestions = this.getWrongQuestions();
         const markedQuestions = this.getMarkedQuestions();
@@ -503,15 +507,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         
         sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
         
-        // 導向 AI tutoring 頁面，傳遞 session ID
-        const sessionId = response.submission_id || `session_${Date.now()}`;
-        this.router.navigate(['/dashboard/ai-tutoring', sessionId], {
-          queryParams: { 
-            source: 'quiz_completion',
-            quiz_id: this.quizId,
-            quiz_type: this.quizType 
-          }
-        });
+        // 跳轉到 quiz-result 頁面
+        const resultId = response.submission_id || `result_${Date.now()}`;
+        this.router.navigate(['/dashboard/quiz-result', resultId]);
       },
       error: (error: any) => {
         console.error('提交測驗失敗:', error);
@@ -628,18 +626,16 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   private getWrongQuestions(): any[] {
     const wrongQuestions: any[] = [];
     
-    Object.keys(this.userAnswers).forEach(questionIndex => {
-      const questionIdx = parseInt(questionIndex);
-      const question = this.questions[questionIdx];
-      const userAnswer = this.userAnswers[questionIdx];
+    this.questions.forEach((question, index) => {
+      const userAnswer = this.userAnswers[index];
       
-      if (question && userAnswer !== null && userAnswer !== undefined && userAnswer !== '') {
-        // 檢查答案是否正確
+      // 只處理有答案的題目
+      if (userAnswer !== undefined && userAnswer !== null && userAnswer !== '') {
         const isCorrect = this.checkAnswerCorrectness(question, userAnswer);
         
         if (!isCorrect) {
           wrongQuestions.push({
-            question_id: question.id,
+            question_id: question.id || `q${index + 1}`,
             question_text: question.question_text,
             question_type: question.type,
             user_answer: userAnswer,
@@ -647,13 +643,13 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
             options: question.options || [],
             image_file: question.image_file || '',
             original_exam_id: question.original_exam_id || '',
-            question_index: questionIdx
+            question_index: index
           });
         }
       }
     });
     
-    console.log(`🔍 找到 ${wrongQuestions.length} 道錯題:`, wrongQuestions);
+    console.log(`Debug: 收集到 ${wrongQuestions.length} 道錯題`);
     return wrongQuestions;
   }
 
@@ -662,36 +658,56 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     const correctAnswer = question.correct_answer;
     
     if (!correctAnswer) {
-      // 如果沒有正確答案，暫時視為錯誤以便AI教學
       return false;
     }
-
+    
     switch (question.type) {
       case 'single-choice':
         return userAnswer === correctAnswer;
         
       case 'multiple-choice':
         if (Array.isArray(userAnswer) && Array.isArray(correctAnswer)) {
-          return userAnswer.sort().join(',') === correctAnswer.sort().join(',');
+          return JSON.stringify(userAnswer.sort()) === JSON.stringify(correctAnswer.sort());
         }
         return false;
         
       case 'true-false':
-        return userAnswer === correctAnswer || 
-               (userAnswer === true && (correctAnswer === '是' || correctAnswer === 'True' || correctAnswer === true)) ||
-               (userAnswer === false && (correctAnswer === '否' || correctAnswer === 'False' || correctAnswer === false));
+        // 處理布爾值和字符串的轉換
+        const userBool = typeof userAnswer === 'boolean' ? userAnswer : 
+                        userAnswer === 'true' || userAnswer === 'True' || userAnswer === '是';
+        const correctBool = typeof correctAnswer === 'boolean' ? correctAnswer :
+                           correctAnswer === 'true' || correctAnswer === 'True' || correctAnswer === '是';
+        return userBool === correctBool;
         
       case 'fill-in-the-blank':
       case 'short-answer':
       case 'long-answer':
-        // 對於文字答案，進行簡單的比較（可以後續改進為語義比較）
-        const userText = userAnswer.toString().trim().toLowerCase();
-        const correctText = correctAnswer.toString().trim().toLowerCase();
-        return userText === correctText || userText.includes(correctText) || correctText.includes(userText);
+        const userText = String(userAnswer).trim().toLowerCase();
+        const correctText = String(correctAnswer).trim().toLowerCase();
+        
+        // 完全匹配
+        if (userText === correctText) {
+          return true;
+        }
+        
+        // 對於較長的答案，檢查關鍵詞匹配
+        if (userText.length > 3 && correctText.length > 3) {
+          const userWords = new Set(userText.split(/\s+/));
+          const correctWords = new Set(correctText.split(/\s+/));
+          const intersection = new Set([...userWords].filter(x => correctWords.has(x)));
+          const minLength = Math.min(userWords.size, correctWords.size);
+          return intersection.size >= minLength * 0.7;
+        }
+        
+        // 對於短答案，允許部分匹配
+        if (userText.length <= 3 && correctText.length <= 3) {
+          return userText.includes(correctText) || correctText.includes(userText);
+        }
+        
+        return false;
         
       default:
-        // 對於其他類型，暫時視為錯誤以便AI教學
-        return false;
+        return userAnswer === correctAnswer;
     }
   }
 
@@ -721,7 +737,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       }
     });
     
-    console.log(`🏷️ 找到 ${markedQuestions.length} 道標記題目:`, markedQuestions);
     return markedQuestions;
   }
 }

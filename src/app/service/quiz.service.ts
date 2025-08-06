@@ -35,7 +35,6 @@ export class QuizService {
 
   // 創建測驗
   createQuiz(quizParams: any): Observable<any> {
-    console.log('🎯 創建測驗:', quizParams);
     return this.authService.authenticatedRequest((headers) =>
       this.http.post(`${environment.apiBaseUrl}/quiz/create-quiz`, quizParams, { headers })
     ).pipe(catchError(this.handleError));
@@ -43,7 +42,6 @@ export class QuizService {
 
   // 獲取測驗詳情
   getQuiz(quizId: string): Observable<any> {
-    console.log('🔍 獲取測驗詳情，ID:', quizId);
     return this.authService.authenticatedRequest((headers) =>
       this.http.post(`${environment.apiBaseUrl}/quiz/get-quiz`, { quiz_id: quizId }, { headers })
     ).pipe(catchError(this.handleError));
@@ -51,14 +49,43 @@ export class QuizService {
 
   // 提交測驗答案
   submitQuiz(submissionData: any): Observable<any> {
-    console.log('📤 提交測驗答案:', submissionData);
     return this.authService.authenticatedRequest((headers) =>
       this.http.post(`${environment.apiBaseUrl}/quiz/submit-quiz`, submissionData, { headers })
+    ).pipe(catchError(this.handleError));
+  }
+
+  /**
+   * 檢視測驗結果 - 從submissions載入數據並統計
+   */
+  viewQuizResult(submissionId: string): Observable<any> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<any>(`${environment.apiBaseUrl}/quiz/view-quiz-result`, { submission_id: submissionId }, { headers })
+    ).pipe(catchError(this.handleError));
+  }
+
+  /**
+   * 鞏固錯題 - 支持兩種方式載入錯題
+   */
+  consolidateErrors(source: 'error_questions' | 'redis' = 'error_questions', submissionId?: string): Observable<any> {
+    const payload: any = { source };
+    if (submissionId) {
+      payload.submission_id = submissionId;
+    }
+    
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<any>(`${environment.apiBaseUrl}/quiz/consolidate-errors`, payload, { headers })
     ).pipe(catchError(this.handleError));
   }
 
   // 獲取基礎URL（用於圖片等靜態資源）
   getBaseUrl(): string {
     return environment.apiBaseUrl;
+  }
+
+  // 從 MongoDB error_questions 集合獲取用戶錯題
+  getUserErrorsMongo(): Observable<any> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post(`${environment.apiBaseUrl}/quiz/get-user-errors-mongo`, {}, { headers })
+    ).pipe(catchError(this.handleError));
   }
 } 

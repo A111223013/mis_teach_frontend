@@ -1,23 +1,24 @@
-import { Component,OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { NgStyle } from '@angular/common';
 import { Router } from '@angular/router';
 import { IconDirective } from '@coreui/icons-angular';
-import { FormBuilder, FormGroup, ReactiveFormsModule,Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ContainerComponent, RowComponent, ColComponent, CardGroupComponent, TextColorDirective, CardComponent, CardBodyComponent, FormDirective, InputGroupComponent, InputGroupTextDirective, FormControlDirective, ButtonDirective } from '@coreui/angular';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { LoginService } from '../../service/login.service';
 import { UserGuideStatusService } from '../../service/user-guide-status.service';
 import { DetailedGuideService } from '../../service/detailed-guide.service';
+import { AuthService } from '../../service/auth.service';
 
 @Component({
-    selector: 'app-login',
-    templateUrl: './login.component.html',
-    styleUrls: ['./login.component.scss'],
-    standalone: true,
-    imports: [ContainerComponent, RowComponent, ColComponent, CardGroupComponent, TextColorDirective, CardComponent, CardBodyComponent, FormDirective, InputGroupComponent, InputGroupTextDirective, IconDirective, FormControlDirective, ButtonDirective, NgStyle,
-        RouterModule, ReactiveFormsModule, CommonModule
-    ]
+  selector: 'app-login',
+  templateUrl: './login.component.html',
+  styleUrls: ['./login.component.scss'],
+  standalone: true,
+  imports: [ContainerComponent, RowComponent, ColComponent, CardGroupComponent, TextColorDirective, CardComponent, CardBodyComponent, FormDirective, InputGroupComponent, InputGroupTextDirective, IconDirective, FormControlDirective, ButtonDirective, NgStyle,
+      RouterModule, ReactiveFormsModule, CommonModule
+  ]
 })
 export class LoginComponent implements OnInit {
   loginForm!:  FormGroup;
@@ -30,7 +31,8 @@ export class LoginComponent implements OnInit {
     private router: Router,
     private loginService: LoginService,
     private userGuideStatusService: UserGuideStatusService,
-    private detailedGuideService: DetailedGuideService
+    private detailedGuideService: DetailedGuideService,
+    private authService: AuthService
   ) { }
   
   ngOnInit(): void {
@@ -72,18 +74,14 @@ export class LoginComponent implements OnInit {
       this.loginService.loginUser(this.loginForm.value).subscribe(
         response => {
           this.errorMessage = '';
-          //this.router.navigate(['/dashboard']);
-          // 保存token到localStorage
+          
+          // 使用AuthService設置token
           if (response.token) {
-            localStorage.setItem('token', response.token);
-            console.log('Token saved:', response.token);
+            this.authService.setToken(response.token);
           }
 
           // 檢查 MongoDB 中的 new_user 狀態
           if (response.new_user === true) {
-            console.log('🎮 檢測到新用戶，準備觸發導覽');
-            console.log('📋 導覽狀態:', response.guide_info);
-
             // 更新本地導覽狀態
             const guideStatus = {
               user_id: 'current_user',
@@ -97,7 +95,6 @@ export class LoginComponent implements OnInit {
             this.router.navigate(['/dashboard']).then(() => {
               // 延遲觸發導覽，確保頁面完全載入
               setTimeout(() => {
-                console.log('🚀 開始觸發詳細導覽');
                 this.showWelcomeMessage();
                 setTimeout(() => {
                   this.detailedGuideService.startDetailedGuide();
@@ -105,7 +102,6 @@ export class LoginComponent implements OnInit {
               }, 1000);
             });
           } else {
-            console.log('👤 返回用戶，直接進入系統');
             // 普通用戶直接導航
             this.router.navigate(['/dashboard']);
           }

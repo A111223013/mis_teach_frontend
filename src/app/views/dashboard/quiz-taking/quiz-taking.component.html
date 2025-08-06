@@ -13,6 +13,9 @@
           <small class="text-muted">已作答：{{ answeredCount }}</small>
         </div>
         <div class="info-item">
+          <small class="text-muted">未作答：{{ unansweredCount }}</small>
+        </div>
+        <div class="info-item">
           <small class="text-muted">已標記：{{ markedCount }}</small>
         </div>
       </div>
@@ -64,6 +67,9 @@
                   <span class="badge bg-primary me-2">{{ getQuestionTypeDisplayName(getQuestionType(currentQuestion)) }}</span>
                 </div>
                 <p class="question-text">{{ currentQuestion.question_text }}</p>
+              </div>
+              <div *ngIf="currentQuestion.key_points">
+                <span>知識點：{{ currentQuestion.key_points }}</span>
               </div>
               <div class="question-actions">
                 <button class="btn btn-sm btn-outline-warning flag-btn" (click)="toggleMarkQuestion()">

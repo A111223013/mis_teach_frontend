@@ -177,11 +177,8 @@ export class QuizCenterComponent implements OnInit {
       count: this.questionCount
     };
 
-    console.log('🎯 創建知識點測驗:', quizParams);
-
     this.quizService.createQuiz(quizParams).subscribe({
       next: (response: any) => {
-        console.log('✅ 測驗創建成功:', response);
         if (response.quiz_id) {
           // 直接跳轉到測驗頁面
           this.router.navigate(['/dashboard/quiz-taking', response.quiz_id], {
@@ -221,12 +218,8 @@ export class QuizCenterComponent implements OnInit {
       department: this.selectedDepartment
     };
 
-    console.log('🎯 創建考古題測驗:', quizParams);
-
     this.quizService.createQuiz(quizParams).subscribe({
       next: (response: any) => {
-        console.log('✅ 考古題測驗創建成功:', response);
-        
         if (response && response.quiz_id) {
           // 直接跳轉到測驗頁面
           const quizUrl = `/dashboard/quiz-taking/${response.quiz_id}`;
@@ -237,7 +230,6 @@ export class QuizCenterComponent implements OnInit {
             department: this.selectedDepartment
           };
           
-          console.log('🔄 導覽到測驗頁面:', quizUrl);
           this.router.navigate([quizUrl], { queryParams });
         } else {
           alert('測驗創建失敗：無效的回應格式');

@@ -113,9 +113,7 @@ export class QuizResultComponent implements OnInit {
       }
     } catch (error) {
       console.error('載入測驗結果錯誤:', error);
-      this.error = '載入測驗結果時發生錯誤';
-      // 載入失敗時嘗試使用 mock 數據
-      this.loadMockQuizResult();
+      this.error = '載入測驗結果時發生錯誤，請確認測驗結果ID是否正確';
     } finally {
       this.loading = false;
     }
@@ -186,27 +184,51 @@ export class QuizResultComponent implements OnInit {
 
   async startErrorLearning(): Promise<void> {
     try {
+      console.log('開始錯題學習，resultId:', this.resultId);
+      
+      // 保存result_id到localStorage，供AI tutoring組件使用
+      localStorage.setItem('current_result_id', this.resultId);
+      
+      // 嘗試調用後端 API
       const response = await this.ragService.startErrorLearning(this.resultId).toPromise();
       
-      if (response?.success) {
+      if (response?.success && response?.session_id) {
+        console.log('後端API成功，導航到AI tutoring:', response.session_id);
         // 導航到 AI 智能教學頁面
-        this.router.navigate(['/dashboard/ai-tutoring', response.session_id]);
+        this.router.navigate(['/dashboard/ai-tutoring', response.session_id], {
+          queryParams: { 
+            source: 'quiz_result',
+            result_id: this.resultId 
+          }
+        });
       } else {
-        console.error('開始錯題學習失敗:', response?.error);
+        // 如果後端 API 失敗，直接跳轉到 ai-tutoring，使用 resultId 作為 sessionId
+        console.warn('後端 API 失敗，直接跳轉到 AI tutoring');
+        this.router.navigate(['/dashboard/ai-tutoring', this.resultId], {
+          queryParams: { 
+            source: 'quiz_result',
+            result_id: this.resultId 
+          }
+        });
       }
     } catch (error) {
       console.error('開始錯題學習錯誤:', error);
+      // 發生錯誤時，直接跳轉到 ai-tutoring
+      this.router.navigate(['/dashboard/ai-tutoring', this.resultId], {
+        queryParams: { 
+          source: 'quiz_result',
+          result_id: this.resultId 
+        }
+      });
     }
   }
 
   viewAllQuestions(): void {
     // 可以導航到完整的題目檢視頁面
-    console.log('查看所有題目');
   }
 
   generateAnalysisReport(): void {
     // 可以導航到詳細分析報告頁面
-    console.log('生成分析報告');
   }
 
   getFilterButtonClass(type: string): string {

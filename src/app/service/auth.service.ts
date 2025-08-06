@@ -34,6 +34,7 @@ export class AuthService {
   // 檢查token是否有效
   isTokenValid(): boolean {
     const token = this.getToken();
+    
     if (!token || token === 'null' || token.trim() === '') {
       return false;
     }
@@ -62,20 +63,26 @@ export class AuthService {
     const token = this.getToken();
     
     if (!this.isTokenValid()) {
-      console.log('⚠️ Token無效，需要重新登錄');
       this.clearToken();
       this.router.navigate(['/login']);
       return throwError(() => new Error('Token無效，請重新登錄'));
     }
     
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return requestFn(headers);
+    return requestFn(headers).pipe(
+      catchError(error => {
+        if (error.status === 401) {
+          this.clearToken();
+          this.router.navigate(['/login']);
+        }
+        return throwError(() => error);
+      })
+    );
   }
 
   // 處理認證錯誤的統一方法
   handleAuthError(error: any): void {
     if (error.status === 401) {
-      console.log('🔐 認證失敗，清除token並導向登錄');
       this.clearToken();
       setTimeout(() => {
         this.router.navigate(['/login']);
@@ -104,7 +111,6 @@ export class AuthService {
     }
     
     // 簡化版：只要有有效token就允許存取
-    console.log('✅ Token有效，允許存取路由:', currentRoute);
     return of(true);
   }
 
@@ -116,7 +122,6 @@ export class AuthService {
     }
     
     // 簡化版：只要有有效token就允許存取
-    console.log('✅ Token有效，允許企業存取:', taxId, currentRoute);
     return of(true);
   }
 
@@ -128,7 +133,6 @@ export class AuthService {
     }
     
     // 簡化版：只要有有效token就允許存取
-    console.log('✅ Token有效，允許團隊存取:', teamCode, currentRoute);
     return of(true);
   }
 
@@ -140,7 +144,6 @@ export class AuthService {
     }
     
     // 簡化版：只要有有效token就允許存取
-    console.log('✅ Token有效，允許團隊應用存取:', teamCode, appId);
     return of(true);
   }
 
@@ -152,7 +155,6 @@ export class AuthService {
     }
     
     // 簡化版：只要有有效token就允許存取
-    console.log('✅ Token有效，允許應用存取:', appId);
     return of(true);
   }
 } 

@@ -14,11 +14,9 @@ export class QuizAnalyzeComponent {
   ) {}
     
   ngOnInit(): void {
-    console.log('現在是測試網頁');
-
     this.ragService.get_user_answer_object().subscribe(
       (data: any) => {
-        console.log('獲取的學生作答資料:', data);
+        // 處理學生作答資料
       },
       (error: any) => {
         console.error('Error fetching exam data:', error);

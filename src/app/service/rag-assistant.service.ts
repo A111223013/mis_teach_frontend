@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { AuthService } from './auth.service';
 
 export interface ChatMessage {
   id: string;
@@ -72,8 +73,16 @@ export class RagAssistantService {
     withCredentials: true
   };
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private authService: AuthService) {
     this.loadChatHistory();
+  }
+
+  // 統一錯誤處理
+  private handleError = (error: any) => {
+    if (error.status === 401) {
+      this.authService.handleAuthError(error);
+    }
+    return throwError(() => error);
   }
 
   /**
@@ -103,7 +112,9 @@ export class RagAssistantService {
     };
 
     return new Observable<ChatResponse>(observer => {
-      this.http.post<ChatResponse>(`${this.apiUrl}/chat`, payload, this.httpOptions)
+      this.authService.authenticatedRequest((headers) =>
+        this.http.post<ChatResponse>(`${this.apiUrl}/chat`, payload, { headers })
+      ).pipe(catchError(this.handleError))
         .subscribe({
           next: (response) => {
             this.isTypingSubject.next(false);
@@ -169,11 +180,13 @@ export class RagAssistantService {
     };
 
     return new Observable<ChatResponse>(observer => {
-      this.http.post<ChatResponse>(`${this.apiUrl}/chat`, payload, this.httpOptions)
+      this.authService.authenticatedRequest((headers) =>
+        this.http.post<ChatResponse>(`${this.apiUrl}/chat`, payload, { headers })
+      ).pipe(catchError(this.handleError))
         .subscribe({
           next: (response) => {
             this.isTypingSubject.next(false);
-
+            
             if (response.success && response.response) {
               // 添加AI回應到聊天記錄
               this.addMessage({
@@ -185,14 +198,14 @@ export class RagAssistantService {
                 aiModel: response.ai_model as any
               });
             }
-
+            
             observer.next(response);
             observer.complete();
           },
           error: (error) => {
             this.isTypingSubject.next(false);
-            console.error('Chat error:', error);
-
+            console.error('Chat with session error:', error);
+            
             // 添加錯誤訊息
             this.addMessage({
               id: this.generateId(),
@@ -201,7 +214,7 @@ export class RagAssistantService {
               timestamp: new Date(),
               aiModel: 'gemini'
             });
-
+            
             observer.error(error);
           }
         });
@@ -209,54 +222,50 @@ export class RagAssistantService {
   }
 
   /**
-   * 獲取系統使用指南
+   * 獲取系統指南
    */
   getSystemGuide(userType: 'new' | 'returning' = 'new'): Observable<SystemGuide> {
-    const payload = { user_type: userType };
-    return this.http.post<SystemGuide>(`${this.apiUrl}/system-guide`, payload, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<SystemGuide>(`${this.apiUrl}/system-guide`, { user_type: userType }, { headers })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
-   * 獲取學習分析報告
+   * 獲取學習分析
    */
   getLearningAnalysis(): Observable<{success: boolean, analysis: LearningAnalysis}> {
-    return this.http.get<{success: boolean, analysis: LearningAnalysis}>(`${this.apiUrl}/learning-analysis`, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.get<{success: boolean, analysis: LearningAnalysis}>(`${this.apiUrl}/learning-analysis`, { headers })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
-   * 提供考題指導
+   * 獲取考試指導
    */
   getExamGuidance(wrongAnswers: any[], examResults: any = {}): Observable<ExamGuidance> {
-    const payload = {
-      wrong_answers: wrongAnswers,
-      exam_results: examResults
-    };
-    return this.http.post<ExamGuidance>(`${this.apiUrl}/exam-guidance`, payload, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<ExamGuidance>(`${this.apiUrl}/exam-guidance`, { wrong_answers: wrongAnswers, exam_results: examResults }, { headers })
+    ).pipe(catchError(this.handleError));
   }
-
 
   /**
    * 重置對話
    */
   resetConversation(): Observable<{success: boolean, message: string}> {
     return new Observable(observer => {
-      this.http.post<any>(`${this.apiUrl}/reset-conversation`, {}, this.httpOptions)
+      this.authService.authenticatedRequest((headers) =>
+        this.http.post<any>(`${this.apiUrl}/reset-conversation`, {}, { headers })
+      ).pipe(catchError(this.handleError))
         .subscribe({
           next: (response) => {
             if (response.success) {
-              // 添加系統訊息
-              this.addMessage({
-                id: this.generateId(),
-                type: 'assistant',
-                content: `🔄 ${response.message}`,
-                timestamp: new Date(),
-                aiModel: 'gemini'
-              });
+              this.clearMessages();
             }
             observer.next(response);
             observer.complete();
           },
           error: (error) => {
+            console.error('Reset conversation error:', error);
             observer.error(error);
           }
         });
@@ -329,21 +338,27 @@ export class RagAssistantService {
    * 提交測驗結果
    */
   submitQuizResults(quizData: any): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/submit-quiz-results`, quizData, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<any>(`${this.apiUrl}/submit-quiz-results`, quizData, { headers })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
    * 獲取測驗結果
    */
   getQuizResult(resultId: string): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/get-quiz-result/${resultId}`, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.get<any>(`${this.apiUrl}/get-quiz-result/${resultId}`, { headers })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
    * 開始錯題學習
    */
   startErrorLearning(resultId: string): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/start-error-learning`, { result_id: resultId }, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<any>(`${this.apiUrl}/start-error-learning`, { result_id: resultId }, { headers })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
@@ -355,14 +370,18 @@ export class RagAssistantService {
     user_input: string;
     action: string;
   }): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/ai-tutoring`, data, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<any>(`${this.apiUrl}/ai-tutoring`, data, { headers })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
    * 獲取學習進度
    */
   getLearningProgress(sessionId: string): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/learning-progress/${sessionId}`, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.get<any>(`${this.apiUrl}/learning-progress/${sessionId}`, { headers })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
@@ -373,44 +392,56 @@ export class RagAssistantService {
     question_id: string;
     understanding_level: number;
   }): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/complete-question-learning`, data, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<any>(`${this.apiUrl}/complete-question-learning`, data, { headers })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
    * 獲取對話歷史
    */
   getConversationHistory(limit: number = 20): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/conversation-history?limit=${limit}`, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.get<any>(`${this.apiUrl}/conversation-history?limit=${limit}`, { headers })
+    ).pipe(catchError(this.handleError));
   }
 
   get_user_answer_object(): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/get_user_answer_object`, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.get<any>(`${this.apiUrl}/get_user_answer_object`, { headers })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
    * 獲取知識點測驗題目
    */
   getKnowledgeQuestions(params: { topic: string; difficulty: string; count: number }): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/knowledge-questions`, { 
-      ...this.httpOptions, 
-      params: params as any 
-    });
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.get<any>(`${this.apiUrl}/knowledge-questions`, { 
+        headers,
+        params: params as any 
+      })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
    * 獲取考古題測驗題目
    */
   getPastExamQuestions(params: { school: string; year: string; department: string }): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/past-exam-questions`, { 
-      ...this.httpOptions, 
-      params: params as any 
-    });
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.get<any>(`${this.apiUrl}/past-exam-questions`, { 
+        headers,
+        params: params as any 
+      })
+    ).pipe(catchError(this.handleError));
   }
 
   /**
    * 提交測驗答案
    */
   submitQuizAnswers(quizData: any): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/submit-quiz-answers`, quizData, this.httpOptions);
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<any>(`${this.apiUrl}/submit-quiz-answers`, quizData, { headers })
+    ).pipe(catchError(this.handleError));
   }
 }

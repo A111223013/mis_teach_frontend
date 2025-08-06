@@ -33,10 +33,24 @@ export class DashboardService {
     ).pipe(catchError(this.handleError));
   }
 
-  // 獲取用戶提交記錄
+  // 獲取用戶提交歷史
   getUserSubmissions(): Observable<any> {
     return this.authService.authenticatedRequest((headers) =>
-      this.http.post(`${environment.apiBaseUrl}/dashboard/getUserSubmissions`, {}, { headers })
+      this.http.post(`${environment.apiBaseUrl}/dashboard/get-user-submissions`, {}, { headers })
+    ).pipe(catchError(this.handleError));
+  }
+
+  // 從 MongoDB error_questions 集合獲取用戶錯題
+  getUserErrorsMongo(): Observable<any> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post(`${environment.apiBaseUrl}/quiz/get-user-errors-mongo`, {}, { headers })
+    ).pipe(catchError(this.handleError));
+  }
+
+  // 從 MongoDB submissions 集合獲取完整測驗數據進行分析
+  getUserSubmissionsAnalysis(): Observable<any> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post(`${environment.apiBaseUrl}/quiz/get-user-submissions-analysis`, {}, { headers })
     ).pipe(catchError(this.handleError));
   }
 
