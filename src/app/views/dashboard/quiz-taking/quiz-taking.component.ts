@@ -433,16 +433,20 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 提交測驗
   submitQuiz(): void {
+    console.debug('[submitQuiz] 進入 submitQuiz 方法');
     if (!this.canSubmit()) {
+      console.debug('[submitQuiz] 無法提交，尚未作答任何題目');
       alert('請至少回答一道題目再提交');
       return;
     }
 
     if (this.timerSubscription) {
+      console.debug('[submitQuiz] 取消計時器訂閱');
       this.timerSubscription.unsubscribe();
     }
 
     const confirmed = confirm('確定要提交測驗嗎？提交後將無法修改答案。');
+    console.debug(`[submitQuiz] 使用者確認提交: ${confirmed}`);
     if (!confirmed) return;
 
     this.isLoading = true;
@@ -491,6 +495,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         // 準備錯題和標記題目的資料
         const wrongQuestions = this.getWrongQuestions();
         const markedQuestions = this.getMarkedQuestions();
+        console.debug('[submitQuiz] 錯題資料:', wrongQuestions);
+        console.debug('[submitQuiz] 標記題目資料:', markedQuestions);
         
         // 將測驗結果存入 sessionStorage 供 AI tutoring 使用
         const quizResultData = {
@@ -504,6 +510,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
           user_answers: this.userAnswers,
           time_taken: submissionData.time_taken
         };
+        console.debug('[submitQuiz] 存入 sessionStorage 的 quizResultData:', quizResultData);
         
         sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
         
