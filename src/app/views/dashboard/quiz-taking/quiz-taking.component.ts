@@ -20,12 +20,28 @@ import { Subscription, interval } from 'rxjs';
 interface QuizQuestion {
   id: number;
   question_text: string;
-  type: 'single-choice' | 'multiple-choice' | 'fill-in-the-blank' | 'true-false' | 'short-answer' | 'long-answer' | 'choice-answer' | 'draw-answer' | 'coding-answer';
+  type: 'single-choice' | 'multiple-choice' | 'fill-in-the-blank' | 'true-false' | 'short-answer' | 'long-answer' | 'choice-answer' | 'draw-answer' | 'coding-answer' | 'group';
   options?: string[];
   image_file?: string;
   correct_answer?: any;
   original_exam_id?: string;
   key_points?: string;
+  // 群組題目相關屬性
+  group_question_text?: string;
+  sub_questions?: SubQuestion[];
+}
+
+interface SubQuestion {
+  question_number: string;
+  question_text: string;
+  options: string[];
+  answer: string;
+  answer_type: string;
+  image_file?: string[];
+  'detail-answer'?: string;
+  'key-points'?: string;
+  'difficulty level'?: string;
+  'error reason'?: string;
 }
 
 interface QuizResponse {
@@ -118,6 +134,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
     this.quizService.getQuiz(this.quizId).subscribe(
       response => {
+        console.log(response);
         this.quizTitle = response.quiz_title || '測驗';
         this.questions = response.questions || [];
         this.timeLimit = response.time_limit || 60;
@@ -209,7 +226,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       'long-answer': '長答題',
       'choice-answer': '選填題',
       'draw-answer': '畫圖題',
-      'coding-answer': '程式撰寫題'
+      'coding-answer': '程式撰寫題',
+      'group': '群組題'
     };
     return typeMap[type] || type;
   }
@@ -321,6 +339,42 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     this.userAnswers[this.currentQuestionIndex] = value;
   }
 
+  // 群組題目處理
+  getSubQuestionAnswer(subQuestionIndex: number): string {
+    const answers = this.userAnswers[this.currentQuestionIndex];
+    if (Array.isArray(answers)) {
+      return answers[subQuestionIndex] || '';
+    }
+    return '';
+  }
+
+  updateSubQuestionAnswer(subQuestionIndex: number, value: string): void {
+    if (!this.currentQuestion) return;
+    
+    let answers = this.userAnswers[this.currentQuestionIndex];
+    if (!Array.isArray(answers)) {
+      answers = [];
+    }
+    
+    answers[subQuestionIndex] = value;
+    this.userAnswers[this.currentQuestionIndex] = [...answers];
+  }
+
+  getSubQuestionTypeDisplayName(answerType: string): string {
+    const typeMap: { [key: string]: string } = {
+      'single-choice': '單選題',
+      'multiple-choice': '多選題',
+      'fill-in-the-blank': '填空題',
+      'true-false': '是非題',
+      'short-answer': '簡答題',
+      'long-answer': '長答題',
+      'choice-answer': '選填題',
+      'draw-answer': '畫圖題',
+      'coding-answer': '程式撰寫題'
+    };
+    return typeMap[answerType] || answerType;
+  }
+
   // 圖片處理
   hasQuestionImages(): boolean {
     if (!this.currentQuestion?.image_file) return false;
@@ -403,10 +457,53 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 計算已作答和已標記的題目數量
   get answeredCount(): number {
-    // 修正：計算實際有答案的題目數量
-    return Object.values(this.userAnswers).filter(answer => 
-      answer !== undefined && answer !== null && answer !== ''
-    ).length;
+    let count = 0;
+    Object.keys(this.userAnswers).forEach(key => {
+      const questionIndex = parseInt(key);
+      const question = this.questions[questionIndex];
+      const answer = this.userAnswers[questionIndex];
+      
+      // 檢查是否有有效答案（包括布爾值false）
+      const hasValidAnswer = this.hasValidAnswer(answer, question?.type);
+      
+      if (hasValidAnswer) {
+        if (question?.type === 'group') {
+          // 群組題目：檢查是否至少有一個子題有答案
+          if (Array.isArray(answer) && answer.some((subAnswer, subIndex) => {
+            const subQuestion = question.sub_questions?.[subIndex];
+            return this.hasValidAnswer(subAnswer, subQuestion?.answer_type);
+          })) {
+            count++;
+          }
+        } else {
+          // 一般題目
+          count++;
+        }
+      }
+    });
+    return count;
+  }
+
+  // 檢查是否有有效答案的輔助方法
+  private hasValidAnswer(answer: any, questionType?: string): boolean {
+    if (answer === undefined || answer === null) {
+      return false;
+    }
+    
+    // 對於是非題，布爾值 false 也是有效答案
+    if (questionType === 'true-false') {
+      return typeof answer === 'boolean';
+    }
+    
+    // 對於其他題型，空字符串視為無答案
+    return answer !== '';
+  }
+
+  // 檢查指定題目是否已作答（供模板使用）
+  isQuestionAnswered(questionIndex: number): boolean {
+    const question = this.questions[questionIndex];
+    const answer = this.userAnswers[questionIndex];
+    return this.hasValidAnswer(answer, question?.type);
   }
 
   get markedCount(): number {
@@ -428,7 +525,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 檢查是否可以提交
   canSubmit(): boolean {
-    return Object.keys(this.userAnswers).length > 0;
+    return this.answeredCount > 0;
   }
 
   // 提交測驗
@@ -477,8 +574,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     
     // 檢查每題的答案狀態
     for (let i = 0; i < this.questions.length; i++) {
-      const hasAnswer = this.userAnswers[i] !== undefined && this.userAnswers[i] !== null && this.userAnswers[i] !== '';
-      console.log(`  - 題目 ${i}: ${hasAnswer ? '已作答' : '未作答'} (${this.userAnswers[i]})`);
+      const question = this.questions[i];
+      const answer = this.userAnswers[i];
+      const hasAnswer = this.hasValidAnswer(answer, question?.type);
+      console.log(`  - 題目 ${i}: ${hasAnswer ? '已作答' : '未作答'} (${answer})`);
     }
 
     // 準備提交資料
@@ -637,7 +736,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       const userAnswer = this.userAnswers[index];
       
       // 只處理有答案的題目
-      if (userAnswer !== undefined && userAnswer !== null && userAnswer !== '') {
+      if (this.hasValidAnswer(userAnswer, question.type)) {
         const isCorrect = this.checkAnswerCorrectness(question, userAnswer);
         
         if (!isCorrect) {
@@ -712,6 +811,49 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         }
         
         return false;
+        
+      case 'group':
+        // 群組題目答案檢查
+        if (!Array.isArray(userAnswer) || !question.sub_questions) {
+          return false;
+        }
+        
+        let correctCount = 0;
+        const totalSubQuestions = question.sub_questions.length;
+        
+        question.sub_questions.forEach((subQuestion, index) => {
+          const subUserAnswer = userAnswer[index];
+          const subCorrectAnswer = subQuestion.answer;
+          
+          if (subUserAnswer && subCorrectAnswer) {
+            // 根據子題目類型檢查答案
+            switch (subQuestion.answer_type) {
+              case 'single-choice':
+                if (subUserAnswer === subCorrectAnswer) {
+                  correctCount++;
+                }
+                break;
+              case 'short-answer':
+              case 'long-answer':
+              case 'fill-in-the-blank':
+                const subUserText = String(subUserAnswer).trim().toLowerCase();
+                const subCorrectText = String(subCorrectAnswer).trim().toLowerCase();
+                if (subUserText === subCorrectText || 
+                    subUserText.includes(subCorrectText) || 
+                    subCorrectText.includes(subUserText)) {
+                  correctCount++;
+                }
+                break;
+              default:
+                if (subUserAnswer === subCorrectAnswer) {
+                  correctCount++;
+                }
+            }
+          }
+        });
+        
+        // 如果超過 70% 的子題答對，則認為群組題答對
+        return correctCount >= totalSubQuestions * 0.7;
         
       default:
         return userAnswer === correctAnswer;
