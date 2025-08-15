@@ -28,18 +28,24 @@ interface QuizAnswer {
 }
 
 interface QuizResult {
-  user_id: string;
-  quiz_id: string;
+  quiz_history_id?: number;
+  quiz_template_id?: number;
+  user_email?: string;
+  quiz_type?: string;
   answers: QuizAnswer[];
   submit_time: string;
   total_time: number;
-  score: number;
+  total_time_taken?: number;
   total_questions: number;
-  answered_questions: number;  // 添加已作答題數
+  answered_questions: number;
   correct_count: number;
   wrong_count: number;
   marked_count: number;
   unanswered_count: number;
+  accuracy_rate?: number;
+  average_score?: number;
+  status?: string;
+  created_at?: string;
 }
 
 @Component({
@@ -391,14 +397,13 @@ export class QuizResultComponent implements OnInit {
     const markedCount = mockAnswers.filter(a => a.is_marked).length;
 
     return {
-      user_id: 'test_user',
-      quiz_id: this.resultId,
+      user_email: 'test_user@example.com',
+      quiz_type: 'mock',
       answers: mockAnswers,
       submit_time: new Date().toISOString(),
       total_time: 1200, // 20 分鐘
-      score: Math.round((correctCount / mockAnswers.length) * 100),
       total_questions: mockAnswers.length,
-      answered_questions: mockAnswers.length,  // 添加已作答題數
+      answered_questions: mockAnswers.length,
       correct_count: correctCount,
       wrong_count: wrongCount,
       marked_count: markedCount,
