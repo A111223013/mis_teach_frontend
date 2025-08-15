@@ -181,15 +181,22 @@ export class QuizCenterComponent implements OnInit {
     this.quizService.createQuiz(quizParams).subscribe({
       next: (response: any) => {
         if (response.quiz_id) {
-          // 直接跳轉到測驗頁面
-          this.router.navigate(['/dashboard/quiz-taking', response.quiz_id], {
-            queryParams: {
-              type: 'knowledge',
-              topic: this.selectedTopic,
-              difficulty: this.selectedDifficulty,
-              count: this.questionCount
-            }
-          });
+          // 存储测验数据到服务中
+          this.quizService.setCurrentQuizData(response);
+          
+          // 等待数据存储完成后再跳转
+          setTimeout(() => {
+            // 直接跳轉到測驗頁面，只传递必要的基本信息
+            this.router.navigate(['/dashboard/quiz-taking', response.quiz_id], {
+              queryParams: {
+                type: 'knowledge',
+                topic: this.selectedTopic,
+                difficulty: this.selectedDifficulty,
+                count: this.questionCount,
+                template_id: response.template_id  // 只传递模板ID
+              }
+            });
+          }, 100); // 延迟100ms确保数据存储完成
         } else {
           alert('測驗創建失敗：未獲得測驗ID');
         }
@@ -222,16 +229,23 @@ export class QuizCenterComponent implements OnInit {
     this.quizService.createQuiz(quizParams).subscribe({
       next: (response: any) => {
         if (response && response.quiz_id) {
-          // 直接跳轉到測驗頁面
-          const quizUrl = `/dashboard/quiz-taking/${response.quiz_id}`;
-          const queryParams = {
-            type: 'pastexam',
-            school: this.selectedSchool,
-            year: this.selectedYear,
-            department: this.selectedDepartment
-          };
+          // 存储测验数据到服务中
+          this.quizService.setCurrentQuizData(response);
           
-          this.router.navigate([quizUrl], { queryParams });
+          // 等待数据存储完成后再跳转
+          setTimeout(() => {
+            // 直接跳轉到測驗頁面，只传递必要的基本信息
+            const quizUrl = `/dashboard/quiz-taking/${response.quiz_id}`;
+            const queryParams = {
+              type: 'pastexam',
+              school: this.selectedSchool,
+              year: this.selectedYear,
+              department: this.selectedDepartment,
+              template_id: response.template_id  // 只传递模板ID
+            };
+            
+            this.router.navigate([quizUrl], { queryParams });
+          }, 100); // 延迟100ms确保数据存储完成
         } else {
           alert('測驗創建失敗：無效的回應格式');
         }

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, throwError } from 'rxjs';
+import { Observable, catchError, throwError, BehaviorSubject } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
 
@@ -8,6 +8,9 @@ import { AuthService } from './auth.service';
   providedIn: 'root'
 })
 export class QuizService {
+
+  // 添加测验数据存储
+  private currentQuizData = new BehaviorSubject<any>(null);
 
   constructor(private http: HttpClient, private authService: AuthService) {}
 
@@ -17,6 +20,22 @@ export class QuizService {
       this.authService.handleAuthError(error);
     }
     return throwError(() => error);
+  }
+
+  // 存储当前测验数据
+  setCurrentQuizData(quizData: any): void {
+    console.log('💾 存储测验数据到服务:', quizData);
+    this.currentQuizData.next(quizData);
+  }
+
+  // 获取当前测验数据
+  getCurrentQuizData(): Observable<any> {
+    return this.currentQuizData.asObservable();
+  }
+
+  // 清除当前测验数据
+  clearCurrentQuizData(): void {
+    this.currentQuizData.next(null);
   }
 
   // 獲取所有考題
@@ -40,7 +59,7 @@ export class QuizService {
     ).pipe(catchError(this.handleError));
   }
 
-  // 獲取測驗詳情
+  // 獲取測驗詳情（保留作为备选方案）
   getQuiz(quizId: string): Observable<any> {
     return this.authService.authenticatedRequest((headers) =>
       this.http.post(`${environment.apiBaseUrl}/quiz/get-quiz`, { quiz_id: quizId }, { headers })

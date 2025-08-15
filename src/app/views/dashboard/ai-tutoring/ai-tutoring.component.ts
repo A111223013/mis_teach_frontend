@@ -124,10 +124,11 @@ export class AiTutoringComponent implements OnInit, OnDestroy {
       if (queryParams['source'] === 'quiz_completion') {
         // 從測驗完成後導向 AI tutoring
         this.initializeFromQuizCompletion(queryParams);
-      } else if (queryParams['source'] === 'quiz_result') {
-        // 從 quiz-result 頁面跳轉過來
-        this.initializeFromQuizResult(queryParams);
-      } else if (queryParams['mode'] === 'mistake_review' && queryParams['questionId']) {
+              } else if (queryParams['source'] === 'quiz_result') {
+          // 從 quiz-result 頁面跳轉過來
+          console.log('🔍 從 quiz-result 頁面跳轉，queryParams:', queryParams);
+          this.initializeFromQuizResult(queryParams);
+        } else if (queryParams['mode'] === 'mistake_review' && queryParams['questionId']) {
         this.initializeMistakeReview(queryParams['questionId']);
       } else if (queryParams['mode'] === 'batch_review' && queryParams['mistakeIds']) {
         this.initializeBatchReview(queryParams['mistakeIds']);
@@ -603,43 +604,67 @@ export class AiTutoringComponent implements OnInit, OnDestroy {
     const welcomeMessage = `🎉 測驗完成！
 
 **測驗資訊：**
-- 測驗標題：${quizData.quiz_title}
-- 總題數：${quizData.total_questions}
-- 錯題數：${quizData.wrong_questions?.length || 0}
-- 標記題數：${quizData.marked_questions?.length || 0}
+- 總題數：${quizData.total_questions || 0}
+- 已答題數：${quizData.answered_questions || 0}
+- 正確題數：${quizData.correct_count || 0}
+- 錯誤題數：${quizData.wrong_count || 0}
 
-我將協助您複習答錯和標記的題目，幫助您掌握相關概念。
+我將協助您複習答錯的題目，幫助您掌握相關概念。
 
 讓我們開始第一道題目的學習：
 
-**題目：** ${this.currentQuestion?.question_text}
+**題目：** ${this.currentQuestion?.question_text || '題目載入中...'}
 
-${this.currentQuestion?.user_answer ? `您的答案：${this.currentQuestion.user_answer}` : ''}
-${this.currentQuestion?.correct_answer ? `正確答案：${this.currentQuestion.correct_answer}` : ''}
+${this.currentQuestion?.user_answer && this.currentQuestion.user_answer !== '未作答' ? 
+  `您的答案：${this.currentQuestion.user_answer}` : 
+  '您的答案：未作答'}
 
-有什麼問題想要問我嗎？`;
+${this.currentQuestion?.correct_answer && this.currentQuestion.correct_answer !== '無參考答案' ? 
+  `正確答案：${this.currentQuestion.correct_answer}` : 
+  '正確答案：載入中...'}
+
+有什麼問題想要問我嗎？我可以幫助您：
+1. 解釋題目概念
+2. 分析錯誤原因
+3. 提供學習建議
+4. 回答其他相關問題`;
 
     this.addMessage('ai', welcomeMessage);
+    
+    // 添加學習建議
+    setTimeout(() => {
+      this.addMessage('ai', '💡 **學習建議：**\n\n建議您：\n1. 仔細閱讀題目內容\n2. 理解正確答案的邏輯\n3. 思考為什麼會答錯\n4. 提出具體的疑問\n\n我會根據您的問題提供針對性的解釋！');
+    }, 3000);
   }
   
   private addNoMistakesMessage(quizData: any): void {
-    const message = `🎉 恭喜！測驗完成！
+    const message = `🎉 測驗完成！
 
 **測驗資訊：**
-- 測驗標題：${quizData.quiz_title}
-- 總題數：${quizData.total_questions}
-- 表現：沒有錯題需要複習
+- 總題數：${quizData.total_questions || 0}
+- 已答題數：${quizData.answered_questions || 0}
+- 未答題數：${quizData.unanswered_questions || 0}
+- 正確題數：${quizData.correct_count || 0}
+- 錯誤題數：${quizData.wrong_count || 0}
 
-您的表現很棒！所有題目都答對了，沒有需要特別複習的地方。
+${quizData.answered_questions === 0 ? 
+  '您沒有回答任何題目，但這沒關係！我可以幫助您：' : 
+  '您的表現很棒！沒有錯題需要複習。'}
 
-如果您想要：
-1. 回到測驗中心進行更多測驗
-2. 查看錯題統整功能
-3. 或者有其他學習相關的問題
+我可以幫助您：
+1. 學習相關概念和知識點
+2. 解答您的疑問
+3. 提供學習建議和指導
+4. 或者回答其他 MIS 相關問題
 
-隨時告訴我，我很樂意協助您！`;
+有什麼問題想要問我嗎？我很樂意協助您學習！`;
 
     this.addMessage('ai', message);
+    
+    // 添加一個示例問題
+    setTimeout(() => {
+      this.addMessage('ai', '💡 **示例問題：**\n\n您可以問我：\n- "什麼是資料庫正規化？"\n- "TCP 和 UDP 的區別是什麼？"\n- "如何設計一個好的資料庫結構？"\n- "作業系統的進程管理是什麼？"\n\n或者直接描述您想學習的概念，我會為您詳細解釋！');
+    }, 2000);
   }
 
   async initializeFromQuizResult(queryParams: any): Promise<void> {
@@ -656,28 +681,170 @@ ${this.currentQuestion?.correct_answer ? `正確答案：${this.currentQuestion.
       const response = await this.ragService.getQuizResult(resultId).toPromise();
       console.log('測驗結果響應:', response);
       
-      if (response?.success && response.result) {
-        const quizData = response.result;
+      if (response?.success && response.data) {
+        const quizData = response.data;
         console.log('測驗數據:', quizData);
+        
+        // 驗證測驗數據的完整性
+        if (!quizData || typeof quizData !== 'object') {
+          console.error('測驗數據格式無效:', quizData);
+          this.addMessage('ai', '測驗數據格式無效，請重試。');
+          
+          // 設置空的學習路徑
+          this.learningPath = [];
+          this.currentQuestionIndex = 0;
+          this.currentQuestion = null;
+          
+          // 設置學習進度
+          this.learningProgress = {
+            total_questions: 0,
+            completed_questions: 0,
+            current_question_index: 0,
+            progress_percentage: 0,
+            remaining_questions: 0,
+            session_status: 'error'
+          };
+          
+          return;
+        }
+        
+        // 檢查是否有必要的字段
+        if (!quizData.total_questions && !quizData.answers && !quizData.errors) {
+          console.error('測驗數據缺少必要字段:', quizData);
+          this.addMessage('ai', '測驗數據不完整，請重試。');
+          
+          // 設置空的學習路徑
+          this.learningPath = [];
+          this.currentQuestionIndex = 0;
+          this.currentQuestion = null;
+          
+          // 設置學習進度
+          this.learningProgress = {
+            total_questions: 0,
+            completed_questions: 0,
+            current_question_index: 0,
+            progress_percentage: 0,
+            remaining_questions: 0,
+            session_status: 'error'
+          };
+          
+          return;
+        }
+        
+        // 檢查是否有題目數據
+        const hasQuestions = (quizData.answers && Array.isArray(quizData.answers) && quizData.answers.length > 0) ||
+                           (quizData.errors && Array.isArray(quizData.errors) && quizData.errors.length > 0);
+        
+        if (!hasQuestions) {
+          console.log('⚠️ 沒有題目數據，顯示無題目訊息');
+          this.addNoMistakesMessage(quizData);
+          
+          // 設置空的學習路徑
+          this.learningPath = [];
+          this.currentQuestionIndex = 0;
+          this.currentQuestion = null;
+          
+          // 設置學習進度
+          this.learningProgress = {
+            total_questions: 0,
+            completed_questions: 0,
+            current_question_index: 0,
+            progress_percentage: 100,
+            remaining_questions: 0,
+            session_status: 'completed'
+          };
+          
+          return;
+        }
+        
+        // 檢查是否有錯題數據
+        const hasWrongQuestions = (quizData.answers && Array.isArray(quizData.answers) && quizData.answers.some((answer: any) => !answer.is_correct)) ||
+                                (quizData.errors && Array.isArray(quizData.errors) && quizData.errors.length > 0);
+        
+        if (!hasWrongQuestions) {
+          console.log('⚠️ 沒有錯題數據，顯示無錯題訊息');
+          this.addNoMistakesMessage(quizData);
+          
+          // 設置空的學習路徑
+          this.learningPath = [];
+          this.currentQuestionIndex = 0;
+          this.currentQuestion = null;
+          
+          // 設置學習進度
+          this.learningProgress = {
+            total_questions: 0,
+            completed_questions: 0,
+            current_question_index: 0,
+            progress_percentage: 100,
+            remaining_questions: 0,
+            session_status: 'completed'
+          };
+          
+          return;
+        }
         
         // 提取錯題 - 檢查不同的數據結構
         let wrongQuestions = [];
         
-        if (quizData.answers && Array.isArray(quizData.answers)) {
+        console.log('🔍 檢查測驗數據結構:', {
+          hasAnswers: !!quizData.answers,
+          answersType: typeof quizData.answers,
+          answersLength: Array.isArray(quizData.answers) ? quizData.answers.length : 'N/A',
+          hasErrors: !!quizData.errors,
+          errorsLength: Array.isArray(quizData.errors) ? quizData.errors.length : 'N/A'
+        });
+        
+        if (quizData.answers && Array.isArray(quizData.answers) && quizData.answers.length > 0) {
           // 如果是 answers 數組格式
           wrongQuestions = quizData.answers.filter((answer: any) => !answer.is_correct);
+          console.log('✅ 從 answers 數組提取錯題:', wrongQuestions.length);
+        } else if (quizData.errors && Array.isArray(quizData.errors) && quizData.errors.length > 0) {
+          // 如果是 errors 數組格式（後端返回的錯題）
+          wrongQuestions = quizData.errors.map((error: any) => ({
+            question_id: error.question_id || error.mongodb_question_id || '',
+            question_text: error.question_text || error.question_detail?.question_text || `題目 ${error.question_index + 1}`,
+            user_answer: error.user_answer || '',
+            correct_answer: error.question_detail?.answer || '無參考答案',
+            is_correct: false,
+            is_marked: false,
+            topic: '計算機概論',
+            difficulty: 2,
+            options: [],
+            image_file: '',
+            question_type: 'short-answer'
+          }));
+          console.log('✅ 從 errors 數組提取錯題:', wrongQuestions.length);
         } else if (quizData.wrong_questions && Array.isArray(quizData.wrong_questions)) {
           // 如果是 wrong_questions 數組格式
           wrongQuestions = quizData.wrong_questions;
+          console.log('✅ 從 wrong_questions 數組提取錯題:', wrongQuestions.length);
         } else if (quizData.answers && typeof quizData.answers === 'object') {
           // 如果是 answers 對象格式
           wrongQuestions = Object.values(quizData.answers).filter((answer: any) => !answer.is_correct);
+          console.log('✅ 從 answers 對象提取錯題:', wrongQuestions.length);
         }
         
-        console.log('提取的錯題:', wrongQuestions);
+        console.log('🔍 最終提取的錯題:', wrongQuestions);
         
         if (wrongQuestions.length === 0) {
+          console.log('⚠️ 沒有找到錯題，顯示無錯題訊息');
           this.addNoMistakesMessage(quizData);
+          
+          // 設置空的學習路徑
+          this.learningPath = [];
+          this.currentQuestionIndex = 0;
+          this.currentQuestion = null;
+          
+          // 設置學習進度
+          this.learningProgress = {
+            total_questions: 0,
+            completed_questions: 0,
+            current_question_index: 0,
+            progress_percentage: 100,
+            remaining_questions: 0,
+            session_status: 'completed'
+          };
+          
           return;
         }
 
@@ -716,12 +883,48 @@ ${this.currentQuestion?.correct_answer ? `正確答案：${this.currentQuestion.
         
         console.log('AI tutoring 初始化完成');
       } else {
-        console.error('無法獲取測驗結果:', response?.error);
-        this.addMessage('ai', '抱歉，無法載入您的測驗結果。請重試。');
-      }
+          console.error('無法獲取測驗結果:', response?.error || '未知錯誤');
+          this.addMessage('ai', '抱歉，無法載入您的測驗結果。請重試。');
+          
+          // 顯示默認歡迎訊息
+          this.addMessage('ai', '🎓 歡迎來到 AI 智能教學！\n\n我是您的專屬 MIS 教學助理，可以幫助您：\n\n📚 **學習輔導**：\n• 回答 MIS 相關問題\n• 解釋複雜概念\n• 提供學習建議\n\n🎯 **錯題學習**：\n• 分析錯誤原因\n• 提供針對性輔導\n• 確保概念理解\n\n💡 **使用技巧**：\n• 直接提問任何 MIS 相關問題\n• 描述您的困惑和疑問\n• 我會根據您的程度調整解釋方式\n\n現在就開始提問吧！我很樂意幫助您學習。');
+          
+          // 設置空的學習路徑
+          this.learningPath = [];
+          this.currentQuestionIndex = 0;
+          this.currentQuestion = null;
+          
+          // 設置學習進度
+          this.learningProgress = {
+            total_questions: 0,
+            completed_questions: 0,
+            current_question_index: 0,
+            progress_percentage: 0,
+            remaining_questions: 0,
+            session_status: 'error'
+          };
+        }
     } catch (error) {
       console.error('初始化從測驗結果錯誤:', error);
       this.addMessage('ai', '載入測驗結果時發生錯誤，請重試。');
+      
+      // 顯示默認歡迎訊息
+      this.addMessage('ai', '🎓 歡迎來到 AI 智能教學！\n\n我是您的專屬 MIS 教學助理，可以幫助您：\n\n📚 **學習輔導**：\n• 回答 MIS 相關問題\n• 解釋複雜概念\n• 提供學習建議\n\n🎯 **錯題學習**：\n• 分析錯誤原因\n• 提供針對性輔導\n• 確保概念理解\n\n💡 **使用技巧**：\n• 直接提問任何 MIS 相關問題\n• 描述您的困惑和疑問\n• 我會根據您的程度調整解釋方式\n\n現在就開始提問吧！我很樂意幫助您學習。');
+      
+      // 設置空的學習路徑
+      this.learningPath = [];
+      this.currentQuestionIndex = 0;
+      this.currentQuestion = null;
+      
+      // 設置學習進度
+      this.learningProgress = {
+        total_questions: 0,
+        completed_questions: 0,
+        current_question_index: 0,
+        progress_percentage: 0,
+        remaining_questions: 0,
+        session_status: 'error'
+      };
     }
   }
 

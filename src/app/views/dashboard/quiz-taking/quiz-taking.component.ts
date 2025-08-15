@@ -55,7 +55,8 @@ interface QuizResponse {
   styleUrls: ['./quiz-taking.component.css']
 })
 export class QuizTakingComponent implements OnInit, OnDestroy {
-  quizId: string = '';
+  templateId: string = '';  // 考卷模板ID
+  quizId: string = '';      // 測驗ID（用於向後兼容）
   quizTitle: string = '';
   questions: QuizQuestion[] = [];
   currentQuestionIndex: number = 0;
@@ -93,7 +94,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.route.params.subscribe(params => {
-      const quizId = params['quizId']; // 修改：使用正確的參數名稱 'quizId'
+      const quizId = params['quizId']; // 路由參數名保持不變
       if (quizId) {
         this.quizId = quizId;
         this.loadQuiz();
@@ -112,15 +113,39 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   loadQuiz(): void {
     if (!this.quizId) {
-      this.router.navigate(['/quiz-center']);
+      this.router.navigate(['/dashboard/quiz-center']);
       return;
     }
 
-    this.quizService.getQuiz(this.quizId).subscribe(
-      response => {
-        this.quizTitle = response.quiz_title || '測驗';
-        this.questions = response.questions || [];
-        this.timeLimit = response.time_limit || 60;
+    // 从路由参数获取基本信息
+    const quizType = this.route.snapshot.queryParamMap.get('type');
+    const school = this.route.snapshot.queryParamMap.get('school');
+    const year = this.route.snapshot.queryParamMap.get('year');
+    const department = this.route.snapshot.queryParamMap.get('department');
+    const topic = this.route.snapshot.queryParamMap.get('topic');
+    const templateId = this.route.snapshot.queryParamMap.get('template_id');
+    
+    // 设置 templateId
+    if (templateId) {
+      this.templateId = templateId;
+      console.log('✅ 从路由参数获取 template_id:', this.templateId);
+    } else {
+      console.warn('⚠️ 路由参数中没有 template_id，使用 quizId 作为备选');
+      this.templateId = this.quizId;
+    }
+    
+    // 从服务中获取已存储的测验数据
+    this.quizService.getCurrentQuizData().subscribe(quizData => {
+      console.log('🔍 从服务获取的测验数据:', quizData);
+      
+      if (quizData && quizData.questions && quizData.questions.length > 0) {
+        // 使用已存储的数据
+        console.log('✅ 使用已存储的测验数据');
+        
+        // 设置测验信息
+        this.quizTitle = this.generateQuizTitle(quizType, school, year, department, topic);
+        this.questions = quizData.questions;
+        this.timeLimit = quizData.time_limit || 60;
         this.totalQuestions = this.questions.length;
         
         // 初始化答題狀態
@@ -133,12 +158,41 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         // 載入第一題
         this.currentQuestionIndex = 0;
         this.loadCurrentQuestion();
-      },
-      error => {
-        console.error('載入測驗失敗:', error);
-        this.router.navigate(['/quiz-center']);
+        
+        console.log('✅ 测验加载完成，题目数量:', this.totalQuestions);
+        
+        // 不要在这里清除数据，等测验完成后再清除
+        // this.quizService.clearCurrentQuizData();
+        
+      } else {
+        console.log('❌ 没有找到已存储的测验数据');
+        console.log('🔍 调试信息 - quizData:', quizData);
+        console.log('🔍 调试信息 - questions:', quizData?.questions);
+        console.log('🔍 调试信息 - questions length:', quizData?.questions?.length);
+        
+        // 檢查是否正在提交測驗，如果是則不重定向
+        if (this.isLoading) {
+          console.log('🔄 正在提交測驗，等待完成...');
+          return;
+        }
+        
+        // 如果不是正在提交，則重定向
+        console.log('🔄 重定向到測驗中心');
+        alert('測驗數據丟失，請重新創建測驗');
+        this.router.navigate(['/dashboard/quiz-center']);
       }
-    );
+    });
+  }
+
+  // 生成测验标题
+  private generateQuizTitle(type: string | null, school: string | null, year: string | null, department: string | null, topic: string | null): string {
+    if (type === 'pastexam' && school && year && department) {
+      return `${school} - ${year}年 - ${department}`;
+    } else if (type === 'knowledge' && topic) {
+      return `${topic} - 知识测验`;
+    } else {
+      return '测验';
+    }
   }
 
   initializeTimer(): void {
@@ -483,12 +537,14 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
     // 準備提交資料
     const submissionData = {
-      quiz_id: this.quizId,
+      template_id: this.templateId,  // 使用 template_id
       answers: this.userAnswers,
       time_taken: this.timeLimit > 0 ? (this.timeLimit * 60 - this.timer) : 0
     };
 
     console.log('Debug: 提交資料:', submissionData);
+    console.log('Debug: 使用的 template_id:', this.templateId);
+    console.log('Debug: 原始 quiz_id:', this.quizId);
 
     this.quizService.submitQuiz(submissionData).subscribe({
       next: (response: any) => {
@@ -500,7 +556,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         
         // 將測驗結果存入 sessionStorage 供 AI tutoring 使用
         const quizResultData = {
-          quiz_id: this.quizId,
+          quiz_id: this.templateId,
           quiz_title: this.quizTitle,
           quiz_type: this.quizType,
           total_questions: this.questions.length,
@@ -515,8 +571,16 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
         
         // 跳轉到 quiz-result 頁面
-        const resultId = response.submission_id || `result_${Date.now()}`;
-        this.router.navigate(['/dashboard/quiz-result', resultId]);
+        const resultId = response.data?.result_id;
+        
+        // 在導航成功後清除數據，避免在導航過程中丟失
+        this.router.navigate(['/dashboard/quiz-result', resultId]).then(() => {
+          // 導航成功後清除數據
+          this.quizService.clearCurrentQuizData();
+        }).catch(() => {
+          // 如果導航失敗，也要清除數據
+          this.quizService.clearCurrentQuizData();
+        });
       },
       error: (error: any) => {
         console.error('提交測驗失敗:', error);
@@ -533,6 +597,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       if (this.timerSubscription) {
         this.timerSubscription.unsubscribe();
       }
+      // 清除服务中的数据
+      this.quizService.clearCurrentQuizData();
       this.router.navigate(['/dashboard/quiz-center']);
     }
   }

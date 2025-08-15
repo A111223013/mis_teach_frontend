@@ -55,7 +55,7 @@
 
             <c-col xs="6" md="2" class="mb-3">
               <div class="stat-item">
-                <h5 class="text-secondary mb-1">{{ quizResult.unanswered_count }}</h5>
+                <h5 class="text-secondary mb-1">{{ getUnansweredCount() }}</h5>
                 <p class="text-muted mb-0">未答</p>
               </div>
             </c-col>
@@ -72,7 +72,7 @@
     </c-col>
   </c-row>
 
-  <c-row class="mb-4" *ngIf="quizResult.wrong_count > 0">
+  <c-row class="mb-4" *ngIf="quizResult.wrong_count > 0 ">
     <c-col xs="12">
       <c-card class="learning-guide-card border-primary">
         <c-card-body class="text-center">
@@ -112,7 +112,7 @@
     </c-col>
   </c-row>
 
-  <c-row class="mb-4" *ngIf="quizResult.wrong_count === 0">
+  <c-row class="mb-4" *ngIf="quizResult.wrong_count === 0 && quizResult.answered_questions > 0">
     <c-col xs="12">
       <c-card class="border-success">
         <c-card-body class="text-center">
@@ -124,10 +124,38 @@
             type="button"
             class="btn btn-outline-success"
             (click)="generateAnalysisReport()">
-            查看分析報告 </button> </c-card-body>
+            查看分析報告 </button>
+        </c-card-body>
       </c-card>
     </c-col>
   </c-row>
+
+     <c-row class="mb-4" *ngIf="quizResult.answered_questions === 0">
+     <c-col xs="12">
+       <c-card class="border-warning">
+         <c-card-body class="text-center">
+           <h5 class="text-warning mb-3">
+             <c-icon name="cilExclamationTriangle" class="me-2"></c-icon> 測驗未完成
+           </h5>
+           <p class="text-muted mb-3">您沒有回答任何題目，但可以查看題目內容並進行AI教學</p>
+           <div class="d-flex justify-content-center gap-3 flex-wrap">
+             <button
+               type="button"
+               class="btn btn-warning"
+               (click)="startErrorLearning()">
+               <c-icon name="cilBook" class="me-2"></c-icon> 開始AI教學
+             </button>
+             <button
+               type="button"
+               class="btn btn-outline-warning"
+               (click)="goBackToQuiz()">
+               返回測驗中心
+             </button>
+           </div>
+         </c-card-body>
+       </c-card>
+     </c-col>
+   </c-row>
 
   <c-row>
     <c-col xs="12">
@@ -135,34 +163,34 @@
         <c-card-header class="d-flex justify-content-between align-items-center flex-wrap">
           <h5 class="mb-0">題目詳細</h5>
 
-          <div class="btn-group" role="group">
-            <button
-              type="button"
-              class="btn btn-sm {{ getFilterButtonClass('all') }}"
-              (click)="setFilter('all')">
-              全部 ({{ quizResult.answers.length }})
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm {{ getFilterButtonClass('wrong') }}"
-              (click)="setFilter('wrong')"
-              *ngIf="quizResult.wrong_count > 0">
-              錯題 ({{ quizResult.wrong_count }})
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm {{ getFilterButtonClass('marked') }}"
-              (click)="setFilter('marked')"
-              *ngIf="quizResult.marked_count > 0">
-              標記 ({{ quizResult.marked_count }})
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm {{ getFilterButtonClass('correct') }}"
-              (click)="setFilter('correct')">
-              正確 ({{ quizResult.correct_count }})
-            </button>
-          </div>
+                     <div class="btn-group" role="group">
+             <button
+               type="button"
+               class="btn btn-sm {{ getFilterButtonClass('all') }}"
+               (click)="setFilter('all')">
+               全部 ({{ getTotalQuestionsCount() }})
+             </button>
+             <button
+               type="button"
+               class="btn btn-sm {{ getFilterButtonClass('correct') }}"
+               (click)="setFilter('correct')">
+               正確 ({{ quizResult.correct_count }})
+             </button>
+             <button
+               type="button"
+               class="btn btn-sm {{ getFilterButtonClass('unanswered') }}"
+               (click)="setFilter('unanswered')"
+               *ngIf="getUnansweredCount() > 0">
+               未答 ({{ getUnansweredCount() }})
+             </button>
+             <button
+               type="button"
+               class="btn btn-sm {{ getFilterButtonClass('wrong') }}"
+               (click)="setFilter('wrong')"
+               *ngIf="quizResult.wrong_count > 0">
+               錯誤 ({{ quizResult.wrong_count }})
+             </button>
+           </div>
         </c-card-header>
 
         <c-card-body>
@@ -173,11 +201,12 @@
               md="4"
               lg="3"
               *ngFor="let question of filteredQuestions; let i = index">
-              <div
-                class="question-card p-3 border rounded cursor-pointer h-100 d-flex flex-column"
-                [class.border-success]="question.is_correct"
-                [class.border-danger]="!question.is_correct"
-                (click)="showQuestionDetail(question)">
+                             <div
+                 class="question-card p-3 border rounded cursor-pointer h-100 d-flex flex-column"
+                 [class.border-success]="question.is_correct"
+                 [class.border-danger]="!question.is_correct && question.user_answer !== '未作答'"
+                 [class.border-secondary]="question.user_answer === '未作答'"
+                 (click)="showQuestionDetail(question)">
 
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <span class="fw-bold">第 {{ i + 1 }} 題</span>
@@ -200,23 +229,31 @@
                   </p>
                 </div>
 
-                <div class="answer-status mt-auto">
-                  <small class="text-muted">
-                    <span *ngIf="question.is_correct" class="text-success">
-                      ✓ 答對
-                    </span>
-                    <span *ngIf="!question.is_correct" class="text-danger">
-                      ✗ 答錯
-                    </span>
-                  </small>
-                </div>
+                                 <div class="answer-status mt-auto">
+                   <small class="text-muted">
+                     <span *ngIf="question.is_correct" class="text-success">
+                       ✓ 答對
+                     </span>
+                     <span *ngIf="!question.is_correct && question.user_answer !== '未作答'" class="text-danger">
+                       ✗ 答錯
+                     </span>
+                     <span *ngIf="question.user_answer === '未作答'" class="text-secondary">
+                       ○ 未答
+                     </span>
+                   </small>
+                 </div>
               </div>
             </c-col>
           </c-row>
 
-          <div *ngIf="filteredQuestions.length === 0" class="text-center py-4">
-            <p class="text-muted">沒有符合篩選條件的題目</p>
-          </div>
+                     <div *ngIf="filteredQuestions.length === 0" class="text-center py-4">
+             <p class="text-muted" *ngIf="quizResult.answers && quizResult.answers.length > 0">
+               沒有符合篩選條件的題目
+             </p>
+             <p class="text-muted" *ngIf="!quizResult.answers || quizResult.answers.length === 0">
+               顯示所有題目（包括未答題）
+             </p>
+           </div>
         </c-card-body>
       </c-card>
     </c-col>
@@ -237,37 +274,54 @@
   </c-modal-header>
 
   <c-modal-body *ngIf="selectedQuestion">
-    <div class="mb-4">
-      <h6 class="text-muted">題目內容</h6>
-      <div class="p-3 bg-light rounded">
-        {{ selectedQuestion.question_text }}
+                   <div class="mb-4">
+        <h6 class="text-muted">題目內容</h6>
+        <div class="p-3 bg-light rounded">
+          <div *ngIf="selectedQuestion.question_text && selectedQuestion.question_text !== '題目 1'">
+            {{ selectedQuestion.question_text }}
+          </div>
+          <div *ngIf="!selectedQuestion.question_text || selectedQuestion.question_text === '題目 1'" class="text-muted">
+            <i class="cilInfo"></i> 正在從資料庫載入題目內容...
+          </div>
+        </div>
       </div>
-    </div>
 
-    <c-row>
-      <c-col xs="12" md="6">
-        <h6 class="text-muted">您的答案</h6>
-        <div
-          class="p-3 rounded"
-          [class.bg-danger-subtle]="!selectedQuestion.is_correct"
-          [class.bg-success-subtle]="selectedQuestion.is_correct">
-          <span
-            [class.text-danger]="!selectedQuestion.is_correct"
-            [class.text-success]="selectedQuestion.is_correct">
-            {{ selectedQuestion.user_answer }}
-          </span>
-        </div>
-      </c-col>
+         <c-row>
+               <c-col xs="12" md="6">
+          <h6 class="text-muted">您的答案</h6>
+          <div
+            class="p-3 rounded"
+            [class.bg-danger-subtle]="!selectedQuestion.is_correct && selectedQuestion.user_answer !== '未作答'"
+            [class.bg-success-subtle]="selectedQuestion.is_correct"
+            [class.bg-secondary-subtle]="selectedQuestion.user_answer === '未作答'">
+            <span
+              [class.text-danger]="!selectedQuestion.is_correct && selectedQuestion.user_answer !== '未作答'"
+              [class.text-success]="selectedQuestion.is_correct"
+              [class.text-secondary]="selectedQuestion.user_answer === '未作答'">
+              <span *ngIf="selectedQuestion.user_answer !== '未作答'">
+                {{ getAnswerText(selectedQuestion.user_answer) }}
+              </span>
+              <span *ngIf="selectedQuestion.user_answer === '未作答'" class="text-muted">
+                <i class="cilInfo"></i> 此題未作答
+              </span>
+            </span>
+          </div>
+        </c-col>
 
-      <c-col xs="12" md="6">
-        <h6 class="text-muted">正確答案</h6>
-        <div class="p-3 bg-success-subtle rounded">
-          <span class="text-success">
-            {{ selectedQuestion.correct_answer }}
-          </span>
-        </div>
-      </c-col>
-    </c-row>
+                 <c-col xs="12" md="6">
+           <h6 class="text-muted">正確答案</h6>
+           <div class="p-3 bg-success-subtle rounded">
+             <span class="text-success">
+               <span *ngIf="selectedQuestion.correct_answer && selectedQuestion.correct_answer !== '無' && selectedQuestion.correct_answer !== '無參考答案'">
+                 {{ selectedQuestion.correct_answer }}
+               </span>
+               <span *ngIf="!selectedQuestion.correct_answer || selectedQuestion.correct_answer === '無' || selectedQuestion.correct_answer === '無參考答案'" class="text-muted">
+                 <i class="cilInfo"></i> 正在從資料庫載入參考答案...
+               </span>
+             </span>
+           </div>
+         </c-col>
+     </c-row>
 
     <div class="mt-3" *ngIf="selectedQuestion.is_marked">
       <c-badge color="warning">

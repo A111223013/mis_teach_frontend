@@ -35,6 +35,7 @@ interface QuizResult {
   total_time: number;
   score: number;
   total_questions: number;
+  answered_questions: number;  // 添加已作答題數
   correct_count: number;
   wrong_count: number;
   marked_count: number;
@@ -68,7 +69,7 @@ export class QuizResultComponent implements OnInit {
   error = '';
   
   // 篩選和顯示選項
-  filterType: 'all' | 'wrong' | 'marked' | 'correct' = 'all';
+  filterType: 'all' | 'wrong' | 'marked' | 'correct' | 'unanswered' = 'all';
   filteredQuestions: QuizAnswer[] = [];
   
   // 詳細資訊模態框
@@ -106,7 +107,8 @@ export class QuizResultComponent implements OnInit {
       const response = await this.ragService.getQuizResult(this.resultId).toPromise();
       
       if (response?.success) {
-        this.quizResult = response.result;
+        // 後端返回的數據在 response.data 中，不是 response.result
+        this.quizResult = response.data;
         this.applyFilter();
       } else {
         this.error = response?.error || '載入測驗結果失敗';
@@ -132,12 +134,46 @@ export class QuizResultComponent implements OnInit {
       case 'correct':
         this.filteredQuestions = this.quizResult.answers.filter(q => q.is_correct);
         break;
+      case 'unanswered':
+        // 如果沒有答案數據，顯示所有未答題
+        if (!this.quizResult.answers || this.quizResult.answers.length === 0) {
+          this.filteredQuestions = this.generateAllQuestionsDisplay();
+        } else {
+          this.filteredQuestions = this.quizResult.answers.filter(q => q.user_answer === '未作答');
+        }
+        break;
       default:
-        this.filteredQuestions = this.quizResult.answers;
+        // 如果沒有答案數據，生成所有題目的顯示數據
+        if (!this.quizResult.answers || this.quizResult.answers.length === 0) {
+          this.filteredQuestions = this.generateAllQuestionsDisplay();
+        } else {
+          this.filteredQuestions = this.quizResult.answers;
+        }
     }
   }
 
-  setFilter(type: 'all' | 'wrong' | 'marked' | 'correct'): void {
+  private generateAllQuestionsDisplay(): QuizAnswer[] {
+    if (!this.quizResult) return [];
+    
+    const allQuestions: QuizAnswer[] = [];
+    
+    for (let i = 0; i < this.quizResult.total_questions; i++) {
+      allQuestions.push({
+        question_id: `q${i + 1}`,
+        question_text: `題目 ${i + 1}`,
+        user_answer: '未作答',
+        correct_answer: '無',
+        is_correct: false,
+        is_marked: false,
+        topic: '未分類',
+        difficulty: 1
+      });
+    }
+    
+    return allQuestions;
+  }
+
+  setFilter(type: 'all' | 'wrong' | 'marked' | 'correct' | 'unanswered'): void {
     this.filterType = type;
     this.applyFilter();
   }
@@ -166,13 +202,26 @@ export class QuizResultComponent implements OnInit {
     return Math.round((this.quizResult.correct_count / this.quizResult.total_questions) * 100);
   }
 
+  getUnansweredCount(): number {
+    if (!this.quizResult) return 0;
+    // 計算未答題數
+    return this.quizResult.total_questions - this.quizResult.answered_questions;
+  }
+
+  getTotalQuestionsCount(): number {
+    if (!this.quizResult) return 0;
+    return this.quizResult.total_questions;
+  }
+
   getQuestionStatusIcon(question: QuizAnswer): string {
     if (question.is_correct) return 'cilCheckCircle';
+    if (question.user_answer === '未作答') return 'cilCircle';
     return 'cilXCircle';
   }
 
   getQuestionStatusColor(question: QuizAnswer): string {
     if (question.is_correct) return 'success';
+    if (question.user_answer === '未作答') return 'secondary';
     return 'danger';
   }
 
@@ -224,11 +273,17 @@ export class QuizResultComponent implements OnInit {
   }
 
   viewAllQuestions(): void {
-    // 可以導航到完整的題目檢視頁面
+    // 導航到完整的題目檢視頁面
+    this.router.navigate(['/dashboard/quiz-center']);
   }
 
   generateAnalysisReport(): void {
-    // 可以導航到詳細分析報告頁面
+    // 導航到詳細分析報告頁面
+    this.router.navigate(['/dashboard/quiz-center']);
+  }
+
+  goBackToQuiz(): void {
+    this.router.navigate(['/dashboard/quiz-center']);
   }
 
   getFilterButtonClass(type: string): string {
@@ -242,6 +297,31 @@ export class QuizResultComponent implements OnInit {
   getMarkedWrongQuestionsCount(): number {
     if (!this.quizResult) return 0;
     return this.quizResult.answers.filter(q => q.is_marked && !q.is_correct).length;
+  }
+
+  // 添加輔助方法來正確顯示答案
+  getAnswerText(userAnswer: any): string {
+    if (!userAnswer) return '未作答';
+    
+    if (typeof userAnswer === 'string') {
+      return userAnswer;
+    }
+    
+    if (userAnswer.answer) {
+      return userAnswer.answer;
+    }
+    
+    return JSON.stringify(userAnswer);
+  }
+
+  getCorrectAnswerText(userAnswer: any): string {
+    if (!userAnswer) return '無';
+    
+    if (userAnswer.feedback && userAnswer.feedback.reference_answer) {
+      return userAnswer.feedback.reference_answer;
+    }
+    
+    return '無參考答案';
   }
 
   private loadMockQuizResult(): void {
@@ -318,6 +398,7 @@ export class QuizResultComponent implements OnInit {
       total_time: 1200, // 20 分鐘
       score: Math.round((correctCount / mockAnswers.length) * 100),
       total_questions: mockAnswers.length,
+      answered_questions: mockAnswers.length,  // 添加已作答題數
       correct_count: correctCount,
       wrong_count: wrongCount,
       marked_count: markedCount,
