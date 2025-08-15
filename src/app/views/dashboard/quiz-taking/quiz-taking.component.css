@@ -322,6 +322,32 @@ img[src=""]:after {
   transform: translateY(-1px);
 }
 
+/* 多選題選中狀態樣式 */
+.options-list .form-check.selected .form-check-label::before {
+  border-color: #321fdb;
+  background-color: #321fdb;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(50, 31, 219, 0.1);
+}
+
+/* 多選題特殊樣式：用方形標示多選 */
+.multiple-choice-options .form-check-label::before {
+  border-radius: 4px;
+  content: "✓";
+  font-size: 11px;
+  line-height: 1;
+  background-color: transparent;
+  color: transparent;
+  counter-increment: none;
+}
+
+.multiple-choice-options .form-check.selected .form-check-label::before {
+  content: "✓";
+  background-color: #321fdb;
+  border-color: #321fdb;
+  color: #ffffff;
+}
+
 /* 焦點狀態 */
 .options-list .form-check-input:focus + .form-check-label::before {
   outline: 2px solid #321fdb;
@@ -419,6 +445,69 @@ img[src=""]:after {
   padding: 15px;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
+}
+
+/* 群組題目樣式 */
+.group-question-section {
+  margin-top: 15px;
+}
+
+.sub-question-item {
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 20px;
+  background: linear-gradient(145deg, #ffffff, #f8f9fa);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.sub-question-item:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-color: #321fdb;
+}
+
+.sub-question-header {
+  margin-bottom: 15px;
+}
+
+.sub-question-title {
+  color: #495057;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.sub-question-answer {
+  margin-top: 15px;
+}
+
+/* 群組題目中的選項樣式調整 */
+.group-question-section .options-list .form-check {
+  padding: 12px 16px;
+  margin-bottom: 8px;
+}
+
+.group-question-section .options-list .form-check-label {
+  font-size: 0.95rem;
+  padding-left: 35px;
+}
+
+.group-question-section .options-list .form-check-label::before {
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+}
+
+/* 群組題目中的輸入框樣式 */
+.group-question-section .form-control {
+  font-size: 0.95rem;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+/* 群組題目的徽章樣式 */
+.sub-question-header .badge {
+  font-size: 0.75rem;
+  padding: 4px 8px;
 }
 
 /* 響應式設計 */

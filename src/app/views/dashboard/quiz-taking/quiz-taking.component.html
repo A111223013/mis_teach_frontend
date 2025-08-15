@@ -25,7 +25,7 @@
           *ngFor="let question of questions; let i = index"
           class="btn question-nav-btn"
           [class.current]="i === currentQuestionIndex"
-          [class.answered]="!!userAnswers[i]"
+          [class.answered]="isQuestionAnswered(i)"
           [class.flagged]="markedQuestions[i]"
           (click)="goToQuestion(i)">
           {{ i + 1 }}
@@ -66,7 +66,9 @@
                   <span *ngIf="quizType === 'knowledge'" class="badge bg-secondary me-2">{{ getTopicName() }}</span>
                   <span class="badge bg-primary me-2">{{ getQuestionTypeDisplayName(getQuestionType(currentQuestion)) }}</span>
                 </div>
-                <p class="question-text">{{ currentQuestion.question_text }}</p>
+                <p class="question-text">
+                  {{ getQuestionType(currentQuestion) === 'group' ? currentQuestion.group_question_text : currentQuestion.question_text }}
+                </p>
               </div>
               <div *ngIf="currentQuestion.key_points">
                 <span>知識點：{{ currentQuestion.key_points }}</span>
@@ -81,6 +83,71 @@
           
           <!-- Answer options -->
           <div class="answer-section">
+            <!-- 群組題 -->
+            <div *ngIf="getQuestionType(currentQuestion) === 'group'" class="group-question-section">
+              <div *ngFor="let subQuestion of currentQuestion.sub_questions; let i = index" class="sub-question-item mb-4">
+                <div class="sub-question-header">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="sub-question-title mb-0">
+                      {{ subQuestion.question_number }}. {{ subQuestion.question_text }}
+                    </h6>
+                    <span class="badge bg-info">{{ getSubQuestionTypeDisplayName(subQuestion.answer_type) }}</span>
+                  </div>
+                </div>
+                
+                <!-- 子題答案區域 -->
+                <div class="sub-question-answer">
+                  <!-- 單選題 -->
+                  <div *ngIf="subQuestion.answer_type === 'single-choice' && subQuestion.options.length > 0" class="options-list">
+                    <div *ngFor="let option of subQuestion.options; let optionIndex = index" 
+                         class="form-check"
+                         [class.selected]="getSubQuestionAnswer(i) === option"
+                         (click)="updateSubQuestionAnswer(i, option)">
+                      <input 
+                        class="form-check-input" 
+                        type="radio" 
+                        [name]="'sub_question_' + currentQuestionIndex + '_' + i" 
+                        [id]="'sub_option' + currentQuestionIndex + '-' + i + '-' + optionIndex"
+                        [checked]="getSubQuestionAnswer(i) === option">
+                      <label class="form-check-label" [for]="'sub_option' + currentQuestionIndex + '-' + i + '-' + optionIndex">
+                        <span class="option-text">{{ option }}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- 簡答題 -->
+                  <div *ngIf="subQuestion.answer_type === 'short-answer'" class="text-answer-section">
+                    <textarea 
+                      class="form-control" 
+                      rows="4" 
+                      [value]="getSubQuestionAnswer(i)"
+                      (input)="updateSubQuestionAnswer(i, $any($event).target.value)"
+                      placeholder="請輸入答案..."></textarea>
+                  </div>
+
+                  <!-- 填空題 -->
+                  <div *ngIf="subQuestion.answer_type === 'fill-in-the-blank'" class="fill-blank-section">
+                    <input 
+                      type="text" 
+                      class="form-control" 
+                      [value]="getSubQuestionAnswer(i)"
+                      (input)="updateSubQuestionAnswer(i, $any($event).target.value)"
+                      placeholder="請輸入答案...">
+                  </div>
+
+                  <!-- 長答題 -->
+                  <div *ngIf="subQuestion.answer_type === 'long-answer'" class="text-answer-section">
+                    <textarea 
+                      class="form-control" 
+                      rows="6" 
+                      [value]="getSubQuestionAnswer(i)"
+                      (input)="updateSubQuestionAnswer(i, $any($event).target.value)"
+                      placeholder="請輸入詳細答案..."></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- 單選題 -->
             <div *ngIf="getQuestionType(currentQuestion) === 'single-choice'" class="options-list">
               <div *ngFor="let option of currentQuestion.options; let i = index" 
@@ -100,44 +167,48 @@
             </div>
 
             <!-- 多選題 -->
-            <div *ngIf="getQuestionType(currentQuestion) === 'multiple-choice'" class="options-list">
-              <div *ngFor="let option of currentQuestion.options; let i = index" class="form-check">
+            <div *ngIf="getQuestionType(currentQuestion) === 'multiple-choice'" class="options-list multiple-choice-options">
+              <div *ngFor="let option of currentQuestion.options; let i = index" 
+                   class="form-check"
+                   [class.selected]="isMultipleChoiceSelected(option)"
+                   (click)="toggleMultipleChoice(option)">
                 <input 
                   class="form-check-input" 
                   type="checkbox" 
                   [id]="'checkbox' + currentQuestionIndex + '-' + i"
-                  [checked]="isMultipleChoiceSelected(option)"
-                  (change)="toggleMultipleChoice(option)">
+                  [checked]="isMultipleChoiceSelected(option)">
                 <label class="form-check-label" [for]="'checkbox' + currentQuestionIndex + '-' + i">
-                  {{ option }}
+                  <span class="option-text">{{ option }}</span>
                 </label>
               </div>
             </div>
 
             <!-- 是非題 -->
             <div *ngIf="getQuestionType(currentQuestion) === 'true-false'" class="options-list">
-              <div class="form-check">
+              <div class="form-check"
+                   [class.selected]="isTrueFalseSelected(true)"
+                   (click)="selectTrueFalse(true)">
                 <input 
                   class="form-check-input" 
                   type="radio" 
                   [name]="'question_' + currentQuestionIndex" 
                   id="true_option"
-                  [checked]="isTrueFalseSelected(true)"
-                  (change)="selectTrueFalse(true)">
+                  [checked]="isTrueFalseSelected(true)">
                 <label class="form-check-label" for="true_option">
-                  是 / True
+                  <span class="option-text">是 / True</span>
                 </label>
               </div>
-              <div class="form-check">
+              <div class="form-check"
+                   [class.selected]="isTrueFalseSelected(false)"
+                   (click)="selectTrueFalse(false)">
                 <input 
                   class="form-check-input" 
                   type="radio" 
                   [name]="'question_' + currentQuestionIndex" 
                   id="false_option"
-                  [checked]="isTrueFalseSelected(false)"
-                  (change)="selectTrueFalse(false)">
+                  [checked]="isTrueFalseSelected(false)">
                 <label class="form-check-label" for="false_option">
-                  否 / False
+                  <span class="option-text">否 / False</span>
                 </label>
               </div>
             </div>
