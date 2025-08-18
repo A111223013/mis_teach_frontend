@@ -28,7 +28,6 @@
     
     <!-- 快速操作區 -->
     <div class="quick-actions-bar">
-
       <button
         *ngFor="let item of quickActions"
         type="button"
@@ -37,6 +36,7 @@
         [title]="item.label">
         {{ item.label }}
       </button>
+
     </div>
 
     <!-- 訊息區域 -->
@@ -60,16 +60,13 @@
             <!-- AI助理訊息 -->
             <div *ngIf="message.type === 'assistant'" class="assistant-bubble">
               <div class="assistant-avatar">
-                <svg cIcon [name]="getCategoryIcon(message.category)" class="category-icon"></svg>
+                <svg cIcon name="cilSpeech" class="category-icon"></svg>
               </div>
               <div class="assistant-content">
                 <div class="message-text" [innerHTML]="message.content | markdown"></div>
                 <div class="message-meta">
                   <small class="text-muted">
                     {{ formatTime(message.timestamp) }}
-                    <span *ngIf="message.category" class="ms-2 category-tag">
-                      • {{ message.category }}
-                    </span>
                   </small>
                 </div>
               </div>
