@@ -5,24 +5,17 @@
   </header>
 
   <div class="menu__grid" role="list">
-    <a
-      *ngFor="let c of courses"
-      class="menu__card"
-      role="listitem"
-      [routerLink]="['/course', c.id]"
-      [attr.aria-label]="c.name"
-    >
-      <div class="menu__icon" aria-hidden="true">{{ c.icon }}</div>
-      <h2 class="menu__name">{{ c.name }}</h2>
-      <p class="menu__desc">{{ c.description }}</p>
-      <span class="menu__cta">開始學習 →</span>
-      <ul>
-        <li>
-            <a [routerLink]="['/dashboard/material', 'intro.md']">
-            課程簡介
-            </a>
-        </li>
-        </ul>
-    </a>
+    <div
+        *ngFor="let c of courses"
+        class="menu__card"
+        role="listitem"
+        (click)="goToMaterial()"
+        [attr.aria-label]="c.name"
+      >
+        <div class="menu__icon" aria-hidden="true">{{ c.icon }}</div>
+        <h2 class="menu__name">{{ c.name }}</h2>
+        <p class="menu__desc">{{ c.description }}</p>
+        <span class="menu__cta">開始學習 →</span>
+      </div>
   </div>
 </section>

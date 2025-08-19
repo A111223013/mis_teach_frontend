@@ -11,21 +11,37 @@ import { MaterialService } from '../../../service/material.service';
   styleUrls: ['./material.component.scss']  // ✅ 改成複數
 })
 export class MaterialComponent {
-  filename: string = 'intro.md';
-  content: string = '# 第一章：計算機概論這一章介紹計算機的基本概念。## 1.1 計算機發展史- 第一代：真空管- 第二代：電晶體- 第三代：積體電路- 第四代：微處理器## 1.2 計算機應用領域1. 資料處理2. 自動化控制3. 通訊';
+  files: string[] = [];         // 存放教材檔案清單
+  content: string = '';         // 顯示的教材內容
+  selectedFile: string = '';    // 目前選中的檔案
 
   constructor(private materialService: MaterialService) {}
 
   ngOnInit(): void {
-    // 這裡可以從 API 載入教材內容
-    this.materialService.getMaterial(this.filename).subscribe({
+    // 初始化時讀取教材清單
+    this.materialService.getMaterials().subscribe({
       next: (res) => {
-        this.content = res.content; // 假設 API 回傳有 content 欄位
+        this.files = res.files || [];
       },
       error: (err) => {
-        console.error('讀取教材失敗:', err);
+        console.error('讀取教材列表失敗:', err);
       }
     });
   }
+
+  loadFile(filename: string): void {
+    this.selectedFile = filename;
+    this.materialService.getMaterial(filename).subscribe({
+      next: (res) => {
+        this.content = res.content;
+      },
+      error: (err) => {
+        console.error(`讀取教材 ${filename} 失敗:`, err);
+      }
+    });
+  }
+
+  
+
 }
 

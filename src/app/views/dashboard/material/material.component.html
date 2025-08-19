@@ -1,3 +1,21 @@
-<h2>{{ filename }}</h2>
-<markdown [data]="content"></markdown>
+<h2>教材清單</h2>
 
+<!-- 列出所有教材檔案 -->
+<ul>
+  <li *ngFor="let file of files" (click)="loadFile(file)" style="cursor:pointer">
+    {{ file }}
+  </li>
+</ul>
+
+<hr />
+
+<!-- 顯示選中的教材 -->
+<div *ngIf="selectedFile">
+  <h3>{{ selectedFile }}</h3>
+  <markdown [data]="content"></markdown>
+</div>
+
+<!-- 沒選檔案時提示 -->
+<div *ngIf="!selectedFile">
+  <p>請從清單中選擇一份教材。</p>
+</div>

@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router  } from '@angular/router';
 
 interface CourseItem {
   id: string;        // 路由使用的識別碼，例如 'cs-intro'
@@ -22,5 +22,11 @@ export class CoursesComponent {
     { id: 'security', name: '資安', description: '資安觀念、攻防與實務', icon: '🛡️' },
     { id: 'network', name: '電腦網路', description: 'OSI/TCP-IP、協定與拓撲', icon: '🌐' },
   ];
+
+  constructor(private router: Router) {}
+
+  goToMaterial() {
+    this.router.navigate(['/dashboard/material']);
+  }
 
 }
