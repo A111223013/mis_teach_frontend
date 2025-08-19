@@ -27,7 +27,7 @@ export const navItems: INavData[] = [
     ]
   },
   {
-    name: '錯誤分析',
+    name: '學習分析',
     url: '/dashboard/analytics',
     iconComponent: { name: 'cilChartPie' }
   },
