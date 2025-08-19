@@ -16,7 +16,7 @@ import {
   TooltipModule
 } from '@coreui/angular';
 import { IconModule } from '@coreui/icons-angular';
-import { AiTutoringService, QuestionData, LearningProgress } from '../../../service/ai-tutoring.service';
+import { AiTutoringService, QuestionData } from '../../../service/ai-tutoring.service';
 
 interface Note {
   id: string;
@@ -53,7 +53,6 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   sessionId: string = '';
   currentQuestion: QuestionData | null = null;
-  learningProgress: LearningProgress | null = null;
 
   // 對話相關
   chatMessages: Array<{
@@ -127,11 +126,10 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
 
     try {
-      const result = await this.aiTutoringService.initializeLearningSession(resultId).toPromise();
+      const result = await this.aiTutoringService.startErrorLearning(resultId).toPromise();
       
-      if (result) {
-        this.learningPath = result.learningPath;
-        this.learningProgress = result.learningProgress;
+      if (result?.success) {
+        this.learningPath = result.wrongQuestions || [];
         this.currentQuestionIndex = 0;
         this.currentQuestion = this.learningPath[0];
 
@@ -257,19 +255,11 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
 
         this.addMessage('ai', nextQuestionMessage);
         
-        if (this.learningProgress) {
-          this.learningProgress.completed_questions++;
-          this.learningProgress.current_question_index = this.currentQuestionIndex;
-          this.learningProgress.progress_percentage = Math.round((this.learningProgress.completed_questions / this.learningProgress.total_questions) * 100);
-          this.learningProgress.remaining_questions = this.learningProgress.total_questions - this.learningProgress.completed_questions;
-        }
+
       } else {
         this.addMessage('ai', '🎉 恭喜！您已經完成了所有錯題的學習。\n\n您還有其他問題需要幫助嗎？');
         
-        if (this.learningProgress) {
-          this.learningProgress.session_status = 'completed';
-          this.learningProgress.progress_percentage = 100;
-        }
+
       }
     } catch (error) {
       this.addMessage('ai', '完成題目學習時發生錯誤。');
@@ -316,7 +306,8 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   getProgressPercentage(): number {
-    return this.learningProgress ? this.learningProgress.progress_percentage : 0;
+    if (this.learningPath.length === 0) return 0;
+    return Math.round((this.currentQuestionIndex / this.learningPath.length) * 100);
   }
 
   getProgressColor(): string {

@@ -6,8 +6,16 @@ import { Subscription } from 'rxjs';
 import { CardModule, ButtonModule, FormModule, SpinnerModule, BadgeModule, DropdownModule } from '@coreui/angular';
 import { IconModule } from '@coreui/icons-angular';
 
-import { RagAssistantService, ChatMessage } from '../../../service/rag-assistant.service';
+import { RagAssistantService } from '../../../service/rag-assistant.service';
 import { MarkdownPipe } from '../../../service/markdown.pipe';
+
+interface ChatMessage {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  aiModel?: string;
+}
 
 @Component({
   selector: 'app-ai-chat',
@@ -35,45 +43,18 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   currentMessage = '';
   isTyping = false;
 
-  currentAiModel: 'gemini' = 'gemini';;  // 固定使用Gemini
-  conversationType: 'general' = 'general';  // 固定為一般模式，由後端判斷
+  currentAiModel: 'gemini' = 'gemini';
+  conversationType: 'general' = 'general';
 
   private subscriptions: Subscription[] = [];
   private shouldScrollToBottom = false;
 
   constructor(
     private ragService: RagAssistantService
-  ) {
-    // 初始化組件
-  }
+  ) {}
 
   ngOnInit(): void {
-    // 訂閱聊天訊息
-    this.subscriptions.push(
-      this.ragService.messages$.subscribe(messages => {
-        this.messages = messages;
-        this.shouldScrollToBottom = true;
-      })
-    );
-
-    // 訂閱打字狀態
-    this.subscriptions.push(
-      this.ragService.isTyping$.subscribe(isTyping => {
-        this.isTyping = isTyping;
-        if (isTyping) {
-          this.shouldScrollToBottom = true;
-        }
-      })
-    );
-
-    // 訂閱當前AI模型
-    this.subscriptions.push(
-      this.ragService.currentAiModel$.subscribe(model => {
-        this.currentAiModel = model as 'gemini';
-      })
-    );
-
-    // 如果是新用戶，顯示歡迎訊息
+    // 初始化聊天
     this.initializeChat();
   }
 
@@ -93,25 +74,13 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   private initializeChat(): void {
     if (this.messages.length === 0) {
-      // 獲取系統指南
-      this.ragService.getSystemGuide('new').subscribe({
-        next: (response) => {
-          if (response.success) {
-            // 手動添加歡迎訊息
-            const welcomeMessage: ChatMessage = {
-              id: this.generateId(),
-              type: 'assistant',
-              content: response.guide,
-              timestamp: new Date(),
-              aiModel: 'gemini'
-            };
-            this.messages = [welcomeMessage];
-            this.shouldScrollToBottom = true;
-          }
-        },
-        error: (error) => {
-          console.error('Failed to get system guide:', error);
-        }
+      // 添加歡迎訊息
+      this.addMessage({
+        id: this.generateId(),
+        type: 'assistant',
+        content: '🎓 歡迎來到 AI 智能教學系統！\n\n我是您的專屬 MIS 教學助理，可以幫助您：\n\n📚 **學習輔導**：\n• 回答 MIS 相關問題\n• 解釋複雜概念\n• 提供學習建議\n\n💡 **使用技巧**：\n• 直接提問任何 MIS 相關問題\n• 描述您的困惑和疑問\n• 我會根據您的程度調整解釋方式\n\n現在就開始提問吧！我很樂意幫助您學習。',
+        timestamp: new Date(),
+        aiModel: 'gemini'
       });
     }
   }
@@ -120,24 +89,35 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    * 發送訊息
    */
   sendMessage(): void {
-    const message = this.currentMessage.trim();
-    if (!message || this.isTyping) {
-      return;
-    }
+    if (!this.currentMessage.trim()) return;
 
-    this.ragService.sendMessage(message, this.conversationType, this.currentAiModel).subscribe({
-      next: (response) => {
-        if (!response.success) {
-          console.error('Chat error:', response.error);
-        }
-      },
-      error: (error) => {
-        console.error('Failed to send message:', error);
-      }
-    });
+    const userMessage: ChatMessage = {
+      id: this.generateId(),
+      type: 'user',
+      content: this.currentMessage,
+      timestamp: new Date()
+    };
+
+    this.addMessage(userMessage);
+    this.isTyping = true;
+    this.shouldScrollToBottom = true;
+
+    // 模擬AI回應（實際應該調用後端API）
+    setTimeout(() => {
+      const aiMessage: ChatMessage = {
+        id: this.generateId(),
+        type: 'assistant',
+        content: `關於「${this.currentMessage}」，我很樂意為您解答。請使用AI導師功能獲得更專業的指導。`,
+        timestamp: new Date(),
+        aiModel: 'gemini'
+      };
+
+      this.addMessage(aiMessage);
+      this.isTyping = false;
+      this.shouldScrollToBottom = true;
+    }, 1000);
 
     this.currentMessage = '';
-    this.focusInput();
   }
 
   /**
@@ -150,60 +130,11 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-
-
-
-
   /**
-   * 重置對話
+   * 添加訊息到聊天記錄
    */
-  resetConversation(): void {
-    this.ragService.resetConversation().subscribe({
-      next: (response) => {
-        if (response.success) {
-          // 對話已重置，可以開始新主題
-        }
-      },
-      error: (error) => {
-        console.error('Failed to reset conversation:', error);
-      }
-    });
-  }
-
-  /**
-   * 清除聊天記錄
-   */
-  clearMessages(): void {
-    this.ragService.clearMessages();
-  }
-
-
-
-  /**
-   * 滾動到底部
-   */
-  private scrollToBottom(): void {
-    try {
-      if (this.messagesContainer) {
-        const element = this.messagesContainer.nativeElement;
-        element.scrollTop = element.scrollHeight;
-      }
-    } catch (err) {
-      console.warn('Could not scroll to bottom:', err);
-    }
-  }
-
-  /**
-   * 聚焦輸入框
-   */
-  private focusInput(): void {
-    try {
-      if (this.messageInput) {
-        this.messageInput.nativeElement.focus();
-      }
-    } catch (err) {
-      console.warn('Could not focus input:', err);
-    }
+  private addMessage(message: ChatMessage): void {
+    this.messages.push(message);
   }
 
   /**
@@ -214,6 +145,30 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /**
+   * 滾動到底部
+   */
+  private scrollToBottom(): void {
+    try {
+      this.messagesContainer.nativeElement.scrollTop = this.messagesContainer.nativeElement.scrollHeight;
+    } catch (err) {}
+  }
+
+  /**
+   * 清除聊天記錄
+   */
+  clearMessages(): void {
+    this.messages = [];
+    this.initializeChat();
+  }
+
+  /**
+   * 重置對話
+   */
+  resetConversation(): void {
+    this.clearMessages();
+  }
+
+  /**
    * 格式化時間
    */
   formatTime(date: Date): string {
@@ -221,13 +176,6 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       hour: '2-digit', 
       minute: '2-digit' 
     });
-  }
-
-  /**
-   * 獲取對話類型標籤
-   */
-  getConversationTypeLabel(type?: string): string {
-    return 'Gemini AI教學助理';  // 固定標籤
   }
 
   /**

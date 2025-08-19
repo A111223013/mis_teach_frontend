@@ -166,11 +166,11 @@
           <div class="progress-stats">
             <div class="stat-item mb-2">
               <small class="text-muted">已完成</small>
-              <div class="fw-bold">{{ learningProgress?.completed_questions || 0 }} 題</div>
+              <div class="fw-bold">{{ currentQuestionIndex }} 題</div>
             </div>
             <div class="stat-item mb-2">
               <small class="text-muted">剩餘</small>
-              <div class="fw-bold">{{ learningProgress?.remaining_questions || 0 }} 題</div>
+              <div class="fw-bold">{{ learningPath.length - currentQuestionIndex }} 題</div>
             </div>
             <div class="stat-item">
               <small class="text-muted">完成率</small>
