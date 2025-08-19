@@ -32,11 +32,6 @@ export const navItems: INavData[] = [
     iconComponent: { name: 'cilChartPie' }
   },
   {
-    name: '繪圖板',
-    url: '/dashboard/whiteboard',
-    iconComponent: { name: 'cilBrush' }
-  },
-  {
     name: '智能學習系統',
     iconComponent: { name: 'cilCog' },
     children: [
