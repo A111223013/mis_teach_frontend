@@ -469,3 +469,68 @@
     </button>
   </c-modal-footer>
 </c-modal>
+
+<!-- 進度提示模態框 -->
+<c-modal 
+  [visible]="isProgressModalVisible" 
+  (visibleChange)="isProgressModalVisible = $event"
+  alignment="center">
+  <c-modal-header>
+    <h5 cModalTitle>測驗批改中</h5>
+  </c-modal-header>
+  <c-modal-body>
+    <div class="text-center">
+      <!-- 進度指示器 -->
+      <div class="progress mb-4" style="height: 8px;">
+        <div 
+          class="progress-bar progress-bar-striped progress-bar-animated" 
+          role="progressbar" 
+          [style.width.%]="(currentProgressStep / 4) * 100"
+          aria-valuenow="currentProgressStep" 
+          aria-valuemin="0" 
+          aria-valuemax="4">
+        </div>
+      </div>
+      
+      <!-- 進度步驟 -->
+      <div class="progress-steps mb-4">
+        <div class="step" [class.active]="currentProgressStep >= 0" [class.completed]="currentProgressStep > 0">
+          <div class="step-icon">
+            <c-icon name="cilCheck" *ngIf="currentProgressStep > 0"></c-icon>
+            <span *ngIf="currentProgressStep === 0">1</span>
+          </div>
+          <div class="step-label">試卷批改</div>
+        </div>
+        <div class="step" [class.active]="currentProgressStep >= 1" [class.completed]="currentProgressStep > 1">
+          <div class="step-icon">
+            <c-icon name="cilCheck" *ngIf="currentProgressStep > 1"></c-icon>
+            <span *ngIf="currentProgressStep <= 1">2</span>
+          </div>
+          <div class="step-label">計算分數</div>
+        </div>
+        <div class="step" [class.active]="currentProgressStep >= 2" [class.completed]="currentProgressStep > 2">
+          <div class="step-icon">
+            <c-icon name="cilCheck" *ngIf="currentProgressStep > 2"></c-icon>
+            <span *ngIf="currentProgressStep <= 2">3</span>
+          </div>
+          <div class="step-label">評判知識點</div>
+        </div>
+        <div class="step" [class.active]="currentProgressStep >= 3" [class.completed]="currentProgressStep > 3">
+          <div class="step-icon">
+            <c-icon name="cilCheck" *ngIf="currentProgressStep > 3"></c-icon>
+            <span *ngIf="currentProgressStep <= 3">4</span>
+          </div>
+          <div class="step-label">生成學習計畫</div>
+        </div>
+      </div>
+      
+      <!-- 當前進度消息 -->
+      <div class="current-progress-message">
+        <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+          <span class="visually-hidden">處理中...</span>
+        </div>
+        <span class="text-primary fw-bold">{{ progressMessage }}</span>
+      </div>
+    </div>
+  </c-modal-body>
+</c-modal>

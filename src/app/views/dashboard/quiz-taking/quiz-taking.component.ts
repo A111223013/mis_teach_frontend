@@ -101,6 +101,12 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   private timerSubscription?: Subscription;
   private imageLoadState = new Map<string, 'loading' | 'loaded' | 'error'>();
 
+  // 進度提示相關屬性
+  isProgressModalVisible: boolean = false;
+  currentProgressStep: number = 0;
+  progressMessage: string = '';
+  private progressInterval: any;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -125,6 +131,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     if (this.timerSubscription) {
       this.timerSubscription.unsubscribe();
     }
+    this.stopProgressAnimation(); // 確保在組件銷毀時停止動畫
   }
 
   loadQuiz(): void {
@@ -644,6 +651,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     console.log('Debug: 使用的 template_id:', this.templateId);
     console.log('Debug: 原始 quiz_id:', this.quizId);
 
+    // 顯示進度提示
+    this.showProgressModal();
+
     this.quizService.submitQuiz(submissionData).subscribe({
       next: (response: any) => {
         // 準備錯題和標記題目的資料
@@ -668,6 +678,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         
         sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
         
+        // 隱藏進度提示
+        this.hideProgressModal();
+        
         // 跳轉到 quiz-result 頁面
         const resultId = response.data?.result_id;
         
@@ -681,11 +694,68 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         });
       },
       error: (error: any) => {
-        console.error('提交測驗失敗:', error);
+        console.error('[submitQuiz] 提交測驗失敗:', error);
         this.isLoading = false;
-        alert(error.error?.message || '提交失敗，請稍後再試');
+        this.hideProgressModal();
+        
+        // 顯示錯誤信息
+        let errorMessage = '提交測驗失敗';
+        if (error.status === 401) {
+          errorMessage = '登入已過期，請重新登入';
+          this.authService.logout();
+        } else if (error.error?.message) {
+          errorMessage = error.error.message;
+        }
+        
+        alert(errorMessage);
       }
     });
+  }
+
+  // 顯示進度提示模態框
+  showProgressModal(): void {
+    this.isProgressModalVisible = true;
+    this.currentProgressStep = 0;
+    this.startProgressAnimation();
+  }
+
+  // 隱藏進度提示模態框
+  hideProgressModal(): void {
+    this.isProgressModalVisible = false;
+    this.stopProgressAnimation();
+  }
+
+  // 開始進度動畫
+  startProgressAnimation(): void {
+    const progressSteps = [
+      '試卷批改中，請稍後...',
+      '計算分數中...',
+      '評判知識點中...',
+      '生成學習計畫中...',
+      '完成！'
+    ];
+
+    let stepIndex = 0;
+    this.currentProgressStep = stepIndex;
+    this.progressMessage = progressSteps[stepIndex];
+
+    this.progressInterval = setInterval(() => {
+      stepIndex++;
+      if (stepIndex < progressSteps.length) {
+        this.currentProgressStep = stepIndex;
+        this.progressMessage = progressSteps[stepIndex];
+      } else {
+        this.stopProgressAnimation();
+      }
+    }, 2000); // 每2秒更新一次
+  }
+
+  // 停止進度動畫
+  stopProgressAnimation(): void {
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
   }
 
   // 返回測驗中心
