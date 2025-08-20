@@ -130,9 +130,15 @@ export class AiTutoringService {
     });
 
     const wrongQuestions = questions.filter((question: any) => {
-      const hasUserAnswer = question.user_answer && question.user_answer !== '' && question.user_answer !== '未作答';
-      console.log(`🔍 題目 ${question.question_id} 有用戶答案:`, hasUserAnswer, '答案:', question.user_answer);
-      return hasUserAnswer;
+      // 檢查是否為錯題：is_correct 為 false 的題目
+      const isWrong = question.is_correct === false;
+      console.log(`🔍 題目 ${question.question_id}:`, {
+        question_text: question.question_text,
+        user_answer: question.user_answer,
+        is_correct: question.is_correct,
+        isWrong: isWrong
+      });
+      return isWrong;
     });
     
     console.log('🔍 提取的錯題數量:', wrongQuestions.length);

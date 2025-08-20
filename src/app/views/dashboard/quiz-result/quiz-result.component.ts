@@ -168,12 +168,17 @@ export class QuizResultComponent implements OnInit {
         return this.quizResult.correct_count || 0;
       case 'wrong':
         return this.quizResult.wrong_count || 0;
+      case 'unanswered':
+        // 計算未作答題目數量
+        const totalQuestions = this.quizResult.total_questions || 0;
+        const answeredQuestions = this.quizResult.answered_questions || 0;
+        return Math.max(0, totalQuestions - answeredQuestions);
       case 'total':
         return this.quizResult.total_questions || 0;
       case 'percentage':
-        const total = this.quizResult.total_questions || 0;
+        const totalForPercentage = this.quizResult.total_questions || 0;
         const correct = this.quizResult.correct_count || 0;
-        return total > 0 ? Math.round((correct / total) * 100) : 0;
+        return totalForPercentage > 0 ? Math.round((correct / totalForPercentage) * 100) : 0;
       case 'time':
         const totalTime = this.quizResult.total_time_taken || 0;
         if (totalTime === 0) return '0:00';
@@ -183,9 +188,6 @@ export class QuizResultComponent implements OnInit {
       case 'marked':
         const questions = this.quizResult.questions || [];
         return questions.filter(q => q.is_marked).length;
-      case 'unanswered':
-        const allQuestions = this.quizResult.questions || [];
-        return allQuestions.filter(q => !q.user_answer || q.user_answer === '').length;
       default:
         return 0;
     }

@@ -326,6 +326,29 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.completeQuestion();
   }
 
+  nextQuestion(): void {
+    if (this.hasNextQuestion()) {
+      this.currentQuestionIndex++;
+      this.currentQuestion = this.learningPath[this.currentQuestionIndex];
+      
+      // 自動觸發AI開始講解下一題
+      const message = `請開始講解第${this.currentQuestionIndex + 1}題：${this.currentQuestion?.question_text}`;
+      
+      // 直接添加AI訊息，模擬AI回應
+      this.addMessage('ai', `🎯 讓我們繼續下一道題：
+
+**題目：** ${this.currentQuestion.question_text}
+
+您的答案是「${this.currentQuestion.user_answer}」，正確答案是「${this.currentQuestion.correct_answer}」。
+
+您有什麼問題想問我嗎？`);
+    }
+  }
+
+  hasNextQuestion(): boolean {
+    return this.currentQuestionIndex < this.learningPath.length - 1;
+  }
+
   openNotesModal(): void {
     this.showNotesModal = true;
   }

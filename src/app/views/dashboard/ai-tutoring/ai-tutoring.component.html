@@ -133,6 +133,15 @@
               </button>
               <button 
                 type="button" 
+                class="btn btn-sm btn-outline-warning"
+                (click)="nextQuestion()"
+                [disabled]="!hasNextQuestion()"
+                *ngIf="learningPath.length > 1">
+                <c-icon name="cilChevronRight" class="me-1"></c-icon>
+                下一題講解
+              </button>
+              <button 
+                type="button" 
                 class="btn btn-sm btn-outline-info"
                 (click)="openNotesModal()">
                 <c-icon name="cilNotes" class="me-1"></c-icon>
