@@ -19,6 +19,20 @@ export const routes: Routes = [
         }
     },
     {
+        path: 'courses',
+        loadComponent: () => import('./courses/courses.component').then(m => m.CoursesComponent),
+        data: {
+          title: '課程'
+        }
+    },
+    {
+        path: 'material',
+        loadComponent: () => import('./material/material.component').then(m => m.MaterialComponent),
+        data: {
+          title: '教材'
+        }
+    },
+    {
         path: 'quiz-result/:resultId',
         loadComponent: () => import('./quiz-result/quiz-result.component').then(m => m.QuizResultComponent),
         data: {
@@ -47,10 +61,10 @@ export const routes: Routes = [
         }
     },
     {
-        path: 'mistake-analysis',
-        loadComponent: () => import('./mistake-analysis/mistake-analysis.component').then(m => m.MistakeAnalysisComponent),
+        path: 'analytics',
+        loadComponent: () => import('./analytics/analytics.component').then(m => m.AnalyticsComponent),
         data: {
-          title: '錯題分析'
+          title: '學習分析'
         }
     },
     {

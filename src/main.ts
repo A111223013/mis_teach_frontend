@@ -6,6 +6,7 @@ import { routes } from './app/app.routes';
 import { importProvidersFrom } from '@angular/core';
 import { HttpClientModule } from '@angular/common/http';
 import { IconSetService } from '@coreui/icons-angular';
+import { MarkdownModule } from 'ngx-markdown';
 import {
   cilBook,
   cilClipboard,
@@ -45,7 +46,7 @@ import {
 bootstrapApplication(AppComponent, {
   providers: [
     provideRouter(routes),
-    importProvidersFrom(HttpClientModule, BrowserAnimationsModule),
+    importProvidersFrom(HttpClientModule, BrowserAnimationsModule,MarkdownModule.forRoot()),
     {
       provide: IconSetService,
       useFactory: () => {
