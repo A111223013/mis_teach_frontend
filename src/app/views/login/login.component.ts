@@ -1,11 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { NgStyle } from '@angular/common';
-import { Router } from '@angular/router';
-import { IconDirective } from '@coreui/icons-angular';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ContainerComponent, RowComponent, ColComponent, CardGroupComponent, TextColorDirective, CardComponent, CardBodyComponent, FormDirective, InputGroupComponent, InputGroupTextDirective, FormControlDirective, ButtonDirective } from '@coreui/angular';
+import { ContainerComponent, RowComponent, ColComponent, CardComponent, CardBodyComponent, InputGroupComponent, InputGroupTextDirective, ButtonDirective } from '@coreui/angular';
+import { IconDirective } from '@coreui/icons-angular';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { LoginService } from '../../service/login.service';
 import { UserGuideStatusService } from '../../service/user-guide-status.service';
 import { DetailedGuideService } from '../../service/detailed-guide.service';
@@ -16,7 +15,7 @@ import { AuthService } from '../../service/auth.service';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
   standalone: true,
-  imports: [ContainerComponent, RowComponent, ColComponent, CardGroupComponent, TextColorDirective, CardComponent, CardBodyComponent, FormDirective, InputGroupComponent, InputGroupTextDirective, IconDirective, FormControlDirective, ButtonDirective, NgStyle,
+  imports: [ContainerComponent, RowComponent, ColComponent, CardComponent, CardBodyComponent, InputGroupComponent, InputGroupTextDirective, IconDirective, ButtonDirective,
       RouterModule, ReactiveFormsModule, CommonModule
   ]
 })

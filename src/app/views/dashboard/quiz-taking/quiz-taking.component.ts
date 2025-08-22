@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -106,12 +106,18 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   currentProgressStep: number = 0;
   progressMessage: string = '';
   private progressInterval: any;
+  
+  // 新增：後端進度追蹤相關屬性
+  private progressId: string = '';
+  private eventSource: EventSource | null = null;
+  private isProgressConnected: boolean = false;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private quizService: QuizService,
-    private authService: AuthService
+    private authService: AuthService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -132,6 +138,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       this.timerSubscription.unsubscribe();
     }
     this.stopProgressAnimation(); // 確保在組件銷毀時停止動畫
+    this.disconnectProgressTracking(); // 確保在組件銷毀時斷開進度追蹤
   }
 
   loadQuiz(): void {
@@ -184,9 +191,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         
         console.log('✅ 测验加载完成，题目数量:', this.totalQuestions);
         
-        // 不要在这里清除数据，等测验完成后再清除
-        // this.quizService.clearCurrentQuizData();
-        
       } else {
         console.log('❌ 没有找到已存储的测验数据');
         console.log('🔍 调试信息 - quizData:', quizData);
@@ -199,9 +203,24 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
           return;
         }
         
-        // 如果不是正在提交，則重定向
+        // 檢查是否已經完成測驗，如果是則不顯示錯誤提示
+        const quizResultDataStr = sessionStorage.getItem('quiz_result_data');
+        if (quizResultDataStr) {
+          try {
+            const quizResultData = JSON.parse(quizResultDataStr);
+            if (quizResultData.result_id && quizResultData.result_id !== 'undefined') {
+              console.log('✅ 測驗已完成，直接跳轉到結果頁面');
+              this.router.navigate(['/dashboard/quiz-result', quizResultData.result_id]);
+              return;
+            }
+          } catch (error) {
+            console.error('❌ 解析測驗結果數據失敗:', error);
+          }
+        }
+        
+        // 如果不是正在提交且沒有完成，則重定向
         console.log('🔄 重定向到測驗中心');
-        alert('測驗數據丟失，請重新創建測驗');
+        // 移除alert，直接跳轉
         this.router.navigate(['/dashboard/quiz-center']);
       }
     });
@@ -656,6 +675,20 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
     this.quizService.submitQuiz(submissionData).subscribe({
       next: (response: any) => {
+        console.log('✅ 測驗提交成功:', response);
+        
+        // 獲取進度追蹤ID
+        const progressId = response.data?.progress_id;
+        if (progressId) {
+          console.log('🎯 開始進度追蹤，progress_id:', progressId);
+          // 連接後端進度追蹤
+          this.connectProgressTracking(progressId);
+        } else {
+          console.warn('⚠️ 沒有收到progress_id，使用默認進度顯示');
+          // 如果沒有progress_id，隱藏進度提示並直接跳轉
+          this.hideProgressModal();
+        }
+        
         // 準備錯題和標記題目的資料
         const wrongQuestions = this.getWrongQuestions();
         const markedQuestions = this.getMarkedQuestions();
@@ -671,6 +704,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
           wrong_questions: wrongQuestions,
           marked_questions: markedQuestions,
           submission_id: response.submission_id,
+          result_id: response.data?.result_id,  // 添加result_id
           user_answers: this.userAnswers,
           time_taken: submissionData.time_taken
         };
@@ -678,24 +712,16 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         
         sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
         
-        // 隱藏進度提示
-        this.hideProgressModal();
-        
-        // 跳轉到 quiz-result 頁面
-        const resultId = response.data?.result_id;
+        // 注意：現在不立即跳轉，而是等待進度追蹤完成後再跳轉
+        // 進度追蹤完成後會在 handleProgressUpdate 中處理跳轉
         
         // 在導航成功後清除數據，避免在導航過程中丟失
-        this.router.navigate(['/dashboard/quiz-result', resultId]).then(() => {
-          // 導航成功後清除數據
-          this.quizService.clearCurrentQuizData();
-        }).catch(() => {
-          // 如果導航失敗，也要清除數據
-          this.quizService.clearCurrentQuizData();
-        });
+        // this.quizService.clearCurrentQuizData(); // 移到進度完成後
       },
       error: (error: any) => {
-        console.error('[submitQuiz] 提交測驗失敗:', error);
-        this.isLoading = false;
+        console.error('❌ 測驗提交失敗:', error);
+        
+        // 隱藏進度提示
         this.hideProgressModal();
         
         // 顯示錯誤信息
@@ -714,18 +740,37 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 顯示進度提示模態框
   showProgressModal(): void {
+    // 立即顯示，不使用動畫
     this.isProgressModalVisible = true;
     this.currentProgressStep = 0;
-    this.startProgressAnimation();
+    this.progressMessage = '正在連接進度追蹤...';
+    
+    // 強制觸發變更檢測
+    this.cdr.detectChanges();
   }
 
   // 隱藏進度提示模態框
   hideProgressModal(): void {
+    console.log('🔄 隱藏進度模態框 - 當前狀態:', this.isProgressModalVisible);
+    
+    // 防止重複調用
+    if (!this.isProgressModalVisible) {
+      console.log('⚠️ 模態框已經隱藏，跳過');
+      return;
+    }
+    
+    // 立即隱藏，不使用動畫
     this.isProgressModalVisible = false;
     this.stopProgressAnimation();
+    this.disconnectProgressTracking();
+    
+    // 強制觸發變更檢測
+    this.cdr.detectChanges();
+    
+    console.log('✅ 進度模態框已隱藏');
   }
 
-  // 開始進度動畫
+  // 開始進度動畫（保留用於向後兼容）
   startProgressAnimation(): void {
     const progressSteps = [
       '試卷批改中，請稍後...',
@@ -756,6 +801,198 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       clearInterval(this.progressInterval);
       this.progressInterval = null;
     }
+  }
+
+  // 新增：連接後端進度追蹤
+  connectProgressTracking(progressId: string): void {
+    this.progressId = progressId;
+    
+    try {
+      // 使用 Server-Sent Events 連接後端進度通知
+      const apiUrl = this.quizService.getBaseUrl();
+      const sseUrl = `${apiUrl}/quiz/quiz-progress-sse/${progressId}`;
+      
+      this.eventSource = new EventSource(sseUrl);
+      
+      this.eventSource.onopen = () => {
+        console.log('✅ 進度追蹤連接已建立');
+        this.isProgressConnected = true;
+        this.progressMessage = '進度追蹤已連接，等待AI批改...';
+      };
+      
+      this.eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          this.handleProgressUpdate(data);
+        } catch (error) {
+          console.error('❌ 解析進度數據失敗:', error);
+        }
+      };
+      
+      this.eventSource.onerror = (error) => {
+        console.error('❌ 進度追蹤連接錯誤:', error);
+        
+        // 檢查連接狀態
+        if (this.eventSource && this.eventSource.readyState === EventSource.CLOSED) {
+          console.log('🔄 SSE連接已正常關閉');
+          // 如果已經收到完成消息，不需要處理錯誤
+          if (this.currentProgressStep === 4) {
+            console.log('✅ 進度已完成，忽略連接關閉錯誤');
+            return;
+          }
+          // 如果沒有完成，嘗試重新連接
+          this.fallbackToPolling();
+        } else {
+          console.log('🔄 SSE連接異常，嘗試回退到輪詢方式');
+          this.progressMessage = '進度追蹤連接失敗，請稍後...';
+          this.fallbackToPolling();
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ 建立進度追蹤失敗:', error);
+      this.fallbackToPolling();
+    }
+  }
+
+  // 新增：處理進度更新
+  private handleProgressUpdate(data: any): void {
+    console.log('📊 收到進度更新:', data);
+    
+    switch (data.type) {
+      case 'connected':
+        this.progressMessage = data.message;
+        break;
+        
+      case 'progress_update':
+        this.currentProgressStep = data.current_stage - 1; // 轉換為0-based索引
+        this.progressMessage = data.stage_description;
+        break;
+        
+      case 'completion':
+        this.currentProgressStep = 4; // 最後一個階段
+        this.progressMessage = data.message;
+        console.log('✅ 收到完成消息，準備跳轉...');
+        
+        // 立即斷開SSE連接，避免後續錯誤
+        this.disconnectProgressTracking();
+        
+        // 延遲一下再隱藏模態框，讓用戶看到完成狀態
+        setTimeout(() => {
+          console.log('🔄 隱藏進度模態框...');
+          this.hideProgressModal();
+          
+          // AI批改完成後，跳轉到結果頁面
+          setTimeout(() => {
+            this.navigateToResultPage();
+          }, 500); // 增加延遲，確保模態框完全關閉
+        }, 1000); // 減少延遲，讓用戶更快看到結果
+        break;
+        
+      case 'error':
+        console.error('❌ 進度追蹤錯誤:', data.message);
+        this.progressMessage = `錯誤: ${data.message}`;
+        break;
+        
+      default:
+        console.warn('⚠️ 未知的進度更新類型:', data.type);
+    }
+  }
+
+  // 新增：跳轉到結果頁面
+  private navigateToResultPage(): void {
+    console.log('🎯 準備跳轉到結果頁面...');
+    
+    // 注意：這裡不需要再調用hideProgressModal，因為在handleProgressUpdate中已經調用了
+    
+    // 從sessionStorage獲取測驗結果數據
+    const quizResultDataStr = sessionStorage.getItem('quiz_result_data');
+    if (quizResultDataStr) {
+      try {
+        const quizResultData = JSON.parse(quizResultDataStr);
+        const resultId = quizResultData.result_id;
+        
+        if (resultId && resultId !== 'undefined') {
+          console.log('🎯 AI批改完成，導航到結果頁面，result_id:', resultId);
+          
+          // 清除當前組件狀態
+          this.isLoading = false;
+          this.userAnswers = {};
+          this.markedQuestions = {};
+          
+          // 強制觸發變更檢測
+          this.cdr.detectChanges();
+          
+          // 延遲一下再導航，確保狀態清理完成
+          setTimeout(() => {
+            // 導航到結果頁面
+            this.router.navigate(['/dashboard/quiz-result', resultId], {
+              replaceUrl: true  // 替換當前URL，避免返回按鈕問題
+            });
+          }, 100);
+          
+        } else {
+          console.warn('⚠️ result_id無效或為undefined，導航到測驗中心');
+          this.router.navigate(['/dashboard/quiz-center']);
+        }
+        
+        // 清除數據
+        this.quizService.clearCurrentQuizData();
+        
+      } catch (error) {
+        console.error('❌ 解析測驗結果數據失敗:', error);
+        this.router.navigate(['/dashboard/quiz-center']);
+      }
+    } else {
+      console.warn('⚠️ 沒有找到測驗結果數據，導航到測驗中心');
+      this.router.navigate(['/dashboard/quiz-center']);
+    }
+  }
+
+  // 新增：斷開進度追蹤
+  private disconnectProgressTracking(): void {
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
+    }
+    this.isProgressConnected = false;
+  }
+
+  // 新增：回退到輪詢方式（如果SSE失敗）
+  private fallbackToPolling(): void {
+    console.log('🔄 回退到輪詢方式獲取進度');
+    
+    if (this.progressId) {
+      this.progressInterval = setInterval(() => {
+        this.pollProgress();
+      }, 2000); // 每2秒輪詢一次
+    }
+  }
+
+  // 新增：輪詢進度
+  private pollProgress(): void {
+    if (!this.progressId) return;
+    
+    const apiUrl = this.quizService.getBaseUrl();
+    fetch(`${apiUrl}/quiz/quiz-progress/${this.progressId}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          const progress = data.data;
+          this.currentProgressStep = progress.current_stage - 1;
+          this.progressMessage = progress.stage_description;
+          
+          if (progress.is_completed) {
+            this.stopProgressAnimation();
+            setTimeout(() => {
+              this.hideProgressModal();
+            }, 1500);
+          }
+        }
+      })
+      .catch(error => {
+        console.error('❌ 輪詢進度失敗:', error);
+      });
   }
 
   // 返回測驗中心

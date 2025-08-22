@@ -81,6 +81,32 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   learningPath: QuestionData[] = [];
   currentQuestionIndex = 0;
 
+  // 新增：學習進度追蹤
+  learningStage: 'core_concept_confirmation' | 'related_concept_guidance' | 'application_understanding' | 'understanding_verification' = 'core_concept_confirmation';
+  understandingLevel: number = 0;
+  learningProgress: Array<{
+    stage: string;
+    understanding_level: number;
+    score?: number;
+    timestamp: string;
+  }> = [];
+  
+  // 新增：學習統計
+  totalLearningTime: number = 0;
+  startTime: Date = new Date();
+  currentStageStartTime: Date = new Date();
+  
+  // 新增：題目選擇功能
+  showQuestionSelector = false;
+  selectedQuestionIndex: number | null = null;
+  
+  // 新增：學習報告
+  learningReport: any = null;
+  showLearningReport = false;
+  
+  // 新增：學習完成狀態
+  currentQuestionCompleted: boolean = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -90,17 +116,64 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   ngOnInit(): void {
+    this.checkMobile();
+    
+    // 從路由參數獲取sessionId
     this.route.params.subscribe(params => {
       this.sessionId = params['sessionId'];
     });
     
+    // 從查詢參數初始化
     this.route.queryParams.subscribe(queryParams => {
       if (queryParams['source'] === 'quiz_result') {
         this.initializeFromQuizResult(queryParams);
       }
     });
     
+    // 自動選擇第一題
+    if (this.learningPath.length > 0) {
+      this.currentQuestionIndex = 0;
+      this.currentQuestion = this.learningPath[0];
+      this.startLearningSession();
+    }
+    
     window.addEventListener('resize', () => this.checkMobile());
+  }
+  
+  // 開始學習會話
+  private startLearningSession(): void {
+    if (this.currentQuestion) {
+      // 自動開始第一題的學習
+      this.startQuestionLearning();
+    }
+  }
+  
+  // 開始題目學習
+  private startQuestionLearning(): void {
+    if (!this.currentQuestion) return;
+    
+    // 重置學習狀態
+    this.learningStage = 'core_concept_confirmation';
+    this.understandingLevel = 0;
+    this.currentStageStartTime = new Date();
+    
+    // 自動發送第一條AI消息
+    const welcomeMessage = `🎯 歡迎來到AI引導教學！讓我們開始學習這道題目。
+
+題目：${this.currentQuestion.question_text}
+
+請告訴我您對這道題目的理解，或者您希望從哪個方面開始學習？`;
+    
+    this.chatMessages.push({
+      type: 'ai',
+      content: welcomeMessage,
+      timestamp: new Date().toISOString()
+    });
+    
+    // 滾動到底部
+    setTimeout(() => {
+      this.scrollToBottom();
+    }, 100);
   }
 
   ngOnDestroy(): void {
@@ -408,5 +481,296 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       event.clientY - rect.top
     );
     this.drawingContext.stroke();
+  }
+
+  // 新增：學習進度追蹤方法
+  updateLearningProgress(stage: string, level: number): void {
+    this.learningStage = stage as any;
+    this.understandingLevel = level;
+    
+    this.learningProgress.push({
+      stage,
+      understanding_level: level,
+      timestamp: new Date().toISOString()
+    });
+    
+    // 更新階段開始時間
+    this.currentStageStartTime = new Date();
+  }
+
+  getLearningStageDisplayName(stage: string): string {
+    const stageNames = {
+      'core_concept_confirmation': '核心概念確認',
+      'related_concept_guidance': '相關概念引導',
+      'application_understanding': '應用理解',
+      'understanding_verification': '理解驗證'
+    };
+    return stageNames[stage as keyof typeof stageNames] || stage;
+  }
+
+  // 新增：獲取題目完成度百分比（用於進度條）
+  getQuestionCompletionPercentage(): number {
+    if (this.understandingLevel >= 99) return 100;
+    if (this.understandingLevel >= 90) return 95;
+    if (this.understandingLevel >= 81) return 85;
+    if (this.understandingLevel >= 61) return 70;
+    if (this.understandingLevel >= 31) return 45;
+    return 20;
+  }
+
+  // 新增：獲取理解程度顏色
+  getUnderstandingLevelColor(level: number): string {
+    if (level >= 99) return 'success';
+    if (level >= 90) return 'info';
+    if (level >= 81) return 'warning';
+    if (level >= 61) return 'secondary';
+    return 'danger';
+  }
+
+  // 新增：獲取理解程度文字描述
+  getUnderstandingLevelText(level: number): string {
+    if (level >= 99) return '完成';
+    if (level >= 90) return '優秀';
+    if (level >= 81) return '良好';
+    if (level >= 61) return '中等';
+    if (level >= 31) return '基礎';
+    return '需要改進';
+  }
+
+  // 新增：檢查是否可以進入下一題
+  canProceedToNextQuestion(): boolean {
+    return this.understandingLevel >= 99 && this.currentQuestionCompleted;
+  }
+
+  // 新增：學習報告方法
+  generateLearningReport(): void {
+    this.learningReport = {
+      currentQuestion: this.currentQuestion,
+      learningStage: this.learningStage,
+      understandingLevel: this.understandingLevel,
+      totalLearningTime: this.calculateTotalLearningTime(),
+      stageProgress: this.analyzeStageProgress(),
+      recommendations: this.generateRecommendations()
+    };
+    this.showLearningReport = true;
+  }
+
+  private calculateTotalLearningTime(): number {
+    const now = new Date();
+    return Math.floor((now.getTime() - this.startTime.getTime()) / 1000 / 60); // 分鐘
+  }
+
+  private analyzeStageProgress(): any {
+    const stageCounts: { [key: string]: number } = {};
+    this.learningProgress.forEach(progress => {
+      stageCounts[progress.stage] = (stageCounts[progress.stage] || 0) + 1;
+    });
+    return stageCounts;
+  }
+
+  private generateRecommendations(): string[] {
+    const recommendations: string[] = [];
+    
+    if (this.understandingLevel < 30) {
+      recommendations.push('建議多花時間理解核心概念');
+    }
+    
+    if (this.learningStage === 'core_concept_confirmation') {
+      recommendations.push('繼續深入學習核心概念');
+    } else if (this.learningStage === 'understanding_verification') {
+      recommendations.push('嘗試用自己的話解釋概念，鞏固理解');
+    }
+    
+    return recommendations;
+  }
+
+  // 新增：學習時間追蹤
+  startStageTimer(): void {
+    this.currentStageStartTime = new Date();
+  }
+
+  getStageLearningTime(): number {
+    const now = new Date();
+    return Math.floor((now.getTime() - this.currentStageStartTime.getTime()) / 1000 / 60); // 分鐘
+  }
+
+  // 新增：題目選擇方法
+  openQuestionSelector(): void {
+    this.showQuestionSelector = true;
+  }
+
+  selectQuestion(index: number): void {
+    if (index >= 0 && index < this.learningPath.length) {
+      this.currentQuestionIndex = index;
+      this.currentQuestion = this.learningPath[index];
+      
+      // 重置學習進度
+      this.learningStage = 'core_concept_confirmation';
+      this.understandingLevel = 0;
+      this.learningProgress = [];
+      this.chatMessages = [];
+      
+      // 開始新的學習會話
+      this.startNewLearningSession();
+      
+      this.showQuestionSelector = false;
+    }
+  }
+
+  skipCurrentQuestion(): void {
+    if (this.hasNextQuestion()) {
+      this.nextQuestion();
+    }
+  }
+
+  restartCurrentQuestion(): void {
+    // 重置當前題目的學習進度
+    this.learningStage = 'core_concept_confirmation';
+    this.understandingLevel = 0;
+    this.learningProgress = [];
+    this.chatMessages = [];
+    
+    // 重新開始學習
+    this.startNewLearningSession();
+  }
+
+  // 新增：獲取階段進度數量
+  getStageProgressCount(): number {
+    if (this.learningReport && this.learningReport.stageProgress) {
+      return Object.keys(this.learningReport.stageProgress).length;
+    }
+    return 0;
+  }
+
+  // 新增：匯出學習報告
+  exportLearningReport(): void {
+    if (!this.learningReport) return;
+    
+    const reportData = {
+      ...this.learningReport,
+      exportTime: new Date().toISOString(),
+      sessionId: this.sessionId
+    };
+    
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `learning_report_${this.sessionId}_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  // 新增：開始新的學習會話
+  private startNewLearningSession(): void {
+    // 重置學習狀態
+    this.learningStage = 'core_concept_confirmation';
+    this.understandingLevel = 0;
+    this.learningProgress = [];
+    this.chatMessages = [];
+    
+    // 開始階段計時
+    this.startStageTimer();
+    
+    // 可以這裡添加自動開始AI教學的邏輯
+    if (this.currentQuestion) {
+      this.addMessage('ai', `🎯 讓我們開始學習這道題目：
+
+**題目：** ${this.currentQuestion.question_text}
+
+您的答案是「${this.currentQuestion.user_answer}」，正確答案是「${this.currentQuestion.correct_answer}」。
+
+讓我們從這道題目最核心的概念開始探討。在開始之前，我想先了解您對這道題目涉及的核心概念掌握程度如何。
+
+您能告訴我，這道題目主要是在考什麼概念嗎？或者您覺得這道題目的關鍵點是什麼？`);
+    }
+  }
+
+  // 處理AI回應
+  private processAIResponse(response: any): void {
+    try {
+      if (response.success && response.data) {
+        const aiResponse = response.data;
+        
+        // 清理AI回應，移除多餘的原始題目信息
+        let cleanResponse = aiResponse.response || aiResponse.message || '';
+        
+        // 移除可能的原始題目信息
+        cleanResponse = this.cleanAIResponse(cleanResponse);
+        
+        // 添加到對話歷史
+        this.chatMessages.push({
+          type: 'ai',
+          content: cleanResponse,
+          timestamp: new Date().toISOString()
+        });
+        
+        // 更新學習狀態
+        if (aiResponse.understanding_level !== undefined) {
+          this.understandingLevel = aiResponse.understanding_level;
+          this.updateLearningProgress(this.learningStage, this.understandingLevel);
+        }
+        
+        // 檢查是否達到下一題條件
+        if (this.understandingLevel >= 99) {
+          this.handleLearningCompletion();
+        }
+        
+        this.isLoading = false;
+        this.scrollToBottom();
+        
+      } else {
+        this.handleError('AI回應格式錯誤');
+      }
+    } catch (error) {
+      console.error('❌ 處理AI回應失敗:', error);
+      this.handleError('處理AI回應時發生錯誤');
+    }
+  }
+  
+  // 清理AI回應，移除多餘信息
+  private cleanAIResponse(response: string): string {
+    // 移除可能的原始題目信息
+    const patterns = [
+      /原始題目[：:]\s*.*?(?=\n|$)/g,
+      /正確答案[：:]\s*.*?(?=\n|$)/g,
+      /用戶答案[：:]\s*.*?(?=\n|$)/g,
+      /題目[：:]\s*.*?(?=\n|$)/g
+    ];
+    
+    let cleanResponse = response;
+    patterns.forEach(pattern => {
+      cleanResponse = cleanResponse.replace(pattern, '');
+    });
+    
+    // 清理多餘的換行
+    cleanResponse = cleanResponse.replace(/\n{3,}/g, '\n\n');
+    
+    return cleanResponse.trim();
+  }
+  
+  // 處理錯誤
+  private handleError(message: string): void {
+    this.chatMessages.push({
+      type: 'ai',
+      content: `❌ ${message}`,
+      timestamp: new Date().toISOString()
+    });
+    this.isLoading = false;
+    this.scrollToBottom();
+  }
+  
+  // 處理學習完成
+  private handleLearningCompletion(): void {
+    this.chatMessages.push({
+      type: 'ai',
+      content: '🎉 恭喜！您已經完全掌握這個概念，可以進入下一題了！',
+      timestamp: new Date().toISOString()
+    });
+    
+    // 自動進入下一題
+    setTimeout(() => {
+      this.nextQuestion();
+    }, 2000);
   }
 }

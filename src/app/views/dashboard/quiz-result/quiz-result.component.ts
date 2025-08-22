@@ -100,37 +100,40 @@ export class QuizResultComponent implements OnInit {
     });
   }
 
-  async loadQuizResult(): Promise<void> {
-    try {
-      this.loading = true;
-      this.error = '';
-      
-      const response = await this.ragService.getQuizResult(this.resultId).toPromise();
-      
-      if (response?.success) {
-        this.quizResult = response.data;
-        
-        // 確保題目資料存在
-        if (this.quizResult) {
-          if (!this.quizResult.questions || this.quizResult.questions.length === 0) {
-            if (this.quizResult.errors && this.quizResult.errors.length > 0) {
-              this.quizResult.questions = this.quizResult.errors;
-            } else {
-              this.quizResult.questions = [];
+  loadQuizResult(): void {
+    this.loading = true;
+    this.error = '';
+    
+    this.ragService.getQuizResult(this.resultId).subscribe({
+      next: (response) => {
+        if (response?.success) {
+          this.quizResult = response.data;
+          
+          // 確保題目資料存在
+          if (this.quizResult) {
+            if (!this.quizResult.questions || this.quizResult.questions.length === 0) {
+              if (this.quizResult.errors && this.quizResult.errors.length > 0) {
+                this.quizResult.questions = this.quizResult.errors;
+              } else {
+                this.quizResult.questions = [];
+              }
             }
           }
+          
+          this.filterType = 'all';
+          this.applyFilter();
+        } else {
+          this.error = '無法載入測驗結果';
         }
-        
-        this.filterType = 'all';
-        this.applyFilter();
-      } else {
-        this.error = '無法載入測驗結果';
+      },
+      error: (error) => {
+        console.error('❌ 載入測驗結果失敗:', error);
+        this.error = '載入測驗結果時發生錯誤';
+      },
+      complete: () => {
+        this.loading = false;
       }
-    } catch (error) {
-      this.error = '載入測驗結果時發生錯誤';
-    } finally {
-      this.loading = false;
-    }
+    });
   }
 
   // 合併篩選邏輯

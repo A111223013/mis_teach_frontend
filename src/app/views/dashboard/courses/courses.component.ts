@@ -10,9 +10,10 @@ interface CourseItem {
 }
 @Component({
   selector: 'app-courses',
+  standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './courses.component.html',
-  styleUrl: './courses.component.scss'
+  styleUrls: ['./courses.component.scss']
 })
 export class CoursesComponent {
   // 先寫死幾個科目，之後可以從後端 API 取代

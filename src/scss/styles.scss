@@ -1,28 +1,8 @@
-
-/* You can add global styles to this file, and also import other style files */
-
-// Import color functions workaround
-@import "color-functions";
-
-// If you want to override variables do it here
-@import "variables";
-
-// Import styles with default layout.
-@import "@coreui/coreui/scss/coreui";
-
-// Import Chart.js custom tooltips styles
-@import "@coreui/chartjs/scss/coreui-chartjs";
-
-// Custom styles for this theme
-@import "theme";
-
-// If you want to add custom CSS you can put it here.
-@import "custom";
-
-// 詳細導覽系統樣式
-@import "detailed-guide";
-
-// Examples
-@import "examples";
-
-//@import "@joint/plus/joint-plus.css";
+@use "color-functions";
+@use "variables";
+@use "@coreui/coreui/scss/coreui" as coreui;
+@use "@coreui/chartjs/scss/coreui-chartjs" as chartjs;
+@use "theme";
+@use "custom";
+@use "detailed-guide";
+@use "examples";
