@@ -24,7 +24,7 @@
 
   <!-- 聊天主要內容 -->
   <div class="chat-content">
-    
+     
     <!-- 工具欄 -->
     <div class="chat-toolbar">
 
@@ -78,6 +78,23 @@
               </div>
               <div class="assistant-content">
                 <div class="message-text" [innerHTML]="message.content | markdown"></div>
+                
+                <!-- 考卷生成後的開始測驗按鈕 -->
+                <div *ngIf="isQuizGenerationMessage(message.content)" class="quiz-actions mt-3">
+                  <button 
+                    class="btn btn-primary btn-lg"
+                    (click)="startQuizFromMessage(message.content)">
+                    <i class="cil-media-play me-2"></i>
+                    開始測驗
+                  </button>
+                  <button 
+                    class="btn btn-outline-secondary ms-2"
+                    (click)="viewQuizDetails(message.content)">
+                    <i class="cil-eye me-2"></i>
+                    查看詳情
+                  </button>
+                </div>
+                
                 <div class="message-meta">
                   <small class="text-muted">
                     {{ formatTime(message.timestamp) }}
