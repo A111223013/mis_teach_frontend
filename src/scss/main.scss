@@ -1,0 +1,11 @@
+/* 新的主樣式文件，使用@import避免Angular編譯器問題 */
+
+// 直接導入所有樣式，不使用@use
+@import "variables";
+@import "color-functions";
+@import "@coreui/coreui/scss/coreui";
+@import "@coreui/chartjs/scss/coreui-chartjs";
+@import "theme";
+@import "custom";
+@import "detailed-guide";
+@import "examples";

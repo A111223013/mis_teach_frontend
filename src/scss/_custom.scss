@@ -1,10 +1,10 @@
 // Here you can add other styles
 
 // custom .chartjs-tooltip-body-item padding
-@import "charts";
+@use "charts";
 
 // custom tweaks for scrollbar styling (wip)
-@import "scrollbar";
+@use "scrollbar";
 
  // custom calendar today cell color
 .calendar-cell.today {
@@ -14,5 +14,39 @@
 // custom select week cursor pointer
 .select-week .calendar-row.current {
   cursor: pointer;
+}
+
+// AI 教學對話界面 scrollbar 樣式
+.ai-tutoring-container {
+  .chat-messages {
+    scrollbar-width: thin;
+    scrollbar-color: #dee2e6 #f8f9fa;
+    
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: #dee2e6;
+      border-radius: 4px;
+      border: 1px solid #f8f9fa;
+      
+      &:hover {
+        background: #adb5bd;
+      }
+    }
+  }
+}
+
+// 確保 footer 定位正確
+.footer {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 1000 !important;
 }
 

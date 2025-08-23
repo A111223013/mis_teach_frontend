@@ -68,6 +68,11 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   showNotesModal = false;
   showDrawingModal = false;
   isMobile = false;
+  
+  // 新增：Modal 控制狀態
+  showQuestionDetailModal = false;
+  showUserAnswerDetailModal = false;
+  showCorrectAnswerDetailModal = false;
 
   // 筆記功能
   notes: Note[] = [];
@@ -98,7 +103,35 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   
   // 新增：題目選擇功能
   showQuestionSelector = false;
-  selectedQuestionIndex: number | null = null;
+  
+  // 新增：安全的 getter 方法
+  get safeCurrentQuestion() {
+    return this.currentQuestion || {
+      question_text: '題目載入中...',
+      user_answer: '未作答',
+      correct_answer: '答案載入中...',
+      is_correct: false,
+      score: 0,
+      feedback: { explanation: '', strengths: '', weaknesses: '', suggestions: '' },
+      question_id: '',
+      subject: '計算機概論',
+      difficulty: 1,
+      topic: '',
+      options: [],
+      image_file: '',
+      question_type: '',
+      is_marked: false
+    };
+  }
+  
+  // 新增：安全的文本截取方法
+  getSafeText(text: string | undefined, maxLength: number): string {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+  }
+  
+  // 新增：相關知識點
+  relatedKnowledgePoints: string[] = ['計算機概論', '作業系統', '程序管理', '同步機制'];
   
   // 新增：學習報告
   learningReport: any = null;
@@ -130,51 +163,13 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       }
     });
     
-    // 自動選擇第一題
-    if (this.learningPath.length > 0) {
-      this.currentQuestionIndex = 0;
-      this.currentQuestion = this.learningPath[0];
-      this.startLearningSession();
-    }
+    // 注意：題目選擇會在 initializeFromQuizResult 完成後進行
+    // 這裡不需要提前選擇，避免數據未載入的問題
     
     window.addEventListener('resize', () => this.checkMobile());
   }
   
-  // 開始學習會話
-  private startLearningSession(): void {
-    if (this.currentQuestion) {
-      // 自動開始第一題的學習
-      this.startQuestionLearning();
-    }
-  }
-  
-  // 開始題目學習
-  private startQuestionLearning(): void {
-    if (!this.currentQuestion) return;
-    
-    // 重置學習狀態
-    this.learningStage = 'core_concept_confirmation';
-    this.understandingLevel = 0;
-    this.currentStageStartTime = new Date();
-    
-    // 自動發送第一條AI消息
-    const welcomeMessage = `🎯 歡迎來到AI引導教學！讓我們開始學習這道題目。
-
-題目：${this.currentQuestion.question_text}
-
-請告訴我您對這道題目的理解，或者您希望從哪個方面開始學習？`;
-    
-    this.chatMessages.push({
-      type: 'ai',
-      content: welcomeMessage,
-      timestamp: new Date().toISOString()
-    });
-    
-    // 滾動到底部
-    setTimeout(() => {
-      this.scrollToBottom();
-    }, 100);
-  }
+  // 注意：startQuestionLearning 方法已移除，避免與 startNewLearningSession 重複
 
   ngOnDestroy(): void {
     window.removeEventListener('resize', () => this.checkMobile());
@@ -202,26 +197,24 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       const result = await this.aiTutoringService.startErrorLearning(resultId).toPromise();
       
       if (result?.success) {
+        console.log('🔍 測驗結果數據:', result);
+        
         this.learningPath = result.wrongQuestions || [];
+        console.log('🔍 錯題路徑:', this.learningPath);
+        
         this.currentQuestionIndex = 0;
         this.currentQuestion = this.learningPath[0];
+        console.log('🔍 當前題目:', this.currentQuestion);
 
         if (this.learningPath.length > 0) {
-          // 自動觸發後端生成歡迎訊息
-          try {
-            const welcomeResponse = await this.aiTutoringService.sendTutoringMessage('', this.sessionId).toPromise();
-            if (welcomeResponse?.success && welcomeResponse.response) {
-              this.addMessage('ai', welcomeResponse.response);
-            } else {
-              // 如果後端失敗，顯示預設訊息
-              this.addMessage('ai', '✅ 錯題數據載入成功！請開始提問。');
-            }
-          } catch (error) {
-            // 如果後端失敗，顯示預設訊息
-            this.addMessage('ai', '✅ 錯題數據載入成功！請開始提問。');
-          }
+          // 題目載入完成，自動開始學習
+          console.log('✅ 題目載入完成，開始學習');
+          this.startNewLearningSession();
         } else {
-          this.addMessage('ai', '恭喜！您沒有錯題需要學習。');
+          // 如果沒有錯題數據，創建一個預設題目用於測試
+          console.warn('⚠️ 沒有錯題數據，創建預設題目');
+          this.createDefaultQuestion();
+          this.addMessage('ai', '✅ 已載入預設題目，請開始學習。');
         }
       }
     } catch (error) {
@@ -230,19 +223,9 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   addQuizCompletionWelcomeMessage(): void {
-    if (this.currentQuestion) {
-      const welcomeMessage = `🎓 歡迎來到 AI 智能教學！
-
-我們將一起學習您的錯題。讓我們從第一道題開始：
-
-**題目：** ${this.currentQuestion.question_text}
-
-我看到您的答案是「${this.currentQuestion.user_answer}」，正確答案是「${this.currentQuestion.correct_answer}」。
-
-讓我們一起探討這個概念。您有什麼問題想問我嗎？`;
-
-      this.addMessage('ai', welcomeMessage);
-    }
+    // 這個方法已經被 startNewLearningSession 取代，避免重複發送
+    console.log('ℹ️ addQuizCompletionWelcomeMessage 被調用，但已由 startNewLearningSession 處理');
+    return;
   }
 
   addMessage(type: 'user' | 'ai', content: string): void {
@@ -267,22 +250,34 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
 
     const message = this.userInput.trim();
     this.userInput = '';
+    
+    // 添加題目上下文到用戶訊息
+    const messageWithContext = this.currentQuestion ? 
+      `題目：${this.currentQuestion.question_text}\n\n用戶問題：${message}` :
+      message;
+    
     this.addMessage('user', message);
 
     this.isLoading = true;
 
     try {
-      // 發送用戶的訊息
-      const response = await this.aiTutoringService.sendTutoringMessage(message, this.sessionId).toPromise();
+      console.log('🔍 發送用戶訊息:', message);
+      
+      // 發送用戶的訊息（帶題目上下文和答案信息）
+      const response = await this.aiTutoringService.sendTutoringMessage(messageWithContext, this.sessionId, this.currentQuestion).toPromise();
+      
+      console.log('🔍 收到AI回應:', response);
 
-      if (response?.success && response.response) {
-        this.addMessage('ai', response.response);
+      if (response?.success) {
+        // 使用 processAIResponse 處理AI回應，確保 understandingLevel 能正確更新
+        this.processAIResponse(response);
       } else {
         this.addMessage('ai', response?.error || '抱歉，處理您的回答時發生錯誤。請重試。');
+        this.isLoading = false;
       }
     } catch (error) {
+      console.error('❌ 發送訊息失敗:', error);
       this.addMessage('ai', '連接錯誤，請檢查網路連接。');
-    } finally {
       this.isLoading = false;
     }
   }
@@ -291,19 +286,25 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (!this.currentQuestion) return;
 
     this.isLoading = true;
-    const hintMessage = `請給我關於「${this.currentQuestion.question_text}」的學習提示`;
+    const hintMessage = `請給我關於「${this.currentQuestion.question_text}」的學習提示。`;
 
     try {
+      console.log('🔍 請求學習提示:', hintMessage);
+      
       const response = await this.aiTutoringService.sendTutoringMessage(hintMessage, this.sessionId).toPromise();
+      
+      console.log('🔍 收到提示回應:', response);
 
-      if (response?.success && response.response) {
-        this.addMessage('ai', response.response);
+      if (response?.success) {
+        // 使用 processAIResponse 處理AI回應，確保 understandingLevel 能正確更新
+        this.processAIResponse(response);
       } else {
         this.addMessage('ai', '抱歉，無法獲取學習提示。');
+        this.isLoading = false;
       }
     } catch (error) {
+      console.error('❌ 獲取提示失敗:', error);
       this.addMessage('ai', '獲取學習提示時發生錯誤。');
-    } finally {
       this.isLoading = false;
     }
   }
@@ -322,9 +323,9 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
 
 **題目：** ${this.currentQuestion.question_text}
 
-您的答案是「${this.currentQuestion.user_answer}」，正確答案是「${this.currentQuestion.correct_answer}」。
+在開始之前，我想先了解您對這個概念的理解程度。
 
-您有什麼問題想問我嗎？`;
+請您用自己的話簡單解釋一下，這道題目主要是在考什麼概念？`;
 
         this.addMessage('ai', nextQuestionMessage);
         
@@ -399,27 +400,71 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.completeQuestion();
   }
 
+  // 新增：搜索知識點
+  searchKnowledgePoint(point: string): void {
+    console.log(`🔍 搜索知識點: ${point}`);
+    // 這裡可以實現知識點搜索功能
+    this.addMessage('ai', `我正在為您搜索關於「${point}」的相關知識...`);
+  }
+
+  // 優化：題目選擇邏輯
+  selectQuestion(index: number): void {
+    if (index < 0 || index >= this.learningPath.length) {
+      console.warn('⚠️ 無效的題目索引:', index);
+      return;
+    }
+
+    const question = this.learningPath[index];
+    
+    // 檢查題目是否有答案
+    if (!question.user_answer || question.user_answer.trim() === '') {
+      console.log('⚠️ 題目未作答，無法選擇:', index);
+      // 可以選擇是否允許跳轉到未答題目
+      if (confirm('此題目尚未作答，確定要跳轉嗎？')) {
+        this.currentQuestionIndex = index;
+        this.currentQuestion = question;
+        this.startNewLearningSession();
+      }
+      return;
+    }
+
+    console.log(`✅ 選擇題目 ${index + 1}:`, question.question_text?.substring(0, 50));
+    this.currentQuestionIndex = index;
+    this.currentQuestion = question;
+    this.startNewLearningSession();
+  }
+
+  // 優化：檢查是否有下一題
+  hasNextQuestion(): boolean {
+    return this.currentQuestionIndex < this.learningPath.length - 1;
+  }
+
+  // 優化：下一題
   nextQuestion(): void {
     if (this.hasNextQuestion()) {
       this.currentQuestionIndex++;
       this.currentQuestion = this.learningPath[this.currentQuestionIndex];
-      
-      // 自動觸發AI開始講解下一題
-      const message = `請開始講解第${this.currentQuestionIndex + 1}題：${this.currentQuestion?.question_text}`;
-      
-      // 直接添加AI訊息，模擬AI回應
-      this.addMessage('ai', `🎯 讓我們繼續下一道題：
-
-**題目：** ${this.currentQuestion.question_text}
-
-您的答案是「${this.currentQuestion.user_answer}」，正確答案是「${this.currentQuestion.correct_answer}」。
-
-您有什麼問題想問我嗎？`);
+      this.startNewLearningSession();
     }
   }
 
-  hasNextQuestion(): boolean {
-    return this.currentQuestionIndex < this.learningPath.length - 1;
+  // 優化：重新開始當前題目
+  restartCurrentQuestion(): void {
+    if (this.currentQuestion) {
+      console.log('🔄 重新開始題目:', this.currentQuestion.question_text?.substring(0, 50));
+      this.chatMessages = [];
+      this.understandingLevel = 0;
+      this.learningStage = 'core_concept_confirmation';
+      this.startNewLearningSession();
+    }
+  }
+
+  // 優化：跳過當前題目
+  skipCurrentQuestion(): void {
+    if (this.hasNextQuestion()) {
+      console.log('⏭️ 跳過當前題目');
+      this.nextQuestion();
+    }
   }
 
   openNotesModal(): void {
@@ -437,6 +482,19 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   closeDrawingModal(): void {
     this.showDrawingModal = false;
+  }
+  
+  // 新增：Modal 控制方法
+  showQuestionModal(): void {
+    this.showQuestionDetailModal = true;
+  }
+  
+  showUserAnswerModal(): void {
+    this.showUserAnswerDetailModal = true;
+  }
+  
+  showCorrectAnswerModal(): void {
+    this.showCorrectAnswerDetailModal = true;
   }
 
   saveNote(): void {
@@ -510,12 +568,8 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   // 新增：獲取題目完成度百分比（用於進度條）
   getQuestionCompletionPercentage(): number {
-    if (this.understandingLevel >= 99) return 100;
-    if (this.understandingLevel >= 90) return 95;
-    if (this.understandingLevel >= 81) return 85;
-    if (this.understandingLevel >= 61) return 70;
-    if (this.understandingLevel >= 31) return 45;
-    return 20;
+    // 直接返回理解程度作為百分比
+    return Math.min(this.understandingLevel, 100);
   }
 
   // 新增：獲取理解程度顏色
@@ -599,41 +653,6 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.showQuestionSelector = true;
   }
 
-  selectQuestion(index: number): void {
-    if (index >= 0 && index < this.learningPath.length) {
-      this.currentQuestionIndex = index;
-      this.currentQuestion = this.learningPath[index];
-      
-      // 重置學習進度
-      this.learningStage = 'core_concept_confirmation';
-      this.understandingLevel = 0;
-      this.learningProgress = [];
-      this.chatMessages = [];
-      
-      // 開始新的學習會話
-      this.startNewLearningSession();
-      
-      this.showQuestionSelector = false;
-    }
-  }
-
-  skipCurrentQuestion(): void {
-    if (this.hasNextQuestion()) {
-      this.nextQuestion();
-    }
-  }
-
-  restartCurrentQuestion(): void {
-    // 重置當前題目的學習進度
-    this.learningStage = 'core_concept_confirmation';
-    this.understandingLevel = 0;
-    this.learningProgress = [];
-    this.chatMessages = [];
-    
-    // 重新開始學習
-    this.startNewLearningSession();
-  }
-
   // 新增：獲取階段進度數量
   getStageProgressCount(): number {
     if (this.learningReport && this.learningReport.stageProgress) {
@@ -672,44 +691,151 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     // 開始階段計時
     this.startStageTimer();
     
-    // 可以這裡添加自動開始AI教學的邏輯
-    if (this.currentQuestion) {
-      this.addMessage('ai', `🎯 讓我們開始學習這道題目：
+    // 檢查題目數據是否正確載入
+    if (this.currentQuestion && this.currentQuestion.question_text && this.currentQuestion.question_text !== '初始化會話') {
+      // 自動發送初始化訊息給後端，讓AI了解題目和學生答案
+      this.initializeAITutoring();
+    } else {
+      console.warn('⚠️ 題目數據未正確載入，顯示預設訊息');
+      this.addMessage('ai', '🎓 歡迎來到 AI 智能教學！\n\n請稍等，我正在載入您的錯題數據...');
+    }
+  }
 
-**題目：** ${this.currentQuestion.question_text}
+  // 新增：初始化AI教學，自動發送題目信息
+  private async initializeAITutoring(): Promise<void> {
+    if (!this.currentQuestion) return;
 
-您的答案是「${this.currentQuestion.user_answer}」，正確答案是「${this.currentQuestion.correct_answer}」。
-
-讓我們從這道題目最核心的概念開始探討。在開始之前，我想先了解您對這道題目涉及的核心概念掌握程度如何。
-
-您能告訴我，這道題目主要是在考什麼概念嗎？或者您覺得這道題目的關鍵點是什麼？`);
+    try {
+      console.log('🚀 開始初始化AI教學，發送題目信息');
+      
+      // 設置載入狀態，顯示「AI正在分析」訊息
+      this.isLoading = true;
+      
+      // 構建初始化訊息
+      const initMessage = `開始學習會話：${this.currentQuestion.question_text}`;
+      
+      // 發送初始化訊息給後端
+      const response = await this.aiTutoringService.sendTutoringMessage(
+        initMessage, 
+        this.sessionId, 
+        this.currentQuestion
+      ).toPromise();
+      
+      if (response?.success) {
+        console.log('✅ AI初始化回應:', response);
+        // 處理AI的回應
+        this.processAIResponse(response);
+      } else {
+        console.error('❌ AI初始化失敗:', response?.error);
+        this.addMessage('ai', '抱歉，AI初始化失敗，請重試。');
+      }
+    } catch (error) {
+      console.error('❌ 初始化AI教學失敗:', error);
+      this.addMessage('ai', '初始化AI教學時發生錯誤，請重試。');
+    } finally {
+      // 確保載入狀態被重置
+      this.isLoading = false;
     }
   }
 
   // 處理AI回應
   private processAIResponse(response: any): void {
+    console.log('🔍 開始處理AI回應:', response);
+    
     try {
-      if (response.success && response.data) {
-        const aiResponse = response.data;
+      if (response.success) {
+        // 後端返回的數據結構可能是 response.data 或直接是 response
+        const aiResponse = response.data || response;
         
-        // 清理AI回應，移除多餘的原始題目信息
-        let cleanResponse = aiResponse.response || aiResponse.message || '';
+        console.log('🔍 處理的AI回應對象:', aiResponse);
         
-        // 移除可能的原始題目信息
-        cleanResponse = this.cleanAIResponse(cleanResponse);
-        
-        // 添加到對話歷史
-        this.chatMessages.push({
-          type: 'ai',
-          content: cleanResponse,
-          timestamp: new Date().toISOString()
+        // 獲取AI回應內容，處理嵌套的 response 結構
+        let aiContent = '';
+        console.log('🔍 檢查AI回應字段:', {
+          response: aiResponse.response,
+          message: aiResponse.message,
+          content: aiResponse.content,
+          type: typeof aiResponse.response
         });
         
-        // 更新學習狀態
-        if (aiResponse.understanding_level !== undefined) {
-          this.understandingLevel = aiResponse.understanding_level;
-          this.updateLearningProgress(this.learningStage, this.understandingLevel);
+        // 處理嵌套的 response 結構：response.response
+        if (aiResponse.response && typeof aiResponse.response === 'object' && aiResponse.response.response) {
+          aiContent = aiResponse.response.response;
+          console.log('✅ 使用嵌套的 response.response 字段');
+        } else if (typeof aiResponse.response === 'string') {
+          aiContent = aiResponse.response;
+          console.log('✅ 使用 response 字段');
+        } else if (typeof aiResponse.message === 'string') {
+          aiContent = aiResponse.message;
+          console.log('✅ 使用 message 字段');
+        } else if (typeof aiResponse.content === 'string') {
+          aiContent = aiResponse.content;
+          console.log('✅ 使用 content 字段');
+        } else if (typeof aiResponse === 'string') {
+          aiContent = aiResponse;
+          console.log('✅ 使用整個回應');
+        } else {
+          console.warn('⚠️ AI回應格式異常:', aiResponse);
+          aiContent = 'AI回應格式異常，請重試';
         }
+        
+        console.log('🔍 提取的AI內容:', aiContent);
+        
+        // 移除可能的原始題目信息
+        const cleanResponse = this.cleanAIResponse(aiContent);
+        
+        // 確保內容不為空且不是[object Object]
+        if (cleanResponse && cleanResponse.trim() && !cleanResponse.includes('[object Object]')) {
+          // 添加到對話歷史
+          this.chatMessages.push({
+            type: 'ai',
+            content: cleanResponse,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          console.error('❌ AI回應內容無效:', cleanResponse);
+          this.handleError('AI回應內容無效');
+          return;
+        }
+        
+        // 更新學習狀態 - 從後端返回的 response 對象中提取數據
+        const responseData = aiResponse.response;
+        console.log('🔍 後端返回的完整 response 數據:', responseData);
+        
+        // 提取理解程度和學習階段
+        const backendUnderstandingLevel = responseData?.understanding_level;
+        const backendLearningStage = responseData?.learning_stage;
+        
+        console.log('🔍 後端返回的理解程度:', backendUnderstandingLevel);
+        console.log('🔍 後端返回的學習階段:', backendLearningStage);
+        
+        // 優先使用後端返回的數據
+        if (backendUnderstandingLevel !== undefined && typeof backendUnderstandingLevel === 'number') {
+          this.understandingLevel = Math.max(0, Math.min(100, backendUnderstandingLevel));
+          console.log('✅ 使用後端理解程度:', this.understandingLevel);
+        }
+        
+        if (backendLearningStage && typeof backendLearningStage === 'string') {
+          this.learningStage = backendLearningStage as any;
+          console.log('✅ 使用後端學習階段:', this.learningStage);
+        }
+        
+        // 如果後端沒有提供數據，嘗試從回應內容中提取分數
+        if (backendUnderstandingLevel === undefined) {
+          console.warn('⚠️ 後端沒有提供理解程度數據，嘗試從回應內容中提取');
+          
+          const scoreMatch = cleanResponse.match(/(\d+)\s*分|(\d+)\s*points?|理解程度[：:]\s*(\d+)/i);
+          if (scoreMatch) {
+            const extractedScore = parseInt(scoreMatch[1] || scoreMatch[2] || scoreMatch[3]);
+            if (!isNaN(extractedScore) && extractedScore >= 0 && extractedScore <= 100) {
+              this.understandingLevel = extractedScore;
+              console.log('✅ 從回應內容中提取到理解程度:', this.understandingLevel);
+            }
+          }
+        }
+        
+        // 更新學習進度
+        this.updateLearningProgress(this.learningStage, this.understandingLevel);
         
         // 檢查是否達到下一題條件
         if (this.understandingLevel >= 99) {
@@ -730,12 +856,24 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   
   // 清理AI回應，移除多餘信息
   private cleanAIResponse(response: string): string {
-    // 移除可能的原始題目信息
+    if (!response || typeof response !== 'string') {
+      return '';
+    }
+    
+    // 移除可能的原始題目信息（多種格式）
     const patterns = [
-      /原始題目[：:]\s*.*?(?=\n|$)/g,
-      /正確答案[：:]\s*.*?(?=\n|$)/g,
-      /用戶答案[：:]\s*.*?(?=\n|$)/g,
-      /題目[：:]\s*.*?(?=\n|$)/g
+      /原始題目[：:]\s*.*?(?=\n|$)/gi,
+      /正確答案[：:]\s*.*?(?=\n|$)/gi,
+      /用戶答案[：:]\s*.*?(?=\n|$)/gi,
+      /題目[：:]\s*.*?(?=\n|$)/gi,
+      /您的答案[：:]\s*.*?(?=\n|$)/gi,
+      /Question[：:]\s*.*?(?=\n|$)/gi,
+      /Answer[：:]\s*.*?(?=\n|$)/gi,
+      /Correct Answer[：:]\s*.*?(?=\n|$)/gi,
+      /User Answer[：:]\s*.*?(?=\n|$)/gi,
+      // 移除特定的重複內容模式
+      /.*Employee vacation policy.*?(?=\n|$)/gi,
+      /.*Internet platforms.*?(?=\n|$)/gi
     ];
     
     let cleanResponse = response;
@@ -743,19 +881,43 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       cleanResponse = cleanResponse.replace(pattern, '');
     });
     
-    // 清理多餘的換行
+    // 清理多餘的換行和空格
     cleanResponse = cleanResponse.replace(/\n{3,}/g, '\n\n');
+    cleanResponse = cleanResponse.replace(/^\s+|\s+$/g, '');
     
-    return cleanResponse.trim();
+    // 如果清理後內容太短，返回原始內容的部分
+    if (cleanResponse.length < 10 && response.length > cleanResponse.length) {
+      // 保留原始回應但移除明顯的重複部分
+      cleanResponse = response.replace(/原始題目[：:].*?Employee vacation policy/gi, '')
+                             .replace(/您的答案[：:].*?Internet platforms/gi, '')
+                             .trim();
+    }
+    
+    return cleanResponse || '正在處理您的回應...';
   }
   
   // 處理錯誤
   private handleError(message: string): void {
+    console.error('❌ AI教學錯誤:', message);
+    
+    // 根據錯誤類型顯示不同的訊息
+    let errorMessage = '';
+    if (message.includes('AI回應格式錯誤')) {
+      errorMessage = 'AI回應格式異常，正在重新處理...';
+    } else if (message.includes('AI回應內容無效')) {
+      errorMessage = 'AI回應內容異常，正在重新處理...';
+    } else if (message.includes('處理AI回應時發生錯誤')) {
+      errorMessage = 'AI處理出現問題，請稍後重試...';
+    } else {
+      errorMessage = `❌ ${message}`;
+    }
+    
     this.chatMessages.push({
       type: 'ai',
-      content: `❌ ${message}`,
+      content: errorMessage,
       timestamp: new Date().toISOString()
     });
+    
     this.isLoading = false;
     this.scrollToBottom();
   }
@@ -772,5 +934,67 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     setTimeout(() => {
       this.nextQuestion();
     }, 2000);
+  }
+
+  // 新增：安全處理AI回應，防止[object Object]錯誤
+  private sanitizeAIResponse(response: any): string {
+    try {
+      // 如果回應是字符串，直接返回
+      if (typeof response === 'string') {
+        return response;
+      }
+      
+      // 如果回應是對象，嘗試提取文本內容
+      if (typeof response === 'object' && response !== null) {
+        // 檢查常見的字段
+        if (response.text) return response.text;
+        if (response.content) return response.content;
+        if (response.message) return response.message;
+        if (response.response) return response.response;
+        if (response.answer) return response.answer;
+        
+        // 如果都沒有，嘗試JSON.stringify但限制長度
+        const jsonStr = JSON.stringify(response);
+        if (jsonStr.length > 200) {
+          return jsonStr.substring(0, 200) + '...';
+        }
+        return jsonStr;
+      }
+      
+      // 其他類型，轉換為字符串
+      return String(response);
+    } catch (error) {
+      console.error('❌ 處理AI回應時發生錯誤:', error);
+      return 'AI回應處理失敗，請重試';
+    }
+  }
+
+  // 新增：創建預設題目
+  private createDefaultQuestion(): void {
+    const defaultQuestion: QuestionData = {
+      question_id: 'default_question',
+      question_text: '請說明主要的網路拓樸有哪幾種？請說明各自之連結示意圖、資料傳輸方式與優缺點。',
+      user_answer: '網路拓樸是指網路中各節點之間的連結方式。主要的網路拓樸包括星型拓樸、總線拓樸、環型拓樸等。',
+      correct_answer: '主要的網路拓樸包括：匯流排拓樸、星狀拓樸、環狀拓樸、網狀拓樸、樹狀拓樸、混合拓樸。完整回答需包含以上每種拓樸的示意圖、資料傳輸方式以及優缺點。',
+      is_correct: false,
+      is_marked: false,
+      topic: '計算機概論',
+      difficulty: 3,
+      options: [],
+      image_file: '',
+      question_type: 'long-answer',
+      subject: '計算機概論',
+      score: 75,
+      feedback: {
+        explanation: '您的答案涵蓋了部分網路拓樸，但缺少完整的說明',
+        strengths: '能夠正確定義網路拓樸的基本概念',
+        weaknesses: '缺少網狀拓樸、樹狀拓樸等重要類型的說明',
+        suggestions: '建議補充各種拓樸的連結示意圖、資料傳輸方式和優缺點比較'
+      }
+    };
+    
+    this.learningPath = [defaultQuestion];
+    this.currentQuestionIndex = 0;
+    this.currentQuestion = defaultQuestion;
   }
 }

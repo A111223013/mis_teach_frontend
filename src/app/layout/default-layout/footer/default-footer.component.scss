@@ -1,1 +1,24 @@
-// Add footer specific styles if needed 
+// Footer 樣式 - 確保不會跑掉
+.footer {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  border-top: 1px solid #dee2e6;
+  z-index: 1000;
+  margin-top: auto; /* 確保 footer 在底部 */
+  
+  /* 響應式設計 */
+  @media (max-width: 768px) {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* 確保 footer 內容不會溢出 */
+.footer > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+} 

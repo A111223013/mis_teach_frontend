@@ -1,8 +1,28 @@
-@use "color-functions";
-@use "variables";
+/* 使用現代的 @use 語法，完全避免 @import */
+
+// 導入自定義變數（在 CoreUI 之前設置）
+@use "variables" as custom-vars;
+
+// 導入顏色函數
+@use "color-functions" as color-funcs;
+
+// 導入 CoreUI 主要樣式（會自動包含變數、函數和 mixins）
 @use "@coreui/coreui/scss/coreui" as coreui;
+
+// 導入 Chart.js 樣式
 @use "@coreui/chartjs/scss/coreui-chartjs" as chartjs;
-@use "theme";
-@use "custom";
-@use "detailed-guide";
-@use "examples";
+
+// 導入自定義主題
+@use "theme" as theme;
+
+// 導入自定義樣式
+@use "custom" as custom;
+
+// 導入詳細導覽系統樣式
+@use "detailed-guide" as guide;
+
+// 導入範例樣式
+@use "examples" as examples;
+
+// 註釋掉的 joint-plus CSS
+// @use "@joint/plus/joint-plus.css";

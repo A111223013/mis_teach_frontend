@@ -1,4 +1,9 @@
 /* stylelint-disable declaration-no-important, scss/selector-no-redundant-nesting-selector */
+
+// 導入 CoreUI 的變數和 mixins
+@use "@coreui/coreui/scss/variables" as *;
+@use "@coreui/coreui/scss/mixins" as *;
+
 $enable-deprecation-messages: false; /* stylelint-disable-line scss/dollar-variable-default */
 
 .example {

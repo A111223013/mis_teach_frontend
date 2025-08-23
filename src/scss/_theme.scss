@@ -1,4 +1,6 @@
-@use "@coreui/coreui/scss/mixins/color-mode" as *;
+// 導入 CoreUI 的變數和 mixins
+@use "@coreui/coreui/scss/variables" as *;
+@use "@coreui/coreui/scss/mixins" as *;
 
 // 定義暗色模式變數
 $enable-dark-mode: true !default;

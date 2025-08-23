@@ -16,6 +16,14 @@ export interface QuestionData {
   options: string[];
   image_file: string;
   question_type: string;
+  subject?: string;
+  score?: number;
+  feedback?: {
+    explanation: string;
+    strengths: string;
+    weaknesses: string;
+    suggestions: string;
+  };
 }
 
 export interface TutoringResponse {
@@ -83,7 +91,7 @@ export class AiTutoringService {
   /**
    * 發送教學對話訊息
    */
-  sendTutoringMessage(message: string, sessionId: string): Observable<TutoringResponse> {
+  sendTutoringMessage(message: string, sessionId: string, questionData?: any): Observable<TutoringResponse> {
     const token = localStorage.getItem('token');
 
     const headers = new HttpHeaders({
@@ -94,7 +102,9 @@ export class AiTutoringService {
     const payload = {
       session_id: sessionId,
       user_input: message,
-      conversation_type: 'tutoring'
+      conversation_type: 'tutoring',
+      correct_answer: questionData?.correct_answer || '',
+      user_answer: questionData?.user_answer || ''
     };
 
     return this.http.post<TutoringResponse>(`${this.API_BASE_URL}/ai-tutoring`, payload, { headers }).pipe(
@@ -154,7 +164,15 @@ export class AiTutoringService {
       image_file: question.image_file,
       question_type: question.question_type,
       is_correct: false,
-      is_marked: false
+      is_marked: false,
+      subject: question.subject || question.topic || '計算機概論',
+      score: question.score || 0,
+      feedback: question.feedback || {
+        explanation: '',
+        strengths: '',
+        weaknesses: '',
+        suggestions: ''
+      }
     }));
   }
 
