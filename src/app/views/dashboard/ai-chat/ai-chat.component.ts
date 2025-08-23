@@ -199,12 +199,31 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       }
       
       const quizData = JSON.parse(jsonData);
+      console.log('解析的考卷數據:', quizData);
+      
+      // 檢查必要的字段
+      if (!quizData.quiz_id) {
+        // 如果沒有quiz_id，嘗試從其他字段生成一個
+        if (quizData.quiz_info && quizData.quiz_info.title) {
+          quizData.quiz_id = `quiz_${Date.now()}_${quizData.quiz_info.title.replace(/[^a-zA-Z0-9]/g, '_')}`;
+          console.log('生成臨時quiz_id:', quizData.quiz_id);
+        } else {
+          throw new Error('考卷數據缺少必要的quiz_id字段');
+        }
+      }
       
       // 將考卷數據存儲到QuizService
       this.quizService.setCurrentQuizData(quizData);
       
-      // 跳轉到測驗頁面
-      this.router.navigate(['/dashboard/quiz-taking', quizData.quiz_id]);
+      // 跳轉到測驗頁面，同時傳遞quiz_id和template_id
+      console.log('跳轉到測驗頁面，quiz_id:', quizData.quiz_id, 'template_id:', quizData.template_id);
+      
+      // 構建查詢參數
+      const queryParams = {
+        template_id: quizData.template_id
+      };
+      
+      this.router.navigate(['/dashboard/quiz-taking', quizData.quiz_id], { queryParams });
       
     } catch (error) {
       console.error('開始測驗失敗:', error);
@@ -212,7 +231,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       const errorMessage: ChatMessage = {
         id: this.generateId(),
         type: 'assistant',
-        content: '❌ 開始測驗失敗，請稍後再試。',
+        content: `❌ 開始測驗失敗：${error instanceof Error ? error.message : '請稍後再試。'}`,
         timestamp: new Date(),
         aiModel: 'gemini'
       };
@@ -350,52 +369,226 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /**
-   * 安全地從訊息中提取JSON數據
+   * 從訊息中提取JSON數據
    */
-  private extractJsonFromMessage(content: string): string | null {
+  extractJsonFromMessage(content: string): string | null {
     try {
-      // 方法1: 尋找 ```json ... ``` 格式
-      const jsonStart = content.indexOf('```json');
-      if (jsonStart !== -1) {
-        const start = jsonStart + 7;
-        const end = content.indexOf('```', start);
-        if (end !== -1) {
-          const jsonData = content.substring(start, end).trim();
+      console.log('開始提取JSON，內容長度:', content.length);
+      
+      // 方法1: 尋找 ```json ... ``` 格式（後端現在使用這種格式）
+      if (content.includes('```json')) {
+        console.log('找到```json標記');
+        const jsonStart = content.indexOf('```json') + 7;
+        const jsonEnd = content.indexOf('```', jsonStart);
+        
+        if (jsonEnd > jsonStart) {
+          let jsonData = content.substring(jsonStart, jsonEnd).trim();
+          console.log('提取的JSON數據長度:', jsonData.length);
+          
+          // 優先檢查是否包含quiz_id
+          if (jsonData.includes('"quiz_id"')) {
+            console.log('✅ 找到包含quiz_id的完整JSON（```json標記）');
+            return jsonData;
+          }
+          
+          console.log('❌ 不包含quiz_id，嘗試修復...');
+          
+          // 嘗試修復不完整的JSON
+          jsonData = this.fixIncompleteJson(jsonData);
+          
           // 驗證是否為有效JSON
-          JSON.parse(jsonData);
-          return jsonData;
+          try {
+            JSON.parse(jsonData);
+            console.log('✅ JSON驗證成功');
+            return jsonData;
+          } catch (parseError) {
+            console.warn('JSON驗證失敗，嘗試進一步修復:', parseError);
+            // 進一步修復
+            jsonData = this.advancedJsonFix(jsonData);
+            try {
+              JSON.parse(jsonData);
+              console.log('✅ 修復後JSON驗證成功');
+              return jsonData;
+            } catch (finalError) {
+              console.warn('最終JSON驗證失敗:', finalError);
+            }
+          }
+        } else {
+          console.warn('無法找到```json結束標記');
         }
       }
       
-      // 方法2: 尋找 { ... } 格式
+      // 方法2: 尋找 json ... ``` 格式（後端可能使用這種格式）
+      if (content.includes('json\n{') || content.includes('json\n {')) {
+        console.log('找到json標記（無反引號）');
+        const jsonStart = content.indexOf('json\n') + 5;
+        const jsonEnd = content.indexOf('```', jsonStart);
+        
+        if (jsonEnd > jsonStart) {
+          let jsonData = content.substring(jsonStart, jsonEnd).trim();
+          console.log('提取的JSON數據長度:', jsonData.length);
+          
+          // 優先檢查是否包含quiz_id
+          if (jsonData.includes('"quiz_id"')) {
+            console.log('✅ 找到包含quiz_id的完整JSON（json標記）');
+            return jsonData;
+          }
+        }
+      }
+      
+      // 方法3: 尋找 { ... } 格式，優先尋找包含quiz_id的結構
       const braceStart = content.indexOf('{');
       if (braceStart !== -1) {
+        console.log('找到{標記，位置:', braceStart);
+        
+        // 尋找所有可能的JSON結構
+        const jsonStructures = [];
         let braceCount = 0;
-        let end = braceStart;
+        let start = braceStart;
         
         for (let i = braceStart; i < content.length; i++) {
-          if (content[i] === '{') braceCount++;
+          if (content[i] === '{') {
+            if (braceCount === 0) start = i;
+            braceCount++;
+          }
           if (content[i] === '}') {
             braceCount--;
             if (braceCount === 0) {
-              end = i + 1;
-              break;
+              const jsonData = content.substring(start, i + 1).trim();
+              jsonStructures.push(jsonData);
             }
           }
         }
         
-        if (end > braceStart) {
-          const jsonData = content.substring(braceStart, end).trim();
-          // 驗證是否為有效JSON
-          JSON.parse(jsonData);
-          return jsonData;
+        console.log(`找到 ${jsonStructures.length} 個JSON結構`);
+        
+        // 優先返回包含quiz_id的結構
+        for (const jsonData of jsonStructures) {
+          if (jsonData.includes('"quiz_id"')) {
+            console.log('✅ 找到包含quiz_id的JSON結構');
+            return jsonData;
+          }
+        }
+        
+        // 如果沒有找到包含quiz_id的結構，使用第一個有效的JSON
+        for (const jsonData of jsonStructures) {
+          try {
+            JSON.parse(jsonData);
+            console.log('✅ 找到有效的JSON結構');
+            return jsonData;
+          } catch (parseError) {
+            console.warn('JSON結構驗證失敗:', parseError);
+          }
         }
       }
       
+      console.log('❌ 所有方法都失敗，無法提取JSON');
       return null;
+      
     } catch (error) {
-      console.warn('JSON提取失敗:', error);
+      console.error('JSON提取過程中發生錯誤:', error);
       return null;
+    }
+  }
+
+  /**
+   * 嘗試修復不完整的JSON
+   */
+  private fixIncompleteJson(jsonStr: string): string {
+    try {
+      // 基本清理
+      let cleaned = jsonStr.trim();
+      
+      // 處理常見的轉義字符問題
+      cleaned = cleaned.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+      
+      // 處理多餘的反斜線
+      while (cleaned.includes('\\\\')) {
+        cleaned = cleaned.replace(/\\\\/g, '\\');
+      }
+      
+      // 處理結尾的反斜線
+      if (cleaned.endsWith('\\')) {
+        cleaned = cleaned.slice(0, -1);
+      }
+      
+      // 嘗試找到最後一個完整的對象
+      let braceCount = 0;
+      let endPos = -1;
+      
+      for (let i = 0; i < cleaned.length; i++) {
+        if (cleaned[i] === '{') {
+          braceCount++;
+        } else if (cleaned[i] === '}') {
+          braceCount--;
+          if (braceCount === 0) {
+            endPos = i + 1;
+            break;
+          }
+        }
+      }
+      
+      if (endPos > 0) {
+        // 提取完整的JSON部分
+        cleaned = cleaned.substring(0, endPos);
+        console.log('修復JSON，提取完整部分:', cleaned.substring(0, 100) + '...');
+      }
+      
+      return cleaned;
+    } catch (error) {
+      console.warn('JSON修復失敗:', error);
+      return jsonStr;
+    }
+  }
+
+  /**
+   * 高級JSON修復
+   */
+  private advancedJsonFix(jsonStr: string): string {
+    try {
+      let cleaned = jsonStr;
+      
+      // 修復常見的JSON問題
+      
+      // 1. 修復不完整的字符串
+      const stringRegex = /"([^"]*?)(?:\n|$)/g;
+      cleaned = cleaned.replace(stringRegex, (match, content) => {
+        if (content.endsWith('\\')) {
+          return `"${content.slice(0, -1)}"`;
+        }
+        return `"${content}"`;
+      });
+      
+      // 2. 修復不完整的數組
+      const arrayRegex = /\[([^\]]*?)(?:\n|$)/g;
+      cleaned = cleaned.replace(arrayRegex, (match, content) => {
+        if (content.trim() && !content.endsWith(',')) {
+          return `[${content},]`;
+        }
+        return `[${content}]`;
+      });
+      
+      // 3. 修復不完整的對象
+      const objectRegex = /\{([^}]*?)(?:\n|$)/g;
+      cleaned = cleaned.replace(objectRegex, (match, content) => {
+        if (content.trim() && !content.endsWith(',')) {
+          return `{${content},}`;
+        }
+        return `{${content}}`;
+      });
+      
+      // 4. 移除尾隨的逗號
+      cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
+      
+      // 5. 修復控制字符
+      cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, '');
+      
+      console.log('高級JSON修復完成，長度:', cleaned.length);
+      return cleaned;
+      
+    } catch (error) {
+      console.warn('高級JSON修復失敗:', error);
+      return jsonStr;
     }
   }
 }
