@@ -211,7 +211,6 @@ export class DetailedGuideService {
     for (const selector of selectors) {
       const element = document.querySelector(selector) as HTMLElement;
       if (element) {
-        console.log(`✅ 找到目標元素: ${selector}`);
         return element;
       }
     }
@@ -221,7 +220,6 @@ export class DetailedGuideService {
     for (const selector of smartSelectors) {
       const element = document.querySelector(selector) as HTMLElement;
       if (element) {
-        console.log(`✅ 智能選擇器找到元素: ${selector}`);
         return element;
       }
     }
@@ -239,7 +237,6 @@ export class DetailedGuideService {
           for (const selector of selectors) {
             const element = document.querySelector(selector) as HTMLElement;
             if (element) {
-              console.log(`✅ 等待後找到目標元素: ${selector} (嘗試 ${attempts})`);
               resolve(element);
               return;
             }
@@ -249,7 +246,6 @@ export class DetailedGuideService {
           for (const selector of smartSelectors) {
             const element = document.querySelector(selector) as HTMLElement;
             if (element) {
-              console.log(`✅ 智能選擇器等待後找到: ${selector} (嘗試 ${attempts})`);
               resolve(element);
               return;
             }
@@ -349,7 +345,6 @@ export class DetailedGuideService {
     element.style.backgroundColor = 'rgba(40, 167, 69, 0.1)';
     element.style.transition = 'all 0.3s ease';
 
-    console.log(`🎯 高亮元素: ${element.tagName}.${element.className}`);
   }
 
   /**
@@ -610,7 +605,7 @@ export class DetailedGuideService {
    * 等待用戶導航 - 修正版本，避免重複觸發
    */
   private waitForNavigation(step: DetailedGuideStep): void {
-    console.log(`🧭 等待用戶導航到: ${step.page}`);
+
 
     // 先清除所有效果，避免重複顯示
     this.clearEffects();
@@ -621,7 +616,6 @@ export class DetailedGuideService {
     // 設置路由監聽器
     const routeCheckInterval = setInterval(() => {
       if (window.location.pathname === step.page) {
-        console.log(`✅ 用戶成功導航到: ${step.page}`);
         clearInterval(routeCheckInterval);
 
         // 清除導航相關的效果
@@ -744,16 +738,13 @@ export class DetailedGuideService {
    * 設置下拉選單監聽器
    */
   private setupDropdownListener(navButton: HTMLElement, step: DetailedGuideStep): void {
-    console.log(`🎯 設置下拉選單監聽器`);
 
     navButton.addEventListener('click', () => {
-      console.log(`📋 用戶點擊了下拉選單`);
 
       // 等待下拉選單展開
       setTimeout(() => {
         // 尋找子選單項目
         const dropdownItems = document.querySelectorAll('c-dropdown-item a, .dropdown-item, [cDropdownItem]');
-        console.log(`🔍 找到 ${dropdownItems.length} 個下拉選單項目`);
 
         // 高亮相關的子選單項目並設置點擊監聽
         dropdownItems.forEach((item: Element) => {
@@ -761,17 +752,14 @@ export class DetailedGuideService {
                       (item as HTMLElement).getAttribute('href') || '';
 
           if (href.includes(step.page.split('/').pop() || '')) {
-            console.log(`✅ 高亮子選單項目: ${href}`);
             this.highlightElement(item as HTMLElement);
 
             // 設置點擊監聽器，點擊後自動進入下一步
             (item as HTMLElement).addEventListener('click', () => {
-              console.log(`🔗 用戶點擊了子選單項目: ${href}`);
 
               // 等待導航完成後自動進入下一步
               setTimeout(() => {
                 if (window.location.pathname === step.page) {
-                  console.log(`✅ 導航成功，自動進入下一步`);
                   this.nextStep();
                 }
               }, 1500);
@@ -786,7 +774,7 @@ export class DetailedGuideService {
    * 顯示找不到導航的訊息
    */
   private showNavigationNotFoundMessage(step: DetailedGuideStep): void {
-    console.error(`❌ 找不到導航按鈕: ${step.page}`);
+
 
     const notFoundElement = document.createElement('div');
     notFoundElement.className = 'detailed-guide-nav-not-found';
@@ -850,8 +838,7 @@ export class DetailedGuideService {
   private setupNavigationListener(target: HTMLElement, step: DetailedGuideStep): void {
     if (target && step.page) {
       target.addEventListener('click', () => {
-        console.log(`🔗 用戶點擊了導航: ${step.page}`);
-        // 等待導航完成
+          // 等待導航完成
         setTimeout(() => {
           this.nextStep();
         }, 1000);
@@ -917,7 +904,6 @@ export class DetailedGuideService {
    * 清除效果 - 強化版本，確保清除所有重複元素
    */
   private clearEffects(): void {
-    console.log('🧹 開始清除所有導覽效果...');
 
     // 移除高亮效果
     document.querySelectorAll('.detailed-guide-highlight').forEach(el => {
@@ -947,7 +933,6 @@ export class DetailedGuideService {
       });
     });
 
-    console.log(`🧹 清除完成，移除了 ${removedCount} 個導覽元素`);
   }
 
   /**
@@ -971,7 +956,6 @@ export class DetailedGuideService {
       this.avatarElement = null;
     }
 
-    console.log('詳細導覽結束');
   }
 
   /**

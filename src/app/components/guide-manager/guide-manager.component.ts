@@ -78,10 +78,8 @@ export class GuideManagerComponent implements OnInit, OnDestroy {
     this.userGuideStatusService.checkUserGuideStatus().subscribe({
       next: (status) => {
         this.userGuideStatusService.updateLocalStatus(status);
-        console.log('用戶導覽狀態:', status);
       },
       error: (error) => {
-        console.error('檢查用戶狀態失敗:', error);
         // 如果 API 失敗，假設是新用戶
         const defaultStatus = {
           user_id: 'unknown',
@@ -98,11 +96,8 @@ export class GuideManagerComponent implements OnInit, OnDestroy {
    * 處理頁面變化
    */
   private handlePageChange(url: string): void {
-    console.log('頁面變化:', url);
-    
     // 如果用戶正在導覽中，不要因為頁面變化而重新觸發
     if (this.detailedGuideService.isGuiding()) {
-      console.log('詳細導覽進行中，跳過自動觸發');
       return;
     }
 
@@ -127,8 +122,6 @@ export class GuideManagerComponent implements OnInit, OnDestroy {
    * 觸發自動導覽
    */
   private triggerAutoGuide(): void {
-    console.log('🎮 觸發自動導覽');
-    
     // 顯示歡迎訊息
     this.showWelcomeMessage();
     
@@ -201,7 +194,6 @@ export class GuideManagerComponent implements OnInit, OnDestroy {
    * 手動觸發導覽（供 Web AI 助手調用）
    */
   public manualTriggerGuide(): void {
-    console.log('🎮 手動觸發詳細導覽');
     this.detailedGuideService.startDetailedGuide();
   }
 
@@ -211,7 +203,6 @@ export class GuideManagerComponent implements OnInit, OnDestroy {
   public resetUserStatus(): void {
     this.userGuideStatusService.resetUserGuideStatus().subscribe({
       next: (response) => {
-        console.log('用戶狀態已重置:', response);
         this.checkInitialUserStatus();
       },
       error: (error) => {

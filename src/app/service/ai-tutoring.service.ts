@@ -125,33 +125,11 @@ export class AiTutoringService {
   extractWrongQuestions(quizData: any): QuestionData[] {
     // 後端返回的數據結構是 { success: true, data: { questions: [...] } }
     const questions = quizData.data?.questions || quizData.questions || [];
-    
-    console.log('🔍 完整 quizData:', quizData);
-    console.log('🔍 原始題目數據:', questions);
-    console.log('🔍 題目數量:', questions.length);
-    
-    // 檢查每個題目的狀態
-    questions.forEach((question: any, index: number) => {
-      console.log(`🔍 題目 ${index + 1}:`, {
-        question_text: question.question_text,
-        user_answer: question.user_answer,
-        is_correct: question.is_correct
-      });
-    });
-
     const wrongQuestions = questions.filter((question: any) => {
       // 檢查是否為錯題：is_correct 為 false 的題目
       const isWrong = question.is_correct === false;
-      console.log(`🔍 題目 ${question.question_id}:`, {
-        question_text: question.question_text,
-        user_answer: question.user_answer,
-        is_correct: question.is_correct,
-        isWrong: isWrong
-      });
       return isWrong;
     });
-    
-    console.log('🔍 提取的錯題數量:', wrongQuestions.length);
     
     return wrongQuestions.map((question: any) => ({
       question_id: question.question_id,

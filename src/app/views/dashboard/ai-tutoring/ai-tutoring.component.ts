@@ -197,35 +197,19 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       const result = await this.aiTutoringService.startErrorLearning(resultId).toPromise();
       
       if (result?.success) {
-        console.log('🔍 測驗結果數據:', result);
-        
         this.learningPath = result.wrongQuestions || [];
-        console.log('🔍 錯題路徑:', this.learningPath);
         
         this.currentQuestionIndex = 0;
         this.currentQuestion = this.learningPath[0];
-        console.log('🔍 當前題目:', this.currentQuestion);
 
         if (this.learningPath.length > 0) {
           // 題目載入完成，自動開始學習
-          console.log('✅ 題目載入完成，開始學習');
           this.startNewLearningSession();
-        } else {
-          // 如果沒有錯題數據，創建一個預設題目用於測試
-          console.warn('⚠️ 沒有錯題數據，創建預設題目');
-          this.createDefaultQuestion();
-          this.addMessage('ai', '✅ 已載入預設題目，請開始學習。');
-        }
+        } 
       }
     } catch (error) {
       this.addMessage('ai', '載入測驗結果時發生錯誤，請重試。');
     }
-  }
-
-  addQuizCompletionWelcomeMessage(): void {
-    // 這個方法已經被 startNewLearningSession 取代，避免重複發送
-    console.log('ℹ️ addQuizCompletionWelcomeMessage 被調用，但已由 startNewLearningSession 處理');
-    return;
   }
 
   addMessage(type: 'user' | 'ai', content: string): void {
@@ -261,13 +245,9 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.isLoading = true;
 
     try {
-      console.log('🔍 發送用戶訊息:', message);
-      
       // 發送用戶的訊息（帶題目上下文和答案信息）
       const response = await this.aiTutoringService.sendTutoringMessage(messageWithContext, this.sessionId, this.currentQuestion).toPromise();
       
-      console.log('🔍 收到AI回應:', response);
-
       if (response?.success) {
         // 使用 processAIResponse 處理AI回應，確保 understandingLevel 能正確更新
         this.processAIResponse(response);
@@ -289,12 +269,9 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     const hintMessage = `請給我關於「${this.currentQuestion.question_text}」的學習提示。`;
 
     try {
-      console.log('🔍 請求學習提示:', hintMessage);
       
       const response = await this.aiTutoringService.sendTutoringMessage(hintMessage, this.sessionId).toPromise();
       
-      console.log('🔍 收到提示回應:', response);
-
       if (response?.success) {
         // 使用 processAIResponse 處理AI回應，確保 understandingLevel 能正確更新
         this.processAIResponse(response);
@@ -402,7 +379,6 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   // 新增：搜索知識點
   searchKnowledgePoint(point: string): void {
-    console.log(`🔍 搜索知識點: ${point}`);
     // 這裡可以實現知識點搜索功能
     this.addMessage('ai', `我正在為您搜索關於「${point}」的相關知識...`);
   }
@@ -418,7 +394,6 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     
     // 檢查題目是否有答案
     if (!question.user_answer || question.user_answer.trim() === '') {
-      console.log('⚠️ 題目未作答，無法選擇:', index);
       // 可以選擇是否允許跳轉到未答題目
       if (confirm('此題目尚未作答，確定要跳轉嗎？')) {
         this.currentQuestionIndex = index;
@@ -428,7 +403,6 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       return;
     }
 
-    console.log(`✅ 選擇題目 ${index + 1}:`, question.question_text?.substring(0, 50));
     this.currentQuestionIndex = index;
     this.currentQuestion = question;
     this.startNewLearningSession();
@@ -451,7 +425,6 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 優化：重新開始當前題目
   restartCurrentQuestion(): void {
     if (this.currentQuestion) {
-      console.log('🔄 重新開始題目:', this.currentQuestion.question_text?.substring(0, 50));
       this.chatMessages = [];
       this.understandingLevel = 0;
       this.learningStage = 'core_concept_confirmation';
@@ -462,7 +435,6 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 優化：跳過當前題目
   skipCurrentQuestion(): void {
     if (this.hasNextQuestion()) {
-      console.log('⏭️ 跳過當前題目');
       this.nextQuestion();
     }
   }
@@ -706,7 +678,6 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (!this.currentQuestion) return;
 
     try {
-      console.log('🚀 開始初始化AI教學，發送題目信息');
       
       // 設置載入狀態，顯示「AI正在分析」訊息
       this.isLoading = true;
@@ -722,8 +693,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       ).toPromise();
       
       if (response?.success) {
-        console.log('✅ AI初始化回應:', response);
-        // 處理AI的回應
+
         this.processAIResponse(response);
       } else {
         console.error('❌ AI初始化失敗:', response?.error);
@@ -740,46 +710,31 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   // 處理AI回應
   private processAIResponse(response: any): void {
-    console.log('🔍 開始處理AI回應:', response);
-    
+
     try {
       if (response.success) {
         // 後端返回的數據結構可能是 response.data 或直接是 response
         const aiResponse = response.data || response;
-        
-        console.log('🔍 處理的AI回應對象:', aiResponse);
-        
+
         // 獲取AI回應內容，處理嵌套的 response 結構
         let aiContent = '';
-        console.log('🔍 檢查AI回應字段:', {
-          response: aiResponse.response,
-          message: aiResponse.message,
-          content: aiResponse.content,
-          type: typeof aiResponse.response
-        });
+
         
         // 處理嵌套的 response 結構：response.response
         if (aiResponse.response && typeof aiResponse.response === 'object' && aiResponse.response.response) {
           aiContent = aiResponse.response.response;
-          console.log('✅ 使用嵌套的 response.response 字段');
         } else if (typeof aiResponse.response === 'string') {
           aiContent = aiResponse.response;
-          console.log('✅ 使用 response 字段');
         } else if (typeof aiResponse.message === 'string') {
           aiContent = aiResponse.message;
-          console.log('✅ 使用 message 字段');
         } else if (typeof aiResponse.content === 'string') {
           aiContent = aiResponse.content;
-          console.log('✅ 使用 content 字段');
         } else if (typeof aiResponse === 'string') {
           aiContent = aiResponse;
-          console.log('✅ 使用整個回應');
         } else {
           console.warn('⚠️ AI回應格式異常:', aiResponse);
           aiContent = 'AI回應格式異常，請重試';
         }
-        
-        console.log('🔍 提取的AI內容:', aiContent);
         
         // 移除可能的原始題目信息
         const cleanResponse = this.cleanAIResponse(aiContent);
@@ -800,24 +755,18 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
         
         // 更新學習狀態 - 從後端返回的 response 對象中提取數據
         const responseData = aiResponse.response;
-        console.log('🔍 後端返回的完整 response 數據:', responseData);
         
         // 提取理解程度和學習階段
         const backendUnderstandingLevel = responseData?.understanding_level;
         const backendLearningStage = responseData?.learning_stage;
         
-        console.log('🔍 後端返回的理解程度:', backendUnderstandingLevel);
-        console.log('🔍 後端返回的學習階段:', backendLearningStage);
-        
         // 優先使用後端返回的數據
         if (backendUnderstandingLevel !== undefined && typeof backendUnderstandingLevel === 'number') {
           this.understandingLevel = Math.max(0, Math.min(100, backendUnderstandingLevel));
-          console.log('✅ 使用後端理解程度:', this.understandingLevel);
         }
         
         if (backendLearningStage && typeof backendLearningStage === 'string') {
           this.learningStage = backendLearningStage as any;
-          console.log('✅ 使用後端學習階段:', this.learningStage);
         }
         
         // 如果後端沒有提供數據，嘗試從回應內容中提取分數
@@ -829,7 +778,6 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
             const extractedScore = parseInt(scoreMatch[1] || scoreMatch[2] || scoreMatch[3]);
             if (!isNaN(extractedScore) && extractedScore >= 0 && extractedScore <= 100) {
               this.understandingLevel = extractedScore;
-              console.log('✅ 從回應內容中提取到理解程度:', this.understandingLevel);
             }
           }
         }
@@ -967,34 +915,5 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       console.error('❌ 處理AI回應時發生錯誤:', error);
       return 'AI回應處理失敗，請重試';
     }
-  }
-
-  // 新增：創建預設題目
-  private createDefaultQuestion(): void {
-    const defaultQuestion: QuestionData = {
-      question_id: 'default_question',
-      question_text: '請說明主要的網路拓樸有哪幾種？請說明各自之連結示意圖、資料傳輸方式與優缺點。',
-      user_answer: '網路拓樸是指網路中各節點之間的連結方式。主要的網路拓樸包括星型拓樸、總線拓樸、環型拓樸等。',
-      correct_answer: '主要的網路拓樸包括：匯流排拓樸、星狀拓樸、環狀拓樸、網狀拓樸、樹狀拓樸、混合拓樸。完整回答需包含以上每種拓樸的示意圖、資料傳輸方式以及優缺點。',
-      is_correct: false,
-      is_marked: false,
-      topic: '計算機概論',
-      difficulty: 3,
-      options: [],
-      image_file: '',
-      question_type: 'long-answer',
-      subject: '計算機概論',
-      score: 75,
-      feedback: {
-        explanation: '您的答案涵蓋了部分網路拓樸，但缺少完整的說明',
-        strengths: '能夠正確定義網路拓樸的基本概念',
-        weaknesses: '缺少網狀拓樸、樹狀拓樸等重要類型的說明',
-        suggestions: '建議補充各種拓樸的連結示意圖、資料傳輸方式和優缺點比較'
-      }
-    };
-    
-    this.learningPath = [defaultQuestion];
-    this.currentQuestionIndex = 0;
-    this.currentQuestion = defaultQuestion;
   }
 }

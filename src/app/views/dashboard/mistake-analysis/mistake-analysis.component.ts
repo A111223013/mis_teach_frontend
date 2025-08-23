@@ -106,10 +106,8 @@ export class MistakeAnalysisComponent implements OnInit {
     this.dashboardService.getUserSubmissionsAnalysis().subscribe({
       next: (response: any) => {
         if (response?.success !== false && response?.submissions) {
-          console.log('✅ 成功獲取測驗數據:', response);
           this.processSubmissionsData(response.submissions);
         } else {
-          console.log('📝 沒有找到測驗數據');
           this.allQuestions = [];
           this.filteredQuestions = [];
         }
@@ -209,7 +207,6 @@ export class MistakeAnalysisComponent implements OnInit {
     this.wrongQuestions = this.allQuestions.filter(q => q.status === 'wrong');
     this.unansweredQuestions = this.allQuestions.filter(q => q.status === 'unanswered');
     
-    console.log(`📊 題目分類完成: 正確 ${this.correctQuestions.length}, 錯誤 ${this.wrongQuestions.length}, 未答 ${this.unansweredQuestions.length}`);
   }
   
   private extractTopic(answer: any): string {

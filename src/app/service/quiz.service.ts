@@ -24,7 +24,6 @@ export class QuizService {
 
   // 存储当前测验数据
   setCurrentQuizData(quizData: any): void {
-    console.log('💾 存储测验数据到服务:', quizData);
     this.currentQuizData.next(quizData);
   }
 

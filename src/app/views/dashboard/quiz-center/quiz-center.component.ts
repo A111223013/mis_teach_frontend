@@ -70,7 +70,6 @@ export class QuizCenterComponent implements OnInit {
         if (response && response.exams) {
           this.examData = response.exams;
           this.processExamData();
-          console.log(this.examData);
         }
       },
       error: (error: any) => {

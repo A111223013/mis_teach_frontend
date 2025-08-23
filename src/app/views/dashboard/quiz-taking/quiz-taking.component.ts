@@ -158,19 +158,15 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     // 设置 templateId
     if (templateId) {
       this.templateId = templateId;
-      console.log('✅ 从路由参数获取 template_id:', this.templateId);
     } else {
-      console.warn('⚠️ 路由参数中没有 template_id，使用 quizId 作为备选');
       this.templateId = this.quizId;
     }
     
     // 从服务中获取已存储的测验数据
     this.quizService.getCurrentQuizData().subscribe(quizData => {
-      console.log('🔍 从服务获取的测验数据:', quizData);
       
       if (quizData && quizData.questions && quizData.questions.length > 0) {
         // 使用已存储的数据
-        console.log('✅ 使用已存储的测验数据');
         
         // 设置测验信息
         this.quizTitle = this.generateQuizTitle(quizType, school, year, department, topic);
@@ -189,17 +185,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         this.currentQuestionIndex = 0;
         this.loadCurrentQuestion();
         
-        console.log('✅ 测验加载完成，题目数量:', this.totalQuestions);
-        
       } else {
-        console.log('❌ 没有找到已存储的测验数据');
-        console.log('🔍 调试信息 - quizData:', quizData);
-        console.log('🔍 调试信息 - questions:', quizData?.questions);
-        console.log('🔍 调试信息 - questions length:', quizData?.questions?.length);
-        
         // 檢查是否正在提交測驗，如果是則不重定向
         if (this.isLoading) {
-          console.log('🔄 正在提交測驗，等待完成...');
           return;
         }
         
@@ -209,7 +197,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
           try {
             const quizResultData = JSON.parse(quizResultDataStr);
             if (quizResultData.result_id && quizResultData.result_id !== 'undefined') {
-              console.log('✅ 測驗已完成，直接跳轉到結果頁面');
               this.router.navigate(['/dashboard/quiz-result', quizResultData.result_id]);
               return;
             }
@@ -219,7 +206,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         }
         
         // 如果不是正在提交且沒有完成，則重定向
-        console.log('🔄 重定向到測驗中心');
         // 移除alert，直接跳轉
         this.router.navigate(['/dashboard/quiz-center']);
       }
@@ -231,9 +217,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     if (type === 'pastexam' && school && year && department) {
       return `${school} - ${year}年 - ${department}`;
     } else if (type === 'knowledge' && topic) {
-      return `${topic} - 知识测验`;
+      return `${topic} - 知識測驗`;
     } else {
-      return '测验';
+      return '測驗';
     }
   }
 
@@ -359,14 +345,11 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   // 填空題、簡答題、長答題處理
   updateTextAnswer(value: string): void {
     if (!this.currentQuestion) return;
-    console.log(`Debug: 更新文字答案 - 題目 ${this.currentQuestionIndex}, 答案: "${value}"`);
     this.userAnswers[this.currentQuestionIndex] = value;
-    console.log(`Debug: 當前用戶答案對象:`, this.userAnswers);
   }
 
   getTextAnswer(): string {
     const answer = this.userAnswers[this.currentQuestionIndex] || '';
-    console.log(`Debug: 獲取文字答案 - 題目 ${this.currentQuestionIndex}, 答案: "${answer}"`);
     return answer;
   }
 
@@ -629,34 +612,24 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
     // 檢查登入狀態
     if (!this.authService.isLoggedIn()) {
-      console.log('Debug: 用戶未登錄，導向登入頁面');
       this.authService.logout();
       return;
     }
 
     // 檢查 token 是否有效
     if (!this.authService.isTokenValid()) {
-      console.log('Debug: Token 無效，導向登入頁面');
       this.authService.logout();
       return;
     }
 
-    console.log('Debug: Token 狀態正常，準備提交測驗');
     
-    // 添加詳細的答案調試信息
-    console.log('Debug: 答案收集詳情:');
-    console.log('  - 總題數:', this.questions.length);
-    console.log('  - 當前題目索引:', this.currentQuestionIndex);
-    console.log('  - 用戶答案對象:', this.userAnswers);
-    console.log('  - 答案鍵值:', Object.keys(this.userAnswers));
-    console.log('  - 答案值:', Object.values(this.userAnswers));
     
     // 檢查每題的答案狀態
     for (let i = 0; i < this.questions.length; i++) {
       const question = this.questions[i];
       const answer = this.userAnswers[i];
       const hasAnswer = this.hasValidAnswer(answer, question?.type);
-      console.log(`  - 題目 ${i}: ${hasAnswer ? '已作答' : '未作答'} (${answer})`);
+      
     }
 
     // 準備提交資料
@@ -666,25 +639,18 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       time_taken: this.timeLimit > 0 ? (this.timeLimit * 60 - this.timer) : 0
     };
 
-    console.log('Debug: 提交資料:', submissionData);
-    console.log('Debug: 使用的 template_id:', this.templateId);
-    console.log('Debug: 原始 quiz_id:', this.quizId);
-
     // 顯示進度提示
     this.showProgressModal();
 
     this.quizService.submitQuiz(submissionData).subscribe({
       next: (response: any) => {
-        console.log('✅ 測驗提交成功:', response);
         
         // 獲取進度追蹤ID
         const progressId = response.data?.progress_id;
         if (progressId) {
-          console.log('🎯 開始進度追蹤，progress_id:', progressId);
           // 連接後端進度追蹤
           this.connectProgressTracking(progressId);
         } else {
-          console.warn('⚠️ 沒有收到progress_id，使用默認進度顯示');
           // 如果沒有progress_id，隱藏進度提示並直接跳轉
           this.hideProgressModal();
         }
@@ -692,8 +658,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         // 準備錯題和標記題目的資料
         const wrongQuestions = this.getWrongQuestions();
         const markedQuestions = this.getMarkedQuestions();
-        console.debug('[submitQuiz] 錯題資料:', wrongQuestions);
-        console.debug('[submitQuiz] 標記題目資料:', markedQuestions);
         
         // 將測驗結果存入 sessionStorage 供 AI tutoring 使用
         const quizResultData = {
@@ -708,7 +672,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
           user_answers: this.userAnswers,
           time_taken: submissionData.time_taken
         };
-        console.debug('[submitQuiz] 存入 sessionStorage 的 quizResultData:', quizResultData);
         
         sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
         
@@ -743,7 +706,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     // 立即顯示，不使用動畫
     this.isProgressModalVisible = true;
     this.currentProgressStep = 0;
-    this.progressMessage = '正在連接進度追蹤...';
+    this.progressMessage = '正在批改試卷中...';
     
     // 強制觸發變更檢測
     this.cdr.detectChanges();
@@ -751,11 +714,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 隱藏進度提示模態框
   hideProgressModal(): void {
-    console.log('🔄 隱藏進度模態框 - 當前狀態:', this.isProgressModalVisible);
     
     // 防止重複調用
     if (!this.isProgressModalVisible) {
-      console.log('⚠️ 模態框已經隱藏，跳過');
       return;
     }
     
@@ -767,7 +728,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     // 強制觸發變更檢測
     this.cdr.detectChanges();
     
-    console.log('✅ 進度模態框已隱藏');
   }
 
   // 開始進度動畫（保留用於向後兼容）
@@ -815,7 +775,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       this.eventSource = new EventSource(sseUrl);
       
       this.eventSource.onopen = () => {
-        console.log('✅ 進度追蹤連接已建立');
         this.isProgressConnected = true;
         this.progressMessage = '進度追蹤已連接，等待AI批改...';
       };
@@ -834,16 +793,13 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         
         // 檢查連接狀態
         if (this.eventSource && this.eventSource.readyState === EventSource.CLOSED) {
-          console.log('🔄 SSE連接已正常關閉');
           // 如果已經收到完成消息，不需要處理錯誤
           if (this.currentProgressStep === 4) {
-            console.log('✅ 進度已完成，忽略連接關閉錯誤');
             return;
           }
           // 如果沒有完成，嘗試重新連接
           this.fallbackToPolling();
         } else {
-          console.log('🔄 SSE連接異常，嘗試回退到輪詢方式');
           this.progressMessage = '進度追蹤連接失敗，請稍後...';
           this.fallbackToPolling();
         }
@@ -857,7 +813,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 新增：處理進度更新
   private handleProgressUpdate(data: any): void {
-    console.log('📊 收到進度更新:', data);
     
     switch (data.type) {
       case 'connected':
@@ -872,14 +827,12 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       case 'completion':
         this.currentProgressStep = 4; // 最後一個階段
         this.progressMessage = data.message;
-        console.log('✅ 收到完成消息，準備跳轉...');
         
         // 立即斷開SSE連接，避免後續錯誤
         this.disconnectProgressTracking();
         
         // 延遲一下再隱藏模態框，讓用戶看到完成狀態
         setTimeout(() => {
-          console.log('🔄 隱藏進度模態框...');
           this.hideProgressModal();
           
           // AI批改完成後，跳轉到結果頁面
@@ -901,7 +854,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 新增：跳轉到結果頁面
   private navigateToResultPage(): void {
-    console.log('🎯 準備跳轉到結果頁面...');
     
     // 注意：這裡不需要再調用hideProgressModal，因為在handleProgressUpdate中已經調用了
     
@@ -913,7 +865,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         const resultId = quizResultData.result_id;
         
         if (resultId && resultId !== 'undefined') {
-          console.log('🎯 AI批改完成，導航到結果頁面，result_id:', resultId);
           
           // 清除當前組件狀態
           this.isLoading = false;
@@ -932,7 +883,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
           }, 100);
           
         } else {
-          console.warn('⚠️ result_id無效或為undefined，導航到測驗中心');
           this.router.navigate(['/dashboard/quiz-center']);
         }
         
@@ -944,7 +894,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         this.router.navigate(['/dashboard/quiz-center']);
       }
     } else {
-      console.warn('⚠️ 沒有找到測驗結果數據，導航到測驗中心');
       this.router.navigate(['/dashboard/quiz-center']);
     }
   }
@@ -960,7 +909,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 新增：回退到輪詢方式（如果SSE失敗）
   private fallbackToPolling(): void {
-    console.log('🔄 回退到輪詢方式獲取進度');
     
     if (this.progressId) {
       this.progressInterval = setInterval(() => {
@@ -1127,7 +1075,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       }
     });
     
-    console.log(`Debug: 收集到 ${wrongQuestions.length} 道錯題`);
     return wrongQuestions;
   }
 
