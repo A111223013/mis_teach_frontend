@@ -191,109 +191,19 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   startQuizFromMessage(content: string): void {
     try {
-      console.log('開始從訊息中提取考卷數據...');
-      console.log('📄 原始內容長度:', content.length);
-      console.log('📄 原始內容前200字符:', content.substring(0, 200));
+      console.log('開始從訊息中提取考卷ID...');
       
-      // 提取JSON數據
-      const jsonData = this.extractJsonFromMessage(content);
+      // 從訊息中提取 MongoDB 考卷 ID
+      const quizIds = this.extractQuizIdsFromMessage(content);
       
-      if (!jsonData) {
-        throw new Error('無法從訊息中提取有效的考卷數據');
+      if (!quizIds || quizIds.length === 0) {
+        throw new Error('無法從訊息中提取有效的考卷ID');
       }
       
-      console.log('📄 提取的JSON數據長度:', jsonData.length);
-      console.log('📄 提取的JSON數據前200字符:', jsonData.substring(0, 200));
+      console.log('✅ 提取到考卷ID:', quizIds);
       
-      const quizData = JSON.parse(jsonData);
-      console.log('✅ JSON解析成功');
-      console.log('📊 解析的考卷數據結構:', {
-        quiz_id: quizData.quiz_id,
-        template_id: quizData.template_id,
-        questions_count: quizData.questions ? quizData.questions.length : 'undefined',
-        quiz_info: quizData.quiz_info ? 'exists' : 'undefined'
-      });
-      
-      // 檢查並確保必要字段存在
-      if (!quizData.quiz_id) {
-        quizData.quiz_id = `quiz_${Date.now()}_${quizData.quiz_info?.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'generated'}`;
-        console.log('生成quiz_id:', quizData.quiz_id);
-      }
-      
-      if (!quizData.template_id) {
-        quizData.template_id = `template_${Date.now()}`;
-        console.log('生成template_id:', quizData.template_id);
-      }
-      
-      // 確保questions字段存在
-      console.log('🔍 檢查questions字段:', quizData.questions);
-      console.log('🔍 questions類型:', typeof quizData.questions);
-      console.log('🔍 是否為數組:', Array.isArray(quizData.questions));
-      
-      if (!quizData.questions) {
-        console.warn('⚠️ questions字段不存在，嘗試從其他字段獲取...');
-        // 嘗試從quiz_info中獲取題目數量
-        if (quizData.quiz_info && quizData.quiz_info.question_count) {
-          console.log('✅ 從quiz_info中找到題目數量:', quizData.quiz_info.question_count);
-          // 創建一個空的questions數組
-          quizData.questions = [];
-          for (let i = 0; i < quizData.quiz_info.question_count; i++) {
-            quizData.questions.push({
-              id: i + 1,
-              question_text: `題目 ${i + 1}`,
-              options: ['選項A', '選項B', '選項C', '選項D'],
-              correct_answer: 'A',
-              type: 'single-choice'
-            });
-          }
-        } else {
-          throw new Error('考卷數據缺少題目信息，且無法從quiz_info中獲取題目數量');
-        }
-      } else if (!Array.isArray(quizData.questions)) {
-        console.warn('⚠️ questions不是數組，嘗試轉換...');
-        if (typeof quizData.questions === 'object') {
-          // 如果是對象，嘗試轉換為數組
-          const questionsArray = Object.values(quizData.questions);
-          if (questionsArray.length > 0) {
-            quizData.questions = questionsArray;
-            console.log('✅ 成功將questions轉換為數組');
-          } else {
-            throw new Error('考卷數據的questions字段格式不正確');
-          }
-        } else {
-          throw new Error('考卷數據的questions字段格式不正確');
-        }
-      }
-      
-      // 確保quiz_info字段存在
-      if (!quizData.quiz_info) {
-        quizData.quiz_info = {
-          title: 'AI生成的考卷',
-          topic: '計算機概論',
-          difficulty: 'medium',
-          question_count: quizData.questions.length,
-          time_limit: 30,
-          total_score: quizData.questions.length * 10
-        };
-      }
-      
-      console.log('✅ 考卷數據驗證通過');
-      console.log('📊 quiz_id:', quizData.quiz_id);
-      console.log('📊 template_id:', quizData.template_id);
-      console.log('📊 題目數量:', quizData.questions.length);
-      
-      // 將考卷數據存儲到QuizService
-      this.quizService.setCurrentQuizData(quizData);
-      
-      // 跳轉到測驗頁面
-      console.log('🚀 跳轉到測驗頁面...');
-      
-      // 構建查詢參數
-      const queryParams = {
-        template_id: quizData.template_id
-      };
-      
-      this.router.navigate(['/dashboard/quiz-taking', quizData.quiz_id], { queryParams });
+      // 從後端獲取完整的考卷數據
+      this.loadQuizFromDatabase(quizIds);
       
     } catch (error) {
       console.error('開始測驗失敗:', error);
@@ -313,6 +223,99 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       };
       this.addMessage(errorMessage);
     }
+  }
+
+  /**
+   * 從訊息中提取 MongoDB 考卷 ID
+   */
+  private extractQuizIdsFromMessage(content: string): string[] {
+    try {
+      console.log('開始提取考卷ID...');
+      
+      // 方法1: 從 AI 回應中提取 MongoDB ObjectId 格式的字符串（優先）
+      const objectIdPattern = /[a-f0-9]{24}/g;
+      const objectIds = content.match(objectIdPattern);
+      if (objectIds && objectIds.length > 0) {
+        // 過濾掉明顯不是 ObjectId 的字符串
+        const validObjectIds = objectIds.filter(id => 
+          id.length === 24 && 
+          /^[a-f0-9]{24}$/.test(id) &&
+          !id.includes('\n') &&
+          !id.includes(' ') &&
+          !id.includes('"') &&
+          !id.includes('\\') &&
+          !id.includes('\\n')
+        );
+        if (validObjectIds.length > 0) {
+          console.log('✅ 從內容中提取到有效的 ObjectId 格式考卷ID:', validObjectIds);
+          return validObjectIds;
+        }
+      }
+      
+      // 方法2: 從 JSON 中的 database_ids 提取
+      if (content.includes('```json')) {
+        const jsonStart = content.indexOf('```json') + 7;
+        const jsonEnd = content.indexOf('```', jsonStart);
+        
+        if (jsonEnd > jsonStart) {
+          const jsonData = content.substring(jsonStart, jsonEnd).trim();
+          try {
+            const parsed = JSON.parse(jsonData);
+            if (parsed.database_ids && Array.isArray(parsed.database_ids) && parsed.database_ids.length > 0) {
+              console.log('✅ 從JSON database_ids提取到考卷ID:', parsed.database_ids);
+              return parsed.database_ids;
+            }
+          } catch (parseError) {
+            console.warn('JSON解析失敗:', parseError);
+          }
+        }
+      }
+      
+      console.log('❌ 無法提取到考卷ID');
+      return [];
+      
+    } catch (error) {
+      console.error('提取考卷ID失敗:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 從資料庫載入考卷數據
+   */
+  private loadQuizFromDatabase(quizIds: string[]): void {
+    console.log('🔄 從資料庫載入考卷數據...');
+    
+    // 調用後端API獲取考卷數據
+    this.aiChatService.getQuizFromDatabase(quizIds).subscribe({
+      next: (response: any) => {
+        if (response.success) {
+          console.log('✅ 成功載入考卷數據:', response.data);
+          
+          const quizData = response.data;
+          
+          // 將考卷數據存儲到QuizService
+          this.quizService.setCurrentQuizData(quizData);
+          
+          // 跳轉到測驗頁面
+          console.log('🚀 跳轉到測驗頁面...');
+          
+          // 構建查詢參數
+          const queryParams = {
+            template_id: quizData.template_id
+          };
+          
+          this.router.navigate(['/dashboard/quiz-taking', quizData.quiz_id], { queryParams });
+          
+        } else {
+          throw new Error(response.message || '載入考卷數據失敗');
+        }
+      },
+      error: (error: any) => {
+        console.error('載入考卷數據失敗:', error);
+        throw new Error('載入考卷數據失敗');
+      }
+    });
   }
 
   /**
