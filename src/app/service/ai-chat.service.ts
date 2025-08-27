@@ -24,6 +24,13 @@ export interface ChatResponse {
   error?: string;
 }
 
+export interface QuizDataResponse {
+  success: boolean;
+  data?: any;
+  message?: string;
+  error?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -101,5 +108,18 @@ export class AiChatService {
       console.warn('無法解析JWT token，使用默認用戶ID');
     }
     return 'default';
+  }
+
+  /**
+   * 從資料庫獲取考卷數據
+   */
+  getQuizFromDatabase(quizIds: string[]): Observable<QuizDataResponse> {
+    const request = {
+      quiz_ids: quizIds
+    };
+
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post<QuizDataResponse>(`${this.apiUrl}/get-quiz-from-database`, request, { headers })
+    ).pipe(catchError(this.handleError));
   }
 }
