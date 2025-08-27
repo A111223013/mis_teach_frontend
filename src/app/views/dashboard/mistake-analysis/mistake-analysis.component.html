@@ -38,15 +38,7 @@
                 </select>
               </div>
             </c-col>
-            <c-col xs="12" md="6" xl="2">
-              <div class="mb-3">
-                <label class="form-label">章節</label>
-                <select class="form-select" [(ngModel)]="filters.chapter" (change)="applyFilters()">
-                  <option value="">全部章節</option>
-                  <option *ngFor="let chapter of chapterOptions" [value]="chapter">{{ chapter }}</option>
-                </select>
-              </div>
-            </c-col>
+
             <c-col xs="12" md="6" xl="2">
               <div class="mb-3">
                 <label class="form-label">時間範圍</label>
@@ -174,8 +166,7 @@
                      </div>
                    </div>
                  </c-card-body>
-                                 <c-card-footer class="bg-light d-flex justify-content-between align-items-center">
-                   <small class="text-muted">章節：{{ question.chapter }}</small>
+                                 <c-card-footer class="bg-light d-flex justify-content-end align-items-center">
                    <div class="d-flex gap-2">
                      <button class="btn btn-sm btn-primary" (click)="reviewMistake(question)">
                        <c-icon name="cilBook" class="me-1"></c-icon> 查看詳情
@@ -234,10 +225,9 @@
       </div>
 
       <div class="mt-4">
-        <h6 class="text-muted">知識點和章節</h6>
+        <h6 class="text-muted">題目信息</h6>
         <div class="d-flex flex-wrap gap-2">
           <c-badge color="info">知識點: {{ selectedQuestion.topic }}</c-badge>
-          <c-badge color="secondary">章節: {{ selectedQuestion.chapter }}</c-badge>
           <c-badge color="primary" *ngIf="selectedQuestion.exam_type">
             {{ selectedQuestion.exam_type === 'knowledge' ? '知識點測驗' : '考古題測驗' }}
           </c-badge>
