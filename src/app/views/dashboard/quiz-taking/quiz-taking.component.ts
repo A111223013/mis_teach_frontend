@@ -89,6 +89,12 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   totalQuestions: number = 0;
   answers: any[] = [];
   
+  // 新增：每題作答時間記錄（秒數）
+  questionAnswerTimes: { [key: number]: number } = {};  // 每題累積作答時間（秒）
+  questionStartTimes: { [key: number]: number } = {};   // 每題開始時間戳（毫秒）
+  questionPauseTimes: { [key: number]: number } = {};   // 每題暫停時間戳（毫秒）
+  questionIsActive: { [key: number]: boolean } = {};    // 每題是否正在作答中
+  
   // 路由參數 (為了與舊模板兼容)
   quizType: 'knowledge' | 'pastexam' = 'knowledge';
   topic: string = '';
@@ -249,20 +255,102 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     }
   }
 
+  // 載入指定題目
   loadCurrentQuestion(): void {
-    if (this.currentQuestionIndex >= 0 && this.currentQuestionIndex < this.questions.length) {
-      this.currentQuestion = this.questions[this.currentQuestionIndex];
-      this.resetImageLoadState(); // 重置圖片載入狀態
-      
-      // 預載入新題目的圖片
-      if (this.hasQuestionImages()) {
-        this.preloadQuestionImages();
+    if (this.questions.length === 0) return;
+    
+    this.currentQuestion = this.questions[this.currentQuestionIndex];
+    
+    // 新增：記錄題目開始作答時間（第一題計時器啟動）
+    this.recordQuestionStartTime(this.currentQuestionIndex);
+    
+    this.cdr.detectChanges();
+  }
+  
+  // 新增：記錄題目開始作答時間
+  recordQuestionStartTime(questionIndex: number): void {
+    if (!this.questionStartTimes[questionIndex]) {
+      // 第一次進入題目
+      this.questionStartTimes[questionIndex] = new Date().getTime();
+      this.questionIsActive[questionIndex] = true;
+      this.questionAnswerTimes[questionIndex] = 0; // 初始化累積時間
+    } else {
+      // 重新進入題目，從暫停的地方繼續
+      if (!this.questionIsActive[questionIndex]) {
+        // 計算暫停期間的時間，加到累積時間中
+        const pauseTime = this.questionPauseTimes[questionIndex] || 0;
+        const currentTime = new Date().getTime();
+        const pauseDuration = Math.floor((currentTime - pauseTime) / 1000);
+        
+        // 更新累積作答時間
+        this.questionAnswerTimes[questionIndex] = (this.questionAnswerTimes[questionIndex] || 0) + pauseDuration;
+        
+        // 重新開始計時
+        this.questionStartTimes[questionIndex] = currentTime;
+        this.questionIsActive[questionIndex] = true;
       }
+    }
+  }
+  
+  // 新增：記錄題目暫停作答時間
+  recordQuestionPauseTime(questionIndex: number): void {
+    if (this.questionIsActive[questionIndex]) {
+      this.questionPauseTimes[questionIndex] = new Date().getTime();
+      this.questionIsActive[questionIndex] = false;
+      
+      // 計算當前階段的作答時間，加到累積時間中
+      const startTime = this.questionStartTimes[questionIndex];
+      const currentTime = new Date().getTime();
+      const currentDuration = Math.floor((currentTime - startTime) / 1000);
+      
+      // 更新累積作答時間
+      this.questionAnswerTimes[questionIndex] = (this.questionAnswerTimes[questionIndex] || 0) + currentDuration;
+    }
+  }
+  
+  // 新增：記錄題目完成作答時間
+  recordQuestionEndTime(questionIndex: number): void {
+    if (this.questionIsActive[questionIndex]) {
+      const startTime = this.questionStartTimes[questionIndex];
+      const endTime = new Date().getTime();
+      const currentDuration = Math.floor((endTime - startTime) / 1000);
+      
+      // 更新累積作答時間
+      this.questionAnswerTimes[questionIndex] = (this.questionAnswerTimes[questionIndex] || 0) + currentDuration;
+      this.questionIsActive[questionIndex] = false;
+    }
+  }
+  
+  // 新增：獲取題目當前累積作答時間（秒）
+  getQuestionAnswerTime(questionIndex: number): number {
+    return this.questionAnswerTimes[questionIndex] || 0;
+  }
+  
+  // 新增：獲取題目當前活動狀態
+  isQuestionActive(questionIndex: number): boolean {
+    return this.questionIsActive[questionIndex] || false;
+  }
+  
+  // 新增：格式化作答時間
+  formatAnswerTime(milliseconds: number): string {
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    
+    if (minutes > 0) {
+      return `${minutes}分${remainingSeconds}秒`;
+    } else {
+      return `${remainingSeconds}秒`;
     }
   }
 
   goToQuestion(index: number): void {
     if (index >= 0 && index < this.questions.length) {
+      // 暫停當前題目的計時器
+      if (this.currentQuestionIndex !== index) {
+        this.recordQuestionPauseTime(this.currentQuestionIndex);
+      }
+      
       this.currentQuestionIndex = index;
       this.currentQuestion = this.questions[index];
       this.resetImageLoadState(); // 重置圖片載入狀態
@@ -272,6 +360,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         this.preloadQuestionImages();
       }
       
+      // 開始新題目的計時器
+      this.recordQuestionStartTime(index);
     }
   }
 
@@ -610,66 +700,52 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   // 提交測驗
   submitQuiz(): void {
     console.debug('[submitQuiz] 進入 submitQuiz 方法');
-    if (!this.canSubmit()) {
-      console.debug('[submitQuiz] 無法提交，尚未作答任何題目');
-      alert('請至少回答一道題目再提交');
-      return;
-    }
-
-    if (this.timerSubscription) {
-      console.debug('[submitQuiz] 取消計時器訂閱');
-      this.timerSubscription.unsubscribe();
-    }
-
-    const confirmed = confirm('確定要提交測驗嗎？提交後將無法修改答案。');
-    console.debug(`[submitQuiz] 使用者確認提交: ${confirmed}`);
-    if (!confirmed) return;
-
-    this.isLoading = true;
-
-    // 檢查登入狀態
-    if (!this.authService.isLoggedIn()) {
-      console.log('Debug: 用戶未登錄，導向登入頁面');
-      this.authService.logout();
-      return;
-    }
-
-    // 檢查 token 是否有效
-    if (!this.authService.isTokenValid()) {
-      console.log('Debug: Token 無效，導向登入頁面');
-      this.authService.logout();
-      return;
-    }
-
-    console.log('Debug: Token 狀態正常，準備提交測驗');
     
-    // 添加詳細的答案調試信息
-    console.log('Debug: 答案收集詳情:');
-    console.log('  - 總題數:', this.questions.length);
-    console.log('  - 當前題目索引:', this.currentQuestionIndex);
-    console.log('  - 用戶答案對象:', this.userAnswers);
-    console.log('  - 答案鍵值:', Object.keys(this.userAnswers));
-    console.log('  - 答案值:', Object.values(this.userAnswers));
+    // 記錄當前題目的完成時間
+    this.recordQuestionEndTime(this.currentQuestionIndex);
     
-    // 檢查每題的答案狀態
+    // 檢查是否有未作答的題目
+    const unansweredQuestions = [];
     for (let i = 0; i < this.questions.length; i++) {
-      const question = this.questions[i];
-      const answer = this.userAnswers[i];
-      const hasAnswer = this.hasValidAnswer(answer, question?.type);
-      console.log(`  - 題目 ${i}: ${hasAnswer ? '已作答' : '未作答'} (${answer})`);
+      if (!this.userAnswers[i] || this.userAnswers[i] === '') {
+        unansweredQuestions.push(i);
+        // 對於未作答題目，如果還在計時中，則暫停計時
+        if (this.questionIsActive[i]) {
+          this.recordQuestionPauseTime(i);
+        }
+      }
     }
-
+    
+    if (unansweredQuestions.length > 0) {
+      const confirmSubmit = confirm(`您還有 ${unansweredQuestions.length} 題未作答，確定要提交嗎？`);
+      if (!confirmSubmit) {
+        return;
+      }
+    }
+    
     // 準備提交資料
     const submissionData = {
       template_id: this.templateId,  // 使用 template_id
       answers: this.userAnswers,
       time_taken: this.timeLimit > 0 ? (this.timeLimit * 60 - this.timer) : 0,
-      questions: this.questions  // 新增：傳遞完整的題目數據
+      questions: this.questions,  // 新增：傳遞完整的題目數據
+      question_answer_times: this.questionAnswerTimes  // 新增：傳遞每題作答時間（秒）
     };
 
     console.log('Debug: 提交資料:', submissionData);
     console.log('Debug: 使用的 template_id:', this.templateId);
     console.log('Debug: 原始 quiz_id:', this.quizId);
+    console.log('Debug: 每題作答時間（秒）:', this.questionAnswerTimes);
+    console.log('Debug: 每題活動狀態:', this.questionIsActive);
+    
+    // 新增：調試作答時間數據
+    console.log('🔍 Debug: 檢查作答時間數據:');
+    for (let i = 0; i < this.questions.length; i++) {
+      const answerTime = this.questionAnswerTimes[i] || 0;
+      const isActive = this.questionIsActive[i] || false;
+      const startTime = this.questionStartTimes[i];
+      console.log(`  題目 ${i}: 作答時間=${answerTime}秒, 活動狀態=${isActive}, 開始時間=${startTime}`);
+    }
 
     // 顯示進度提示
     this.showProgressModal();
@@ -707,7 +783,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
           submission_id: response.submission_id,
           result_id: response.data?.result_id,  // 添加result_id
           user_answers: this.userAnswers,
-          time_taken: submissionData.time_taken
+          time_taken: submissionData.time_taken,
+          question_answer_times: this.questionAnswerTimes  // 新增：包含每題作答時間
         };
         console.debug('[submitQuiz] 存入 sessionStorage 的 quizResultData:', quizResultData);
         

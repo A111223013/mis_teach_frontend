@@ -104,7 +104,9 @@ export class AiTutoringService {
       user_input: message,
       conversation_type: 'tutoring',
       correct_answer: questionData?.correct_answer || '',
-      user_answer: questionData?.user_answer || ''
+      user_answer: questionData?.user_answer || '',
+      // 新增：傳遞AI批改的評分反饋
+      grading_feedback: questionData?.feedback || {}
     };
 
     return this.http.post<TutoringResponse>(`${this.API_BASE_URL}/ai-tutoring`, payload, { headers }).pipe(
