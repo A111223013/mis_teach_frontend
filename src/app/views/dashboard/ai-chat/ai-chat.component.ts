@@ -191,52 +191,131 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   startQuizFromMessage(content: string): void {
     try {
-      // 更安全的JSON提取
-      const jsonData = this.extractJsonFromMessage(content);
+      console.log('開始從訊息中提取考卷ID...');
       
-      if (!jsonData) {
-        throw new Error('無法找到有效的JSON數據');
+      // 從訊息中提取 MongoDB 考卷 ID
+      const quizIds = this.extractQuizIdsFromMessage(content);
+      
+      if (!quizIds || quizIds.length === 0) {
+        throw new Error('無法從訊息中提取有效的考卷ID');
       }
       
-      const quizData = JSON.parse(jsonData);
-      console.log('解析的考卷數據:', quizData);
+      console.log('✅ 提取到考卷ID:', quizIds);
       
-      // 檢查必要的字段
-      if (!quizData.quiz_id) {
-        // 如果沒有quiz_id，嘗試從其他字段生成一個
-        if (quizData.quiz_info && quizData.quiz_info.title) {
-          quizData.quiz_id = `quiz_${Date.now()}_${quizData.quiz_info.title.replace(/[^a-zA-Z0-9]/g, '_')}`;
-          console.log('生成臨時quiz_id:', quizData.quiz_id);
-        } else {
-          throw new Error('考卷數據缺少必要的quiz_id字段');
-        }
-      }
-      
-      // 將考卷數據存儲到QuizService
-      this.quizService.setCurrentQuizData(quizData);
-      
-      // 跳轉到測驗頁面，同時傳遞quiz_id和template_id
-      console.log('跳轉到測驗頁面，quiz_id:', quizData.quiz_id, 'template_id:', quizData.template_id);
-      
-      // 構建查詢參數
-      const queryParams = {
-        template_id: quizData.template_id
-      };
-      
-      this.router.navigate(['/dashboard/quiz-taking', quizData.quiz_id], { queryParams });
+      // 從後端獲取完整的考卷數據
+      this.loadQuizFromDatabase(quizIds);
       
     } catch (error) {
       console.error('開始測驗失敗:', error);
-      // 顯示錯誤訊息
+      
+      // 顯示詳細的錯誤訊息
+      let errorMsg = '開始測驗失敗';
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      
       const errorMessage: ChatMessage = {
         id: this.generateId(),
         type: 'assistant',
-        content: `❌ 開始測驗失敗：${error instanceof Error ? error.message : '請稍後再試。'}`,
+        content: `❌ ${errorMsg}\n\n💡 請嘗試重新生成考卷或聯繫管理員。`,
         timestamp: new Date(),
         aiModel: 'gemini'
       };
       this.addMessage(errorMessage);
     }
+  }
+
+  /**
+   * 從訊息中提取 MongoDB 考卷 ID
+   */
+  private extractQuizIdsFromMessage(content: string): string[] {
+    try {
+      console.log('開始提取考卷ID...');
+      
+      // 方法1: 從 AI 回應中提取 MongoDB ObjectId 格式的字符串（優先）
+      const objectIdPattern = /[a-f0-9]{24}/g;
+      const objectIds = content.match(objectIdPattern);
+      if (objectIds && objectIds.length > 0) {
+        // 過濾掉明顯不是 ObjectId 的字符串
+        const validObjectIds = objectIds.filter(id => 
+          id.length === 24 && 
+          /^[a-f0-9]{24}$/.test(id) &&
+          !id.includes('\n') &&
+          !id.includes(' ') &&
+          !id.includes('"') &&
+          !id.includes('\\') &&
+          !id.includes('\\n')
+        );
+        if (validObjectIds.length > 0) {
+          console.log('✅ 從內容中提取到有效的 ObjectId 格式考卷ID:', validObjectIds);
+          return validObjectIds;
+        }
+      }
+      
+      // 方法2: 從 JSON 中的 database_ids 提取
+      if (content.includes('```json')) {
+        const jsonStart = content.indexOf('```json') + 7;
+        const jsonEnd = content.indexOf('```', jsonStart);
+        
+        if (jsonEnd > jsonStart) {
+          const jsonData = content.substring(jsonStart, jsonEnd).trim();
+          try {
+            const parsed = JSON.parse(jsonData);
+            if (parsed.database_ids && Array.isArray(parsed.database_ids) && parsed.database_ids.length > 0) {
+              console.log('✅ 從JSON database_ids提取到考卷ID:', parsed.database_ids);
+              return parsed.database_ids;
+            }
+          } catch (parseError) {
+            console.warn('JSON解析失敗:', parseError);
+          }
+        }
+      }
+      
+      console.log('❌ 無法提取到考卷ID');
+      return [];
+      
+    } catch (error) {
+      console.error('提取考卷ID失敗:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 從資料庫載入考卷數據
+   */
+  private loadQuizFromDatabase(quizIds: string[]): void {
+    console.log('🔄 從資料庫載入考卷數據...');
+    
+    // 調用後端API獲取考卷數據
+    this.aiChatService.getQuizFromDatabase(quizIds).subscribe({
+      next: (response: any) => {
+        if (response.success) {
+          console.log('✅ 成功載入考卷數據:', response.data);
+          
+          const quizData = response.data;
+          
+          // 將考卷數據存儲到QuizService
+          this.quizService.setCurrentQuizData(quizData);
+          
+          // 跳轉到測驗頁面
+          console.log('🚀 跳轉到測驗頁面...');
+          
+          // 構建查詢參數
+          const queryParams = {
+            template_id: quizData.template_id
+          };
+          
+          this.router.navigate(['/dashboard/quiz-taking', quizData.quiz_id], { queryParams });
+          
+        } else {
+          throw new Error(response.message || '載入考卷數據失敗');
+        }
+      },
+      error: (error: any) => {
+        console.error('載入考卷數據失敗:', error);
+        throw new Error('載入考卷數據失敗');
+      }
+    });
   }
 
   /**
@@ -384,31 +463,41 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (jsonEnd > jsonStart) {
           let jsonData = content.substring(jsonStart, jsonEnd).trim();
           console.log('提取的JSON數據長度:', jsonData.length);
-          
-          // 優先檢查是否包含quiz_id
-          if (jsonData.includes('"quiz_id"')) {
-            console.log('✅ 找到包含quiz_id的完整JSON（```json標記）');
-            return jsonData;
-          }
-          
-          console.log('❌ 不包含quiz_id，嘗試修復...');
-          
-          // 嘗試修復不完整的JSON
-          jsonData = this.fixIncompleteJson(jsonData);
+          console.log('JSON數據預覽:', jsonData.substring(0, 200) + '...');
           
           // 驗證是否為有效JSON
           try {
-            JSON.parse(jsonData);
+            const parsed = JSON.parse(jsonData);
             console.log('✅ JSON驗證成功');
-            return jsonData;
-          } catch (parseError) {
-            console.warn('JSON驗證失敗，嘗試進一步修復:', parseError);
-            // 進一步修復
-            jsonData = this.advancedJsonFix(jsonData);
-            try {
-              JSON.parse(jsonData);
-              console.log('✅ 修復後JSON驗證成功');
+            
+            // 檢查是否包含必要字段
+            if (parsed.quiz_id) {
+              console.log('✅ 包含quiz_id字段');
               return jsonData;
+            } else {
+              console.log('⚠️ 缺少quiz_id字段，嘗試修復...');
+              // 嘗試添加quiz_id
+              parsed.quiz_id = `quiz_${Date.now()}_${parsed.quiz_info?.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'generated'}`;
+              return JSON.stringify(parsed, null, 2);
+            }
+          } catch (parseError) {
+            console.warn('JSON驗證失敗，嘗試修復:', parseError);
+            // 嘗試修復不完整的JSON
+            jsonData = this.fixIncompleteJson(jsonData);
+            
+            try {
+              const parsed = JSON.parse(jsonData);
+              console.log('✅ 修復後JSON驗證成功');
+              
+              // 檢查並添加必要字段
+              if (!parsed.quiz_id) {
+                parsed.quiz_id = `quiz_${Date.now()}_${parsed.quiz_info?.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'generated'}`;
+              }
+              if (!parsed.template_id) {
+                parsed.template_id = `template_${Date.now()}`;
+              }
+              
+              return JSON.stringify(parsed, null, 2);
             } catch (finalError) {
               console.warn('最終JSON驗證失敗:', finalError);
             }
@@ -418,25 +507,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         }
       }
       
-      // 方法2: 尋找 json ... ``` 格式（後端可能使用這種格式）
-      if (content.includes('json\n{') || content.includes('json\n {')) {
-        console.log('找到json標記（無反引號）');
-        const jsonStart = content.indexOf('json\n') + 5;
-        const jsonEnd = content.indexOf('```', jsonStart);
-        
-        if (jsonEnd > jsonStart) {
-          let jsonData = content.substring(jsonStart, jsonEnd).trim();
-          console.log('提取的JSON數據長度:', jsonData.length);
-          
-          // 優先檢查是否包含quiz_id
-          if (jsonData.includes('"quiz_id"')) {
-            console.log('✅ 找到包含quiz_id的完整JSON（json標記）');
-            return jsonData;
-          }
-        }
-      }
-      
-      // 方法3: 尋找 { ... } 格式，優先尋找包含quiz_id的結構
+      // 方法2: 尋找 { ... } 格式，優先尋找包含quiz_id的結構
       const braceStart = content.indexOf('{');
       if (braceStart !== -1) {
         console.log('找到{標記，位置:', braceStart);
@@ -464,18 +535,32 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         
         // 優先返回包含quiz_id的結構
         for (const jsonData of jsonStructures) {
-          if (jsonData.includes('"quiz_id"')) {
-            console.log('✅ 找到包含quiz_id的JSON結構');
-            return jsonData;
+          try {
+            const parsed = JSON.parse(jsonData);
+            if (parsed.quiz_id) {
+              console.log('✅ 找到包含quiz_id的JSON結構');
+              return jsonData;
+            }
+          } catch (parseError) {
+            console.warn('JSON結構驗證失敗:', parseError);
           }
         }
         
-        // 如果沒有找到包含quiz_id的結構，使用第一個有效的JSON
+        // 如果沒有找到包含quiz_id的結構，使用第一個有效的JSON並添加必要字段
         for (const jsonData of jsonStructures) {
           try {
-            JSON.parse(jsonData);
-            console.log('✅ 找到有效的JSON結構');
-            return jsonData;
+            const parsed = JSON.parse(jsonData);
+            console.log('✅ 找到有效的JSON結構，添加必要字段');
+            
+            // 添加必要字段
+            if (!parsed.quiz_id) {
+              parsed.quiz_id = `quiz_${Date.now()}_${parsed.quiz_info?.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'generated'}`;
+            }
+            if (!parsed.template_id) {
+              parsed.template_id = `template_${Date.now()}`;
+            }
+            
+            return JSON.stringify(parsed, null, 2);
           } catch (parseError) {
             console.warn('JSON結構驗證失敗:', parseError);
           }
