@@ -96,18 +96,23 @@ export class MistakeAnalysisComponent implements OnInit {
   ) {}
   
   ngOnInit(): void {
+    console.log('🚀 錯題統整組件初始化');
     this.loadSubmissionsAnalysis();
   }
   
   loadSubmissionsAnalysis(): void {
     this.loading = true;
+    console.log('🔄 開始載入測驗數據...');
     
     // 調用新的 submissions 分析 API
     this.dashboardService.getUserSubmissionsAnalysis().subscribe({
       next: (response: any) => {
+        console.log('✅ API 響應:', response);
         if (response?.success !== false && response?.submissions) {
+          console.log('📊 找到提交數據:', response.submissions.length, '條記錄');
           this.processSubmissionsData(response.submissions);
         } else {
+          console.log('⚠️ 沒有找到有效的提交數據');
           this.allQuestions = [];
           this.filteredQuestions = [];
         }
@@ -124,61 +129,78 @@ export class MistakeAnalysisComponent implements OnInit {
 
   // 處理 submissions 數據，分類所有題目
   private processSubmissionsData(submissions: any[]): void {
+    console.log('🔄 開始處理提交數據...');
     this.allQuestions = [];
     const topicSet = new Set<string>();
     const chapterSet = new Set<string>();
     
     // 遍歷所有提交記錄
-    submissions.forEach(submission => {
-      const answers = submission.answers || {};
+    submissions.forEach((submission, submissionIndex) => {
+      console.log(`📝 處理第 ${submissionIndex + 1} 個提交:`, submission.submission_id);
+      const answers = submission.answers || [];
       const submitTime = new Date(submission.submit_time || Date.now());
-      const totalQuestions = submission.total_questions || 0;
+      const processedCount = submission.processed_count || 0;
+      const skippedCount = submission.skipped_count || 0;
       
-      // 處理每道題目
-      for (let i = 0; i < totalQuestions; i++) {
-        const answerKey = i.toString();
-        const answer = answers[answerKey];
-        
-        if (answer) {
-          // 有答案的題目
+      console.log(`   - 答案數量: ${answers.length}`);
+      console.log(`   - 已處理題數: ${processedCount}`);
+      console.log(`   - 跳過題數: ${skippedCount}`);
+      
+      // 處理已作答的題目（answers 是數組格式）
+      if (Array.isArray(answers)) {
+        answers.forEach((answer: any, index: number) => {
+          if (answer && typeof answer === 'object') {
+            console.log(`     📋 處理答案 ${index + 1}:`, {
+              question_text: answer.question_text?.substring(0, 50) + '...',
+              answer: answer.answer,
+              is_correct: answer.is_correct
+            });
+            
+            const question: MistakeQuestion = {
+              id: `${submission.submission_id}_${index}`,
+              question_text: answer.question_text || '題目內容未提供',
+              student_answer: answer.answer || '', // 使用 answer 字段
+              correct_answer: answer.correct_answer || '',
+              topic: this.extractTopic(answer) || '未分類',
+              chapter: this.extractChapter(answer) || '未分類',
+              timestamp: submitTime,
+              exam_id: submission.submission_id,
+              exam_type: submission.subject || 'unknown', // 使用 subject 作為測驗類型
+              score: answer.score || 0,
+              is_correct: answer.is_correct || false,
+              question_number: answer.question_number || index.toString(),
+              type: answer.type || 'unknown',
+              feedback: answer.feedback || `用戶回答：${answer.answer}，正確答案：${answer.correct_answer}`,
+              status: answer.is_correct ? 'correct' : 'wrong'
+            };
+            
+            this.allQuestions.push(question);
+            topicSet.add(question.topic);
+            chapterSet.add(question.chapter);
+          }
+        });
+      } else {
+        console.log(`     ⚠️ answers 不是數組格式:`, typeof answers, answers);
+      }
+      
+      // 處理跳過的題目（如果有跳過統計）
+      if (skippedCount > 0) {
+        for (let i = 0; i < skippedCount; i++) {
           const question: MistakeQuestion = {
-            id: `${submission.submission_id}_${i}`,
-            question_text: answer.question_text || '題目內容未提供',
-            student_answer: answer.user_answer || '',
-            correct_answer: answer.correct_answer || '',
-            topic: this.extractTopic(answer) || '未分類',
-            chapter: this.extractChapter(answer) || '未分類',
-            timestamp: submitTime,
-            exam_id: submission.submission_id,
-            exam_type: submission.quiz_type || 'unknown',
-            score: answer.score || 0,
-            is_correct: answer.is_correct || false,
-            question_number: i.toString(),
-            type: answer.question_type || 'unknown',
-            feedback: `用戶回答：${answer.user_answer}，正確答案：${answer.correct_answer}`,
-            status: answer.is_correct ? 'correct' : 'wrong'
-          };
-          
-          this.allQuestions.push(question);
-          topicSet.add(question.topic);
-          chapterSet.add(question.chapter);
-        } else {
-          // 未作答的題目
-          const question: MistakeQuestion = {
-            id: `${submission.submission_id}_${i}_unanswered`,
-            question_text: '題目內容未提供',
+            id: `${submission.submission_id}_skipped_${i}`,
+            question_text: '跳過的題目',
             student_answer: '',
             correct_answer: '',
             topic: '未分類',
             chapter: '未分類',
             timestamp: submitTime,
             exam_id: submission.submission_id,
-            exam_type: submission.quiz_type || 'unknown',
+            exam_type: submission.subject || 'unknown',
             score: 0,
             is_correct: false,
-            question_number: i.toString(),
+            question_number: `skipped_${i}`,
             type: 'unknown',
-            feedback: '此題未作答',
+            feedback: '此題被跳過',
             status: 'unanswered'
           };
           
@@ -199,6 +221,14 @@ export class MistakeAnalysisComponent implements OnInit {
     
     // 應用篩選
     this.applyFilters();
+    
+    console.log('✅ 數據處理完成:');
+    console.log(`   - 總題數: ${this.allQuestions.length}`);
+    console.log(`   - 正確題數: ${this.correctQuestions.length}`);
+    console.log(`   - 錯誤題數: ${this.wrongQuestions.length}`);
+    console.log(`   - 跳過題數: ${this.unansweredQuestions.length}`);
+    console.log(`   - 知識點選項: ${this.topicOptions.length} 個`);
+    console.log(`   - 章節選項: ${this.chapterOptions.length} 個`);
   }
 
   // 分類題目
@@ -211,8 +241,22 @@ export class MistakeAnalysisComponent implements OnInit {
   
   private extractTopic(answer: any): string {
     // 優先從 AI 分析中提取
-    if (answer.ai_analysis?.key_elements_in_standard?.length > 0) {
-      return answer.ai_analysis.key_elements_in_standard[0];
+    if (answer.key_elements_in_standard?.length > 0) {
+      return answer.key_elements_in_standard[0];
+    }
+    
+    // 從題目內容推斷知識點
+    const questionText = answer.question_text || '';
+    if (questionText.includes('演算法') || questionText.includes('Algorithm')) {
+      return '演算法';
+    } else if (questionText.includes('CPU') || questionText.includes('記憶體')) {
+      return '硬體架構';
+    } else if (questionText.includes('程式') || questionText.includes('程式碼')) {
+      return '程式設計';
+    } else if (questionText.includes('二進位') || questionText.includes('補數')) {
+      return '數位邏輯';
+    } else if (questionText.includes('陣列') || questionText.includes('迴圈')) {
+      return '資料結構';
     }
     
     // 從題目類型推斷
@@ -240,6 +284,15 @@ export class MistakeAnalysisComponent implements OnInit {
       }
     }
     
+    // 從學校和年份推斷
+    if (answer.school && answer.year) {
+      return `${answer.school} ${answer.year}年`;
+    } else if (answer.school) {
+      return answer.school;
+    } else if (answer.year) {
+      return `${answer.year}年`;
+    }
+    
     return '未分類';
   }
   
@@ -259,25 +312,29 @@ export class MistakeAnalysisComponent implements OnInit {
       return;
     }
     
-    // 計算最弱知識點
+    // 計算最弱知識點（基於錯誤題目）
     const topicCounts: { [key: string]: number } = {};
-    this.allQuestions.forEach(question => {
+    this.wrongQuestions.forEach(question => {
       topicCounts[question.topic] = (topicCounts[question.topic] || 0) + 1;
     });
     
-    this.weakestTopic = Object.keys(topicCounts).reduce((a, b) => 
-      topicCounts[a] > topicCounts[b] ? a : b
-    );
+    if (Object.keys(topicCounts).length > 0) {
+      this.weakestTopic = Object.keys(topicCounts).reduce((a, b) => 
+        topicCounts[a] > topicCounts[b] ? a : b
+      );
+    } else {
+      this.weakestTopic = '無錯誤題目';
+    }
     
     // 計算本週新增錯題
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    this.recentMistakes = this.allQuestions.filter(question => 
+    this.recentMistakes = this.wrongQuestions.filter(question => 
       question.timestamp > weekAgo
     ).length;
     
     // 模擬複習次數（實際應用中可從後端獲取）
-    this.reviewedCount = Math.floor(this.allQuestions.length * 0.3);
+    this.reviewedCount = Math.floor(this.wrongQuestions.length * 0.3);
   }
 
   private extractFilterOptions(): void {
@@ -374,6 +431,24 @@ export class MistakeAnalysisComponent implements OnInit {
     const d = new Date(date);
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
   }
+
+  getShortQuestionText(text: string): string {
+    if (!text) return '題目內容未提供';
+    // 限制題目長度，避免過長
+    if (text.length > 100) {
+      return text.substring(0, 100) + '...';
+    }
+    return text;
+  }
+
+  getShortAnswer(answer: string): string {
+    if (!answer) return '未作答';
+    // 限制答案長度
+    if (answer.length > 50) {
+      return answer.substring(0, 50) + '...';
+    }
+    return answer;
+  }
   
   getAIExplanation(): void {
     if (!this.selectedQuestion) return;
@@ -424,6 +499,18 @@ export class MistakeAnalysisComponent implements OnInit {
       queryParams: { 
         questionIds: questionIds,
         mode: 'batch_review'
+      }
+    });
+  }
+
+  startGuidedLearning(question: MistakeQuestion): void {
+    // 導航到 AI 輔導頁面，進行引導學習
+    this.router.navigate(['/dashboard/ai-tutoring'], {
+      queryParams: { 
+        questionId: question.id,
+        mode: 'guided_learning',
+        topic: question.topic,
+        chapter: question.chapter
       }
     });
   }

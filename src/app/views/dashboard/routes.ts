@@ -89,6 +89,13 @@ export const routes: Routes = [
         }
     },
     {
+        path: 'mistake-analysis',
+        loadComponent: () => import('./mistake-analysis/mistake-analysis.component').then(m => m.MistakeAnalysisComponent),
+        data: {
+          title: '錯題統整'
+        }
+    },
+    {
         path: 'analytics',
         redirectTo: 'overview',
         pathMatch: 'full'
