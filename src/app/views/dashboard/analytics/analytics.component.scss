@@ -1,0 +1,346 @@
+// 學習成效分析儀表板樣式
+
+// 概覽卡片樣式
+.display-4 {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+// 圖表容器樣式
+.chart-container {
+  position: relative;
+  min-height: 250px;
+  
+  canvas {
+    max-height: 100%;
+    max-width: 100%;
+  }
+}
+
+// 知識圖譜樣式
+.knowledge-graph-container {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  
+  canvas {
+    cursor: pointer;
+  }
+}
+
+// 卡片樣式優化
+c-card {
+  .card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease-in-out;
+    border-radius: 12px;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .card-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-bottom: none;
+      border-radius: 12px 12px 0 0;
+      font-weight: 600;
+      padding: 1.25rem 1.5rem;
+      
+      h5 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+      
+      small {
+        opacity: 0.8;
+        font-size: 0.85rem;
+      }
+    }
+    
+    .card-body {
+      padding: 1.5rem;
+    }
+  }
+}
+
+// 統計數據樣式
+.text-center {
+  .display-4 {
+    margin-bottom: 0.5rem;
+    font-size: 2.5rem;
+  }
+  
+  .text-muted {
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+// 進度條樣式
+c-progress {
+  .progress {
+    height: 10px;
+    border-radius: 6px;
+    background-color: #e9ecef;
+    
+    .progress-bar {
+      border-radius: 6px;
+      transition: width 0.6s ease;
+    }
+  }
+}
+
+// 徽章樣式
+.badge {
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+// 弱點分析樣式
+.border.rounded {
+  border-color: #dee2e6 !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease-in-out;
+  background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+  
+  &:hover {
+    border-color: #adb5bd !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .chart-container {
+    height: 200px !important;
+  }
+  
+  .knowledge-graph-container {
+    height: 350px !important;
+  }
+  
+  .display-4 {
+    font-size: 2rem;
+  }
+  
+  c-card .card .card-header {
+    padding: 1rem;
+    
+    h5 {
+      font-size: 1rem;
+    }
+  }
+}
+
+// 載入動畫
+.text-muted {
+  i {
+    animation: pulse 2s infinite;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+// 互動提示樣式
+.bg-light {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+  border-radius: 8px;
+  
+  h6 {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  
+  .small {
+    color: #6c757d;
+    line-height: 1.5;
+    font-size: 0.875rem;
+  }
+}
+
+// 圖表標籤樣式
+.chart-container {
+  .chartjs-tooltip {
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+// 按鈕樣式
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 25px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+// 警告樣式
+.alert-info {
+  background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+  border: none;
+  border-radius: 8px;
+  color: #0c5460;
+  
+  i {
+    color: #0c5460;
+  }
+}
+
+// 模態框樣式
+c-modal {
+  .modal-content {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+  
+  .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+    
+    .modal-title {
+      font-weight: 600;
+    }
+    
+    .btn-close {
+      filter: invert(1);
+    }
+  }
+  
+  .modal-body {
+    padding: 2rem;
+  }
+  
+  .modal-footer {
+    border-top: 1px solid #e9ecef;
+    padding: 1.5rem 2rem;
+  }
+}
+
+// 進度條顏色自定義
+:host ::ng-deep {
+  .progress-bar.bg-success {
+    background: linear-gradient(90deg, #28a745 0%, #20c997 100%) !important;
+  }
+  
+  .progress-bar.bg-warning {
+    background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%) !important;
+  }
+  
+  .progress-bar.bg-info {
+    background: linear-gradient(90deg, #17a2b8 0%, #6f42c1 100%) !important;
+  }
+  
+  .progress-bar.bg-danger {
+    background: linear-gradient(90deg, #dc3545 0%, #e83e8c 100%) !important;
+  }
+}
+
+// 圖表響應式優化
+@media (max-width: 1200px) {
+  .chart-container {
+    height: 200px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .container-fluid {
+    padding: 1rem;
+  }
+  
+  .col-md-3, .col-md-4, .col-md-6, .col-md-8, .col-md-9 {
+    margin-bottom: 1rem;
+  }
+  
+  .display-4 {
+    font-size: 1.75rem;
+  }
+  
+  c-card .card .card-body {
+    padding: 1rem;
+  }
+}
+
+// 知識圖譜節點懸停效果
+.knowledge-graph-container {
+  canvas {
+    &:hover {
+      cursor: crosshair;
+    }
+  }
+}
+
+// 圖表載入狀態
+.chart-container {
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 1;
+  }
+  
+  canvas {
+    position: relative;
+    z-index: 2;
+  }
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+// 數據載入完成後隱藏載入動畫
+.chart-container.loaded::before {
+  display: none;
+}
