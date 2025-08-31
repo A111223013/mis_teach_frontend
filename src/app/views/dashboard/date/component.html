@@ -1,0 +1,33 @@
+<div class="calendar-container">
+  <h2>備忘錄日曆</h2>
+  <button (click)="openAddModal(new Date())">新增代辦事項</button>
+
+  <mwl-calendar-month-view
+    [viewDate]="viewDate"
+    [events]="events"
+    [refresh]="refresh"
+    (dayClicked)="openAddModal($event.day.date)"
+    (eventClicked)="openEditModal($event.event)">
+  </mwl-calendar-month-view>
+</div>
+
+<div *ngIf="modalOpen" class="modal-backdrop">
+  <div class="modal">
+    <h3>{{ editingEvent ? '編輯備忘錄' : '新增備忘錄' }}</h3>
+    <label>日期與時間:</label>
+    <input type="text" mwlFlatpickr [(ngModel)]="selectedDate">
+    <label>內容:</label>
+    <input type="text" [(ngModel)]="eventTitle">
+    <label>
+      <input type="checkbox" [(ngModel)]="notify"> 啟用通知
+    </label>
+    <label *ngIf="notify">提醒時間:</label>
+    <input *ngIf="notify" type="text" mwlFlatpickr [(ngModel)]="notifyTime">
+
+    <div class="modal-buttons">
+      <button (click)="saveEvent()">儲存</button>
+      <button *ngIf="editingEvent" (click)="deleteEvent()">刪除</button>
+      <button (click)="closeModal()">取消</button>
+    </div>
+  </div>
+</div>
