@@ -1,63 +1,53 @@
 import { Component } from '@angular/core';
-import { CalendarEvent, CalendarView } from 'angular-calendar';
-import { HttpClient } from '@angular/common/http';
-import { startOfDay } from 'date-fns';
-import { FlatpickrDirective } from 'angularx-flatpickr';
-import { NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
-import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { CalendarModule,} from 'angular-calendar';
+import { FormsModule } from '@angular/forms';
+import { CalendarModule, CalendarEvent, CalendarView } from 'angular-calendar';
+import { startOfDay, addDays, subDays } from 'date-fns';
+import { NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
+import { HttpClientModule, HttpClient } from '@angular/common/http';
+import { FlatpickrModule } from 'angularx-flatpickr';
 
 @Component({
-  selector: 'app-demo',
+  selector: 'app-date',
   standalone: true,
+  templateUrl: './component.html',
+  styleUrls: ['./component.css'],
   imports: [
     CommonModule,
     FormsModule,
-    CalendarModule,   // 必須匯入
-    FlatpickrDirective,
-    NgbModalModule
+    CalendarModule,
+    NgbModalModule,
+    HttpClientModule,
+    FlatpickrModule,
   ],
-  templateUrl: './component.html',
-  styleUrls: ['./component.css']
-  
 })
 export class DemoComponent {
+  CalendarView = CalendarView;
   view: CalendarView = CalendarView.Month;
   viewDate: Date = new Date();
   events: CalendarEvent[] = [];
+  
+
   modalOpen = false;
-  selectedDate: Date = new Date();
+  selectedDate: Date | null = new Date();
   eventTitle = '';
   notify = false;
-  notifyTime: Date = new Date();
+  notifyTime: Date | null = new Date();
   editingEvent: CalendarEvent | null = null;
 
-  // 控制顯示模式
-  showList = false;
+  constructor(private http: HttpClient) {}
 
-  constructor(private http: HttpClient) {
-    this.loadEvents();
-  }
-  getToday(): Date {
+  // 控制列功能
+  goToday() { this.viewDate = new Date(); }
+  prev() { this.viewDate = subDays(this.viewDate, 1); }
+  next() { this.viewDate = addDays(this.viewDate, 1); }
+  
+goTodayDate(): Date {
   return new Date();
-  }
+}
 
-  // 讀取所有事件
-  loadEvents() {
-    this.http.get<CalendarEvent[]>('/api/events').subscribe(res => {
-      this.events = res.map(e => ({
-        start: startOfDay(new Date(e.start)),
-        title: e.title,
-        meta: { id: e.id, notify: e.notify, notifyTime: new Date(e.notify_time) }
-      }));
-    });
-  }
 
-  toggleView() {
-    this.showList = !this.showList;
-  }
-
+  // Modal 新增/編輯
   openAddModal(date: Date) {
     this.modalOpen = true;
     this.selectedDate = date;
@@ -70,34 +60,35 @@ export class DemoComponent {
   openEditModal(event: CalendarEvent) {
     this.modalOpen = true;
     this.selectedDate = event.start;
-    this.eventTitle = event.title!;
+    this.eventTitle = event.title ?? '';
     this.notify = !!(event.meta?.notify);
-    this.notifyTime = event.meta?.notifyTime || event.start;
+    this.notifyTime = event.meta?.notifyTime ?? event.start;
     this.editingEvent = event;
   }
 
   saveEvent() {
-    const payload = {
+    if (!this.selectedDate) return;
+
+    const newEvent: CalendarEvent = {
+      start: startOfDay(this.selectedDate),
       title: this.eventTitle,
-      start: this.selectedDate.toISOString(),
-      notify: this.notify,
-      notify_time: this.notifyTime.toISOString(),
-      user_id: ''
+      meta: { notify: this.notify, notifyTime: this.notifyTime },
     };
 
-    if (this.editingEvent) {
-      this.http.post(`/api/events/${this.editingEvent.meta?.id}`, payload).subscribe(() => this.loadEvents());
-    } else {
-      this.http.post('/api/events', payload).subscribe(() => this.loadEvents());
-    }
-    this.modalOpen = false;
+    if (this.editingEvent) Object.assign(this.editingEvent, newEvent);
+    else this.events.push(newEvent);
+
+    this.http.post('/api/events', newEvent).subscribe();
+    this.closeModal();
   }
 
-  deleteEvent(eventId?: number) {
-    if (!eventId && this.editingEvent) eventId = this.editingEvent.meta?.id;
-    if (eventId) {
-      this.http.delete(`/api/events/${eventId}`).subscribe(() => this.loadEvents());
-      this.modalOpen = false;
-    }
+  deleteEvent() {
+    if (!this.editingEvent) return;
+
+    this.events = this.events.filter(e => e !== this.editingEvent);
+    this.http.delete(`/api/events/${this.editingEvent.meta?.id}`).subscribe();
+    this.closeModal();
   }
+
+  closeModal() { this.modalOpen = false; }
 }
