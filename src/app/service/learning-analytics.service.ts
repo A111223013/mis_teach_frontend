@@ -3,52 +3,48 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-export interface LearningOverview {
+// 新的數據結構介面
+export interface MicroConceptMastery {
+  micro_concept_id: string;
+  mastery_score: number;
+  accuracy: number;
+  time_factor: number;
   total_questions: number;
   correct_answers: number;
-  accuracy_rate: number;
-  avg_answer_time: number;
-  overall_assessment: string;
+  avg_time: number;
+  name?: string;
+  block_id?: string;
 }
 
-export interface ConceptMastery {
-  [key: string]: {
-    mastery_rate: number;
-    accuracy_rate: number;
-    time_efficiency: number;
-    total_questions: number;
-    correct_answers: number;
-    avg_time: number;
-  };
+export interface BlockMastery {
+  block_id: string;
+  mastery_score: number;
+  micro_concepts: MicroConceptMastery[];
+  total_micro_concepts: number;
+  mastered_concepts: number;
 }
 
-export interface TopicMastery {
-  [key: string]: {
-    name: string;
-    overall_mastery: number;
-    concepts: Array<{
-      name: string;
-      mastery_rate: number;
-      sub_topic: string;
-    }>;
-    concept_count: number;
-    mastered_concepts: number;
-  };
+export interface DomainMastery {
+  domain_id: string;
+  mastery_score: number;
+  blocks: BlockMastery[];
+  total_blocks: number;
+  mastered_blocks: number;
 }
 
 export interface KnowledgeGraphNode {
   id: string;
   label: string;
-  type: 'topic' | 'concept';
-  mastery_rate: number;
+  type: 'domain' | 'block' | 'micro_concept';
+  mastery_score: number;
   size: number;
-  color: string;
+  block_id?: string; // 添加block_id屬性
 }
 
 export interface KnowledgeGraphEdge {
   source: string;
   target: string;
-  type: string;
+  type: 'belongs_to' | 'depends_on';
 }
 
 export interface KnowledgeGraph {
@@ -56,47 +52,53 @@ export interface KnowledgeGraph {
   edges: KnowledgeGraphEdge[];
 }
 
-export interface WeaknessAnalysis {
-  weaknesses: Array<{
-    concept: string;
-    mastery_rate: number;
-    issues: string[];
-  }>;
+export interface DependencyIssue {
+  prerequisite_id: string;
+  prerequisite_name: string;
+  prerequisite_mastery: number;
+  current_mastery: number;
+  gap: number;
+}
+
+export interface DependencyProblem {
+  micro_concept_id: string;
+  micro_concept_name: string;
+  issues: DependencyIssue[];
+  severity: 'high' | 'medium';
+}
+
+export interface WeaknessReport {
+  student_email: string;
+  summary: {
+    total_concepts: number;
+    critical_weaknesses: number;
+    moderate_weaknesses: number;
+    dependency_issues: number;
+  };
+  weaknesses: {
+    critical: MicroConceptMastery[];
+    moderate: MicroConceptMastery[];
+  };
+  dependency_issues: DependencyProblem[];
   recommendations: Array<{
-    concept: string;
-    priority: string;
-    suggestions: string[];
+    priority: 'high' | 'medium' | 'low';
+    action: string;
+    target: string;
+    reason: string;
+    estimated_time: string;
   }>;
-  overall_assessment: string;
 }
 
-export interface LearningAnalyticsData {
-  overview: LearningOverview;
-  concept_mastery: ConceptMastery;
-  topic_mastery: TopicMastery;
+export interface StudentMasteryData {
+  student_email: string;
+  domain_analyses: Array<{
+    domain_id: string;
+    domain_name: string;
+    mastery_score: number;
+    blocks: BlockMastery[];
+  }>;
+  weakness_report: WeaknessReport;
   knowledge_graph: KnowledgeGraph;
-  weaknesses_analysis: WeaknessAnalysis;
-  questions_data: any[];
-  student_answers: any[];
-}
-
-// 新增：知識關係圖介面
-export interface KnowledgeRelationshipNode {
-  id: string;
-  name: string;
-  type: 'concept' | 'topic';
-  category: string;
-}
-
-export interface KnowledgeRelationshipEdge {
-  source: string;
-  target: string;
-  type: 'hierarchy' | 'pre-requisite' | 'application';
-}
-
-export interface KnowledgeRelationshipGraph {
-  knowledge_nodes: KnowledgeRelationshipNode[];
-  knowledge_edges: KnowledgeRelationshipEdge[];
 }
 
 @Injectable({
@@ -108,51 +110,47 @@ export class LearningAnalyticsService {
   constructor(private http: HttpClient) {}
 
   /**
-   * 獲取完整的學習分析數據
+   * 獲取學生整體掌握度分析
    */
-  getLearningAnalytics(): Observable<{ success: boolean; data: LearningAnalyticsData }> {
-    return this.http.get<{ success: boolean; data: LearningAnalyticsData }>(`${this.baseUrl}/learning-analytics`);
+  getStudentMastery(studentEmail: string): Observable<{ success: boolean; data: StudentMasteryData }> {
+    return this.http.get<{ success: boolean; data: StudentMasteryData }>(`${this.baseUrl}/student-mastery/${studentEmail}`);
   }
 
   /**
-   * 獲取學習概覽
+   * 獲取學生弱點分析報告
    */
-  getOverview(): Observable<{ success: boolean; data: LearningOverview }> {
-    return this.http.get<{ success: boolean; data: LearningOverview }>(`${this.baseUrl}/overview`);
+  getWeaknessReport(studentEmail: string): Observable<{ success: boolean; data: WeaknessReport }> {
+    return this.http.get<{ success: boolean; data: WeaknessReport }>(`${this.baseUrl}/weakness-report/${studentEmail}`);
   }
 
   /**
-   * 獲取概念掌握率
+   * 獲取學生知識圖譜數據
    */
-  getConceptMastery(): Observable<{ success: boolean; data: ConceptMastery }> {
-    return this.http.get<{ success: boolean; data: ConceptMastery }>(`${this.baseUrl}/concept-mastery`);
+  getKnowledgeGraph(studentEmail: string): Observable<{ success: boolean; data: KnowledgeGraph }> {
+    return this.http.get<{ success: boolean; data: KnowledgeGraph }>(`${this.baseUrl}/knowledge-graph/${studentEmail}`);
   }
 
   /**
-   * 獲取主題掌握率
+   * 獲取學生對特定小知識點的掌握度
    */
-  getTopicMastery(): Observable<{ success: boolean; data: TopicMastery }> {
-    return this.http.get<{ success: boolean; data: TopicMastery }>(`${this.baseUrl}/topic-mastery`);
+  getMicroConceptMastery(studentEmail: string, microConceptId: string): Observable<{ success: boolean; data: MicroConceptMastery }> {
+    return this.http.get<{ success: boolean; data: MicroConceptMastery }>(`${this.baseUrl}/micro-concept-mastery/${studentEmail}/${microConceptId}`);
   }
 
   /**
-   * 獲取知識圖譜
+   * 獲取學生知識依存關係問題
    */
-  getKnowledgeGraph(): Observable<{ success: boolean; data: KnowledgeGraph }> {
-    return this.http.get<{ success: boolean; data: KnowledgeGraph }>(`${this.baseUrl}/knowledge-graph`);
+  getDependencyIssues(studentEmail: string): Observable<{ success: boolean; data: { student_email: string; dependency_issues: DependencyProblem[]; total_issues: number } }> {
+    return this.http.get<{ success: boolean; data: { student_email: string; dependency_issues: DependencyProblem[]; total_issues: number } }>(`${this.baseUrl}/dependency-issues/${studentEmail}`);
   }
 
+  // 保留舊的API端點以向後兼容（可選）
   /**
-   * 獲取弱點分析
+   * 獲取完整的學習分析數據（已棄用，請使用 getStudentMastery）
    */
-  getWeaknessesAnalysis(): Observable<{ success: boolean; data: WeaknessAnalysis }> {
-    return this.http.get<{ success: boolean; data: WeaknessAnalysis }>(`${this.baseUrl}/weaknesses-analysis`);
-  }
-
-  /**
-   * 獲取知識關係圖
-   */
-  getKnowledgeRelationship(): Observable<{ success: boolean; data: KnowledgeRelationshipGraph }> {
-    return this.http.get<{ success: boolean; data: KnowledgeRelationshipGraph }>(`${this.baseUrl}/knowledge-relationship`);
+  getLearningAnalytics(): Observable<{ success: boolean; data: any }> {
+    console.warn('getLearningAnalytics 已棄用，請使用 getStudentMastery');
+    // 這裡可以返回一個預設的學生郵箱，或者拋出錯誤
+    return this.getStudentMastery('default@example.com');
   }
 }

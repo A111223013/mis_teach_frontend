@@ -48,8 +48,11 @@
     "ng2-charts": "^7.0.0",
     "ngx-markdown": "^19.1.1",
     "ngx-scrollbar": "^13.0.3",
+    "ngx-vis": "^4.0.0",
     "rxjs": "~7.8.1",
     "tslib": "^2.7.0",
+    "vis-data": "^8.0.1",
+    "vis-network": "^10.0.1",
     "zone.js": "~0.15.1"
   },
   "devDependencies": {
