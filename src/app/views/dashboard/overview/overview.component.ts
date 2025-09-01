@@ -10,7 +10,7 @@ import {
 import { IconDirective, IconSetService } from '@coreui/icons-angular';
 import { cilUser } from '@coreui/icons';
 import { DashboardService } from '../../../service/dashboard.service';
-import { Chart } from 'chart.js';
+import { Chart, registerables } from 'chart.js';
 import { MathJaxService } from '../../../service/mathjax.service';
 
 @Component({
@@ -41,6 +41,7 @@ export class OverviewComponent implements OnInit {
     private mathJaxService: MathJaxService
   ) { 
     iconSetService.icons = { cilUser };
+    Chart.register(...registerables);
   }
 
   ngOnInit(): void {
