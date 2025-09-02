@@ -35,7 +35,7 @@ export interface DomainMastery {
 export interface KnowledgeGraphNode {
   id: string;
   label: string;
-  type: 'domain' | 'block' | 'micro_concept';
+  type: 'subject' | 'domain' | 'block' | 'micro_concept';
   mastery_score: number;
   size: number;
   block_id?: string; // 添加block_id屬性
