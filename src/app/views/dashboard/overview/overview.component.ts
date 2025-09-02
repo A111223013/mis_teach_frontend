@@ -166,7 +166,9 @@ export class OverviewComponent implements OnInit {
     if (eventId) {
       this.http.delete(`/date/events/${eventId}`).subscribe();
     }
-
+    if (eventId && confirm('確定要刪除此事件嗎？')) {
+  this.http.delete(`/date/events/${eventId}`).subscribe();
+}
     this.closeModal();
   }
 
