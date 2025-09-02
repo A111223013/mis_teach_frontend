@@ -30,21 +30,6 @@
             <div class="knowledge-graph-container">
               <!-- vis-network 容器 -->
               <div #knowledgeGraphContainer class="knowledge-graph-vis"></div>
-              <!-- 圖例 -->
-              <div class="graph-legend">
-                <div class="legend-item">
-                  <span class="legend-color domain"></span>
-                  <span>大知識點</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color block"></span>
-                  <span>章節</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color micro"></span>
-                  <span>小知識點</span>
-                </div>
-              </div>
             </div>
           </c-card-body>
         </c-card>
@@ -101,8 +86,8 @@
           <div class="info-row" *ngIf="selectedNode?.weakness_level && selectedNode.weakness_level !== 'none'">
             <span class="info-label">弱點等級：</span>
             <span class="info-value">
-              <c-badge [color]="getWeaknessLevelColor(selectedNode.weakness_level)">
-                {{ getWeaknessLevelText(selectedNode.weakness_level) }}
+              <c-badge [color]="getWeaknessLevelColor(selectedNode?.weakness_level || 'none')">
+                {{ getWeaknessLevelText(selectedNode?.weakness_level || 'none') }}
               </c-badge>
             </span>
           </div>
