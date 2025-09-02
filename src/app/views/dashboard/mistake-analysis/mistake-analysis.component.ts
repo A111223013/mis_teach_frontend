@@ -472,14 +472,67 @@ export class MistakeAnalysisComponent implements OnInit {
 
   startGuidedLearning(question: MistakeQuestion): void {
     // 導航到 AI 輔導頁面，進行引導學習
+    // 傳遞完整的題目信息，支持AI輔導系統的引導學習模式
     this.router.navigate(['/dashboard/ai-tutoring'], {
       queryParams: { 
         questionId: question.id,
         mode: 'guided_learning',
         topic: question.topic,
-        chapter: question.chapter
+        chapter: question.chapter,
+        questionText: question.question_text,
+        studentAnswer: question.student_answer,
+        correctAnswer: question.correct_answer,
+        score: question.score,
+        isCorrect: question.is_correct,
+        examType: question.exam_type || 'general',
+        timestamp: question.timestamp.toISOString(),
+        // 新增：支持引導學習的特定參數
+        learningType: 'concept_understanding',
+        difficulty: this.getDifficultyLevel(question.score),
+        focusAreas: this.getFocusAreas(question),
+        // 支持學習路徑設置
+        learningPath: 'progressive',
+        // 支持個性化學習設置
+        adaptiveLearning: 'true',
+        stepByStep: 'true'
       }
     });
+  }
+
+  // 新增：根據分數判斷難度等級
+  private getDifficultyLevel(score: number): string {
+    if (score >= 80) return 'easy';
+    if (score >= 60) return 'medium';
+    if (score >= 40) return 'hard';
+    return 'very_hard';
+  }
+
+  // 新增：根據題目特點確定重點學習領域
+  private getFocusAreas(question: MistakeQuestion): string {
+    const focusAreas: string[] = [];
+    
+    // 根據答題情況判斷重點
+    if (!question.is_correct) {
+      if (question.student_answer && question.student_answer.trim() !== '') {
+        focusAreas.push('concept_clarification');
+        focusAreas.push('common_mistakes');
+      } else {
+        focusAreas.push('basic_concepts');
+        focusAreas.push('knowledge_gaps');
+      }
+    }
+    
+    // 根據分數判斷
+    if (question.score < 60) {
+      focusAreas.push('fundamental_understanding');
+    }
+    
+    // 根據題目類型判斷
+    if (question.type) {
+      focusAreas.push(`type_${question.type}`);
+    }
+    
+    return focusAreas.join(',');
   }
 
   // 獲取各類題目數量

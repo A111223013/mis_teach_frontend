@@ -88,3 +88,30 @@
   
   /* Add styles for charts or other dashboard elements here */
   
+  .calendar-container {
+  max-width: 450px;
+  margin: auto;
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0;
+  width: 75%; height: 75%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 300px;
+}
+
+.modal-buttons {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
