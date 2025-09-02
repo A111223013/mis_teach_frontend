@@ -42,7 +42,7 @@ export class CoursesComponent {
   }
 
   goToMaterial(kp: string) {
-    this.router.navigate(['/dashboard/material'], { queryParams: { keypoint: kp } });
+    this.router.navigate(['/dashboard/material', kp]);
   }
 
 }
