@@ -41,7 +41,8 @@ import {
   cilCalendar,
   cilEducation,
   cilArrowRight,
-  cilReload
+  cilReload,
+  cilNewspaper 
 } from '@coreui/icons';
 
 bootstrapApplication(AppComponent, {
@@ -86,7 +87,8 @@ bootstrapApplication(AppComponent, {
           cilCalendar,
           cilEducation,
           cilArrowRight,
-          cilReload
+          cilReload,
+          cilNewspaper 
         };
         return iconSetService;
       }

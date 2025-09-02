@@ -1,0 +1,119 @@
+/* 整個卡片容器的 Flexbox 佈局 */
+.c-card-container {
+    display: flex;
+    gap: 1rem; // 卡片之間的間距
+    flex-wrap: wrap; // 超出時換行
+    justify-content: center; // 水平置中
+    padding: 1.25rem;
+}
+
+/* 單張卡片的基礎樣式 */
+.c-card {
+    cursor: pointer;
+    width: 350px; // 卡片固定寬度
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+    display: flex;
+    flex-direction: column; // 內部元件垂直排列
+    transition: transform 0.2s; // 增加滑鼠懸停效果
+
+    &:hover {
+        transform: translateY(-5px); // 滑鼠懸停時上移
+    }
+}
+
+/* 標頭樣式 */
+.c-card-header {
+    height: 200px;
+    overflow: hidden;
+    background-color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.header-image-wrapper, .header-text-wrapper {
+    width: 100%;
+    height: 100%;
+}
+
+.header-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; // 圖片填滿容器
+}
+
+.header-text-wrapper {
+    color: white;
+    background-color: #d90f23; // 根據圖片設定為紅色
+    padding: 0.625rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.header-text-wrapper pre {
+    margin: 0;
+    font-size: 2em;
+    font-weight: bold;
+    white-space: pre-wrap; // 換行顯示
+}
+
+/* 內文樣式 */
+.c-card-body {
+    padding: 1rem;
+    flex-grow: 1; // 佔據剩餘空間
+}
+
+.c-card-tags {
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+
+    .tag {
+        background-color: #e6f7ff;
+        color: #1890ff;
+        border: 1px solid #91d5ff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-right: 4px;
+        white-space: nowrap; // 避免標籤換行
+    }
+}
+
+.c-card-headline {
+    font-size: 1.25em;
+    font-weight: bold;
+    color: #333;
+    margin: 0 0 0.5rem;
+}
+
+.c-card-subheadline {
+    font-size: 1em;
+    color: #666;
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; // 限制文字顯示兩行
+    -webkit-box-orient: vertical;
+}
+
+/* 底部樣式 */
+.c-card-footer {
+    padding: 1rem;
+    border-top: 1px solid #e0e0e0;
+    font-size: 0.8rem;
+    color: #999;
+}
+
+/* 將 <a> 標籤的樣式移除，讓它看起來像原本的卡片 */
+.card-link {
+  text-decoration: none; /* 移除底線 */
+  color: inherit; /* 繼承父元素的顏色 */
+  display: block; /* 讓 <a> 標籤變成區塊元素，才能佔據整個卡片空間 */
+}

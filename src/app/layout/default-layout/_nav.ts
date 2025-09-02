@@ -41,5 +41,10 @@ export const navItems: INavData[] = [
         iconComponent: { name: 'cilSpeech' }
       }
     ]
-  }
+  },
+  {
+    name: '科技趨勢',
+    url: '/dashboard/news',
+    iconComponent: { name: 'cilNewspaper' }
+  },
 ]; 

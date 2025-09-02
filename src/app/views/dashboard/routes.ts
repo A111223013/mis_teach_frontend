@@ -96,6 +96,13 @@ export const routes: Routes = [
         }
     },
     {
+        path: 'news',
+        loadComponent: () => import('./news/news.component').then(m => m.NewsComponent),
+        data: {
+          title: '科技趨勢'
+        }
+    },
+    {
         path: 'analytics',
         redirectTo: 'overview',
         pathMatch: 'full'

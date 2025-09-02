@@ -1,0 +1,31 @@
+<div class="c-card-container">
+  @for (card of cards; track card.headline) {
+    <a [href]="card.url" target="_blank" class="card-link">
+      <div class="c-card">
+        <div class="c-card-header">
+          @if (card.headerType === 'image') {
+            <div class="header-image-wrapper">
+              <img [src]="card.headerContent" alt="卡片標頭圖片" class="header-image">
+            </div>
+          } @else {
+            <div class="header-text-wrapper">
+              <pre>{{ card.headerContent }}</pre>
+            </div>
+          }
+        </div>
+        <div class="c-card-body">
+          <div class="c-card-tags">
+              @for (tag of card.tags; track tag) {
+                  <span class="tag">{{ tag }}</span>
+              }
+          </div>
+          <h3 class="c-card-headline">{{ card.headline }}</h3>
+          <p class="c-card-subheadline">{{ card.subheadline }}</p>
+        </div>
+        <div class="c-card-footer">
+          <span class="c-card-date">{{ card.date }}</span>
+        </div>
+      </div>
+    </a>
+  }
+</div>
