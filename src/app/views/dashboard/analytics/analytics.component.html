@@ -13,21 +13,10 @@
   <div *ngIf="error" class="alert alert-danger" role="alert">
     <h4 class="alert-heading">載入失敗</h4>
     <p>{{ error }}</p>
-    <button class="btn btn-outline-danger" (click)="reloadData()">
-      <i class="cilCog"></i> 重新載入
-    </button>
   </div>
 
   <!-- 主要內容 -->
   <div *ngIf="!loading && !error" class="analytics-main">
-    <!-- 頁面標題 -->
-    <div class="page-header mb-4">
-      <h2 class="page-title">
-        <i class="cilChart"></i> 互動式知識圖譜學習成效分析
-      </h2>
-      <p class="page-subtitle">點擊知識點節點查看詳細學習數據與建議</p>
-    </div>
-
     <!-- 知識圖譜區域 -->
     <div class="row">
       <div class="col-12">
@@ -36,17 +25,11 @@
             <h5 class="card-title">
               <i class="cilBook"></i> 知識圖譜
             </h5>
-            <div class="card-actions">
-              <button class="btn btn-sm btn-outline-secondary" (click)="reloadData()">
-                <i class="cilCog"></i> 重新整理
-              </button>
-            </div>
           </c-card-header>
           <c-card-body class="p-0">
             <div class="knowledge-graph-container">
               <!-- vis-network 容器 -->
               <div #knowledgeGraphContainer class="knowledge-graph-vis"></div>
-ㄎcd..              
               <!-- 圖例 -->
               <div class="graph-legend">
                 <div class="legend-item">
@@ -139,38 +122,6 @@
             </div>
           </div>
         </div>
-
-        <!-- 學習建議 -->
-        <div class="learning-suggestions mb-4" *ngIf="selectedNode && getLearningSuggestions(selectedNode).length > 0">
-          <h6 class="section-title">學習建議</h6>
-          <div class="suggestion-list">
-            <div class="suggestion-item" *ngFor="let suggestion of getLearningSuggestions(selectedNode)">
-              <i class="cilLightbulb"></i>
-              <span>{{ suggestion }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 相關題目 -->
-        <div class="related-questions mb-4" *ngIf="selectedNode && getRelatedQuestions(selectedNode).length > 0">
-          <h6 class="section-title">相關題目</h6>
-          <div class="question-list">
-            <div class="question-item" *ngFor="let question of getRelatedQuestions(selectedNode)">
-              <div class="question-header">
-                <span class="question-text">{{ question.text }}</span>
-                <c-badge [color]="question.isCorrect ? 'success' : 'danger'">
-                  {{ question.isCorrect ? '正確' : '錯誤' }}
-                </c-badge>
-              </div>
-              <div class="question-meta">
-                <small class="text-muted">
-                  難度：{{ question.difficulty }} | 
-                  作答時間：{{ question.answerTime }}秒
-                </small>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -178,7 +129,7 @@
     <div class="practice-suggestions-section mt-4" *ngIf="selectedNode">
       <h6 class="section-title">練習建議</h6>
       <div class="suggestion-main mb-3">
-        <p>{{ getMainPracticeSuggestion(selectedNode) }}</p>
+        <p>根據您的掌握度，建議加強相關練習以提升學習效果。</p>
       </div>
       <div class="suggestion-actions">
         <button class="btn btn-primary me-2">

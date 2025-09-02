@@ -36,7 +36,19 @@ interface KnowledgeNode {
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [],
+  imports: [
+    CommonModule,
+    HttpClientModule,
+    CardModule,
+    GridModule,
+    ProgressModule,
+    BadgeModule,
+    ButtonModule,
+    AlertModule,
+    SpinnerModule,
+    ModalModule,
+    IconModule
+  ],
   templateUrl: './analytics.component.html',
   styleUrls: ['./analytics.component.scss']
 })
@@ -182,7 +194,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy, AfterViewInit {
         mastery_score: node.mastery_score,
         type: node.type as 'domain' | 'block' | 'micro_concept',
         color: this.getColorByMastery(node.mastery_score),
-        size: node.type === 'domain' ? 50 : node.type === 'block' ? 35 : 25,
+        size: node.type === 'domain' ? 80 : node.type === 'block' ? 50 : 30,
         weakness_level: weaknessLevel,
         block_id: (node as any).block_id
       };
@@ -309,16 +321,17 @@ export class AnalyticsComponent implements OnInit, OnDestroy, AfterViewInit {
         solver: 'forceAtlas2Based',
         forceAtlas2Based: {
           gravitationalConstant: -50,
-          centralGravity: 0.01,
-          springLength: 100,
-          springConstant: 0.08,
-          damping: 0.4,
-          avoidOverlap: 0.5
+          centralGravity: 0.3,
+          springLength: 200,
+          springConstant: 0.05,
+          damping: 0.8,
+          avoidOverlap: 0.9
         },
         stabilization: {
           enabled: true,
-          iterations: 1000,
-          updateInterval: 100
+          iterations: 2000,
+          updateInterval: 50,
+          fit: true
         }
       },
       interaction: {
@@ -364,13 +377,76 @@ export class AnalyticsComponent implements OnInit, OnDestroy, AfterViewInit {
     const container = this.knowledgeGraphContainer.nativeElement;
     container.innerHTML = ''; // 清空容器
 
-    // 創建節點元素
-    this.knowledgeNodes.forEach((node, index) => {
+    // 找到計算機概論節點（domain類型）
+    const centerNode = this.knowledgeNodes.find(n => n.type === 'domain');
+    const otherNodes = this.knowledgeNodes.filter(n => n.type !== 'domain');
+    
+    // 容器尺寸
+    const containerWidth = container.offsetWidth || 800;
+    const containerHeight = container.offsetHeight || 600;
+    const centerX = containerWidth / 2;
+    const centerY = containerHeight / 2;
+
+    // 先渲染中心節點（計算機概論）
+    if (centerNode) {
+      const centerElement = document.createElement('div');
+      centerElement.className = 'knowledge-node center-node';
+      centerElement.id = `node-${centerNode.id}`;
+      
+      centerElement.style.cssText = `
+        position: absolute;
+        width: ${centerNode.size * 2}px;
+        height: ${centerNode.size * 2}px;
+        border-radius: 50%;
+        background-color: ${centerNode.color};
+        border: 4px solid #ff8c00;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
+        z-index: 20;
+        left: ${centerX - centerNode.size}px;
+        top: ${centerY - centerNode.size}px;
+      `;
+      
+      centerElement.textContent = centerNode.label;
+      centerElement.title = centerNode.label;
+      
+      centerElement.addEventListener('click', () => {
+        this.handleNodeClick(centerNode);
+      });
+      
+      centerElement.addEventListener('mouseenter', () => {
+        centerElement.style.transform = 'scale(1.15)';
+        centerElement.style.boxShadow = '0 8px 25px rgba(0,0,0,0.5)';
+      });
+      
+      centerElement.addEventListener('mouseleave', () => {
+        centerElement.style.transform = 'scale(1)';
+        centerElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+      });
+      
+      container.appendChild(centerElement);
+    }
+
+    // 渲染其他節點，圍繞中心節點形成發散網狀佈局
+    otherNodes.forEach((node, index) => {
       const nodeElement = document.createElement('div');
       nodeElement.className = 'knowledge-node';
       nodeElement.id = `node-${node.id}`;
       
-      // 設置節點樣式
+      // 計算發散佈局位置 - 使用極座標系統
+      const angle = (index / otherNodes.length) * 2 * Math.PI;
+      const radius = 250; // 發散半徑
+      const x = centerX + Math.cos(angle) * radius - node.size;
+      const y = centerY + Math.sin(angle) * radius - node.size;
+      
       nodeElement.style.cssText = `
         position: absolute;
         width: ${node.size * 2}px;
@@ -382,27 +458,20 @@ export class AnalyticsComponent implements OnInit, OnDestroy, AfterViewInit {
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        font-size: 12px;
+        font-size: ${node.type === 'block' ? 12 : 10}px;
         font-weight: bold;
         color: white;
         text-align: center;
         box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         transition: all 0.3s ease;
         z-index: 10;
+        left: ${x}px;
+        top: ${y}px;
       `;
-      
-      // 設置節點位置（簡單的網格佈局）
-      const row = Math.floor(index / 4);
-      const col = index % 4;
-      const x = 100 + col * 200;
-      const y = 100 + row * 150;
-      
-      nodeElement.style.left = `${x}px`;
-      nodeElement.style.top = `${y}px`;
       
       // 節點標籤
       nodeElement.textContent = node.label.length > 8 ? node.label.substring(0, 8) + '...' : node.label;
-      nodeElement.title = node.label; // 完整標籤作為提示
+      nodeElement.title = node.label;
       
       // 添加點擊事件
       nodeElement.addEventListener('click', () => {
@@ -485,17 +554,9 @@ export class AnalyticsComponent implements OnInit, OnDestroy, AfterViewInit {
    * 根據掌握率獲取節點顏色
    */
   private getColorByMastery(masteryScore: number): string {
-    if (masteryScore >= 80) return '#28a745'; // 綠色
-    if (masteryScore >= 60) return '#ffc107'; // 黃色
-    if (masteryScore >= 40) return '#fd7e14'; // 橙色
-    return '#dc3545'; // 紅色
-  }
-
-  /**
-   * 重新載入數據
-   */
-  reloadData(): void {
-    this.loadAnalyticsData();
+    if (masteryScore >= 80) return '#28a745'; // 綠色 - 優秀
+    if (masteryScore >= 60) return '#ffc107'; // 黃色 - 良好
+    return '#dc3545'; // 紅色 - 需加強
   }
 
   /**
@@ -550,7 +611,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   getNodeDependencies(node: KnowledgeNode): Array<{type: string, name: string, mastery_score: number}> {
     if (!this.knowledgeGraph || !this.knowledgeGraph.nodes) return [];
-
+    
     const dependencies: Array<{type: string, name: string, mastery_score: number}> = [];
 
     // 查找上游依存（依賴此節點的知識點）
@@ -579,76 +640,5 @@ export class AnalyticsComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     return dependencies;
-  }
-
-  /**
-   * 獲取學習建議
-   */
-  getLearningSuggestions(node: KnowledgeNode): string[] {
-    const suggestions: string[] = [];
-
-    if (node.mastery_score < 60) {
-      suggestions.push(`建議加強「${node.label}」的基礎概念理解`);
-      
-      // 檢查依存關係
-      const dependencies = this.getNodeDependencies(node);
-      const upstreamDeps = dependencies.filter(d => d.type === '上游依存' && d.mastery_score < 60);
-      
-      if (upstreamDeps.length > 0) {
-        suggestions.push(`建議先複習「${upstreamDeps[0].name}」，掌握度僅${upstreamDeps[0].mastery_score}%`);
-      }
-      
-      suggestions.push(`建議多做相關練習題，目標掌握度80%以上`);
-    } else if (node.mastery_score < 80) {
-      suggestions.push(`「${node.label}」掌握度良好，建議通過實作加深理解`);
-      suggestions.push(`可以嘗試更具挑戰性的題目`);
-    } else {
-      suggestions.push(`「${node.label}」掌握度優秀，可以幫助其他同學學習`);
-      suggestions.push(`建議學習更高階的相關概念`);
-    }
-
-    return suggestions;
-  }
-
-  /**
-   * 獲取相關題目
-   */
-  getRelatedQuestions(node: KnowledgeNode): Array<{text: string, isCorrect: boolean, difficulty: string, answerTime: number}> {
-    // 模擬相關題目數據
-    const mockQuestions = [
-      {
-        text: `關於「${node.label}」的基礎概念問題`,
-        isCorrect: node.mastery_score > 70,
-        difficulty: '中等',
-        answerTime: Math.floor(Math.random() * 60) + 30
-      },
-      {
-        text: `「${node.label}」的應用實例分析`,
-        isCorrect: node.mastery_score > 60,
-        difficulty: '困難',
-        answerTime: Math.floor(Math.random() * 60) + 45
-      },
-      {
-        text: `「${node.label}」與其他概念的關聯性`,
-        isCorrect: node.mastery_score > 50,
-        difficulty: '簡單',
-        answerTime: Math.floor(Math.random() * 60) + 20
-      }
-    ];
-
-    return mockQuestions;
-  }
-
-  /**
-   * 獲取主要練習建議
-   */
-  getMainPracticeSuggestion(node: KnowledgeNode): string {
-    if (node.mastery_score < 60) {
-      return `您的「${node.label}」掌握度為${node.mastery_score}%，建議從基礎概念開始，逐步加強練習。建議每天練習15-20分鐘，重點關注基礎題型。`;
-    } else if (node.mastery_score < 80) {
-      return `您的「${node.label}」掌握度為${node.mastery_score}%，基礎紮實，建議多做應用題和綜合題，提升實戰能力。`;
-    } else {
-      return `您的「${node.label}」掌握度為${node.mastery_score}%，表現優秀！建議挑戰更高難度的題目，或幫助其他同學學習。`;
-    }
   }
 }
