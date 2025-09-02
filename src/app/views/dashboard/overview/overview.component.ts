@@ -17,7 +17,16 @@ import { CalendarModule, CalendarEvent, CalendarView } from 'angular-calendar';
 import { startOfDay, addDays, subDays } from 'date-fns';
 import { NgbModalModule } from '@ng-bootstrap/ng-bootstrap';
 import { HttpClientModule, HttpClient } from '@angular/common/http';
-import { FlatpickrModule } from 'angularx-flatpickr';
+import { FlatpickrDirective } from 'angularx-flatpickr';
+
+
+interface MyCalendarEvent extends CalendarEvent {
+  meta: {
+    id?: number;
+    notify?: boolean;
+    notifyTime?: Date | null;
+  };
+}
 
 @Component({
     selector: 'app-overview',
@@ -38,7 +47,7 @@ import { FlatpickrModule } from 'angularx-flatpickr';
         CalendarModule,
         NgbModalModule,
         HttpClientModule,
-        FlatpickrModule,
+        FlatpickrDirective,
     ]
 })
 export class OverviewComponent implements OnInit {
@@ -50,10 +59,10 @@ export class OverviewComponent implements OnInit {
   events: CalendarEvent[] = [];
   
 
-  modalOpen = false;
+  modalOpen : boolean= false;
   selectedDate: Date | null = new Date();
-  eventTitle = '';
-  notify = false;
+  eventTitle: string = '';
+  notify: boolean = false;
   notifyTime: Date | null = new Date();
   editingEvent: CalendarEvent | null = null;
   
@@ -67,7 +76,7 @@ export class OverviewComponent implements OnInit {
     iconSetService.icons = { cilUser };
     Chart.register(...registerables);
   }
-
+    
   // 控制列功能
   goToday() { this.viewDate = new Date(); }
   prev() { this.viewDate = subDays(this.viewDate, 1); }
@@ -100,39 +109,68 @@ export class OverviewComponent implements OnInit {
     this.editingEvent = null;
   }
 
-  openEditModal(event: CalendarEvent) {
-    this.modalOpen = true;
-    this.selectedDate = event.start;
-    this.eventTitle = event.title ?? '';
-    this.notify = !!(event.meta?.notify);
-    this.notifyTime = event.meta?.notifyTime ?? event.start;
-    this.editingEvent = event;
-  }
+  openEditModal(event: CalendarEvent<any>) {
+  const myEvent: MyCalendarEvent = {
+    ...event,
+    meta: {
+      id: event.meta?.id,
+      notify: event.meta?.notify ?? false,
+      notifyTime: event.meta?.notifyTime ?? event.start
+    }
+  };
 
+  this.modalOpen = true;
+  this.selectedDate = myEvent.start;
+  this.eventTitle = myEvent.title!;
+  this.notify = !!myEvent.meta.notify;
+  this.notifyTime = myEvent.meta.notifyTime ?? null;
+  this.editingEvent = myEvent;
+}
   saveEvent() {
-    if (!this.selectedDate) return;
+  if (!this.selectedDate) return;
 
-    const newEvent: CalendarEvent = {
+  // 準備事件資料
+  const newEvent: MyCalendarEvent = {
       start: startOfDay(this.selectedDate),
       title: this.eventTitle,
-      meta: { notify: this.notify, notifyTime: this.notifyTime },
+      meta: {
+        id: this.editingEvent?.meta?.id,
+        notify: this.notify,
+        notifyTime: this.notifyTime,
+      },
     };
 
-    if (this.editingEvent) Object.assign(this.editingEvent, newEvent);
-    else this.events.push(newEvent);
+    if (this.editingEvent) {
+      Object.assign(this.editingEvent, newEvent);
+    } else {
+      this.events.push(newEvent);
+    }
 
-    this.http.post('/api/events', newEvent).subscribe();
+    // 發送到後端
+    this.http.post('/date/events', newEvent).subscribe((res: any) => {
+      // 如果是新增事件，後端會回傳 id
+      if (!this.editingEvent && res.id) {
+        newEvent.meta.id = res.id;
+      }
+    });
+
     this.closeModal();
   }
 
   deleteEvent() {
     if (!this.editingEvent) return;
 
+    const eventId = this.editingEvent.meta?.id;
     this.events = this.events.filter(e => e !== this.editingEvent);
-    this.http.delete(`/api/events/${this.editingEvent.meta?.id}`).subscribe();
+
+    if (eventId) {
+      this.http.delete(`/date/events/${eventId}`).subscribe();
+    }
+
     this.closeModal();
   }
 
-  closeModal() { this.modalOpen = false; }
+  closeModal() {
+    this.modalOpen = false;
+  }
 }
-
