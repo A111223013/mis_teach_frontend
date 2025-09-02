@@ -1,0 +1,25 @@
+.card-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem; // 稍微加大間距
+}
+
+c-card {
+  flex: 1 1 260px; // 增加最小寬度
+  min-width: 260px;
+  padding: 2rem; // 增加內距
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  transition: box-shadow 0.3s ease;
+  font-size: 1rem; // 增加卡片內文字大小
+}
+
+c-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+
+.card-content {
+  font-size: 1rem; // 讓知識點文字更大
+  font-weight: bold;
+  text-align: center;
+}

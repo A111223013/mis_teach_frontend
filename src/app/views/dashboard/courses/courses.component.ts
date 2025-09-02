@@ -1,6 +1,9 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { CardModule } from '@coreui/angular';
 import { RouterModule, Router  } from '@angular/router';
+import { MaterialService } from '../../../service/material.service';
+
 
 interface CourseItem {
   id: string;        // 路由使用的識別碼，例如 'cs-intro'
@@ -11,23 +14,35 @@ interface CourseItem {
 @Component({
   selector: 'app-courses',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [
+    CommonModule, 
+    RouterModule,
+    CardModule
+  ],
   templateUrl: './courses.component.html',
   styleUrls: ['./courses.component.scss']
 })
 export class CoursesComponent {
-  // 先寫死幾個科目，之後可以從後端 API 取代
-  courses: CourseItem[] = [
-    { id: 'cs-intro', name: '計算機概論', description: '基礎概念、硬體/軟體、資料表示', icon: '💻' },
-    { id: 'db', name: '資料庫', description: '關聯模型、SQL、交易、索引', icon: '🗄️' },
-    { id: 'security', name: '資安', description: '資安觀念、攻防與實務', icon: '🛡️' },
-    { id: 'network', name: '電腦網路', description: 'OSI/TCP-IP、協定與拓撲', icon: '🌐' },
-  ];
+  keyPoints: string[] = [];
 
-  constructor(private router: Router) {}
+  constructor(private router: Router, private materialService: MaterialService) {
+    this.loadKeyPoints();
+  }
 
-  goToMaterial() {
-    this.router.navigate(['/dashboard/material']);
+  loadKeyPoints() {
+    this.materialService.getKeyPoints().subscribe({
+      next: (res) => {
+        console.log('API 回傳資料:', res); // 新增這行
+        this.keyPoints = res.key_points;
+      },
+      error: (err) => {
+        console.error('載入知識點失敗', err);
+      }
+    });
+  }
+
+  goToMaterial(kp: string) {
+    this.router.navigate(['/dashboard/material'], { queryParams: { keypoint: kp } });
   }
 
 }

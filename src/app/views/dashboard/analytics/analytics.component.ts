@@ -36,7 +36,19 @@ interface KnowledgeNode {
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [],
+  imports: [
+    CommonModule,
+    HttpClientModule,
+    CardModule, 
+    GridModule, 
+    ProgressModule, 
+    BadgeModule,
+    ButtonModule,
+    AlertModule,
+    SpinnerModule,
+    ModalModule,
+    IconModule
+  ],
   templateUrl: './analytics.component.html',
   styleUrls: ['./analytics.component.scss']
 })
