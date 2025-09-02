@@ -1,21 +1,18 @@
-<h2>教材清單</h2>
-
-<!-- 列出所有教材檔案 -->
-<ul>
-  <li *ngFor="let file of files" (click)="loadFile(file)" style="cursor:pointer">
-    {{ file }}
-  </li>
-</ul>
-
-<hr />
-
-<!-- 顯示選中的教材 -->
-<div *ngIf="selectedFile">
-  <h3>{{ selectedFile }}</h3>
-  <markdown [data]="content"></markdown>
+<h2>{{ keypoint }}</h2>
+<div *ngIf="domain; else noDomain">
+  <h3>區塊 (Block)</h3>
+  <ul>
+    <li *ngFor="let b of blocks">
+      {{ b.title }}
+      <ul>
+        <li *ngFor="let mc of getMicroConceptsByBlock(b)">
+          {{ mc.name }}
+        </li>
+      </ul>
+    </li>
+  </ul>
 </div>
+<ng-template #noDomain>
+  <p>查無此知識點</p>
+</ng-template>
 
-<!-- 沒選檔案時提示 -->
-<div *ngIf="!selectedFile">
-  <p>請從清單中選擇一份教材。</p>
-</div>
