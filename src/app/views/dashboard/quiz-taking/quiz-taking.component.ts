@@ -15,6 +15,7 @@ import {
 import { IconModule } from '@coreui/icons-angular';
 import { QuizService } from '../../../service/quiz.service';
 import { AuthService } from '../../../service/auth.service';
+import { AiQuizService } from '../../../service/ai-quiz.service';
 import { Subscription, interval } from 'rxjs';
 
 interface QuizQuestion {
@@ -123,6 +124,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     private router: Router,
     private quizService: QuizService,
     private authService: AuthService,
+    private aiQuizService: AiQuizService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -697,6 +699,11 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     return this.answeredCount > 0;
   }
 
+  // 判斷是否為AI生成的題目
+  isAIQuiz(): boolean {
+    return !!(this.templateId && this.templateId.startsWith('ai_template_'));
+  }
+
   // 提交測驗
   submitQuiz(): void {
     console.debug('[submitQuiz] 進入 submitQuiz 方法');
@@ -750,6 +757,226 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     // 顯示進度提示
     this.showProgressModal();
 
+    // 判斷是否為AI題目，使用不同的提交邏輯
+    if (this.isAIQuiz()) {
+      console.log('🎯 檢測到AI題目，使用AI Quiz服務提交');
+      this.submitAIQuiz(submissionData);
+    } else {
+      console.log('📝 傳統題目，使用Quiz服務提交');
+      this.submitTraditionalQuiz(submissionData);
+    }
+  }
+
+  // 提交AI題目 - 按照quiz.py的流程
+  private submitAIQuiz(submissionData: any): void {
+    
+    // 直接調用後端的submit_quiz API，讓後端處理AI題目的提交流程
+    // 這樣可以確保AI題目和傳統題目使用相同的提交流程
+    this.quizService.submitQuiz(submissionData).subscribe({
+      next: (response: any) => {
+        console.log('✅ AI題目提交成功:', response);
+        
+        // 獲取進度追蹤ID
+        const progressId = response.data?.progress_id;
+        if (progressId) {
+          console.log('🎯 開始進度追蹤，progress_id:', progressId);
+          // 連接後端進度追蹤
+          this.connectProgressTracking(progressId);
+        } else {
+          console.warn('⚠️ 沒有收到progress_id，使用默認進度顯示');
+          // 如果沒有progress_id，隱藏進度提示並直接跳轉
+          this.hideProgressModal();
+        }
+        
+        // 準備錯題和標記題目的資料
+        const wrongQuestions = this.getWrongQuestions();
+        const markedQuestions = this.getMarkedQuestions();
+        console.debug('[submitAIQuiz] 錯題資料:', wrongQuestions);
+        console.debug('[submitAIQuiz] 標記題目資料:', markedQuestions);
+        
+        // 將測驗結果存入 sessionStorage 供 AI tutoring 使用
+        const quizResultData = {
+          quiz_id: this.templateId,
+          quiz_title: this.quizTitle,
+          quiz_type: 'ai_generated',
+          total_questions: this.questions.length,
+          wrong_questions: wrongQuestions,
+          marked_questions: markedQuestions,
+          submission_id: response.submission_id,
+          result_id: response.data?.result_id,
+          user_answers: this.userAnswers,
+          time_taken: submissionData.time_taken,
+          question_answer_times: this.questionAnswerTimes
+        };
+        console.debug('[submitAIQuiz] 存入 sessionStorage 的 quizResultData:', quizResultData);
+        
+        sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
+        
+        // 注意：現在不立即跳轉，而是等待進度追蹤完成後再跳轉
+        // 進度追蹤完成後會在 handleProgressUpdate 中處理跳轉
+        
+      },
+      error: (error: any) => {
+        console.error('❌ AI題目提交失敗:', error);
+        
+        // 隱藏進度提示
+        this.hideProgressModal();
+        
+        // 顯示錯誤信息
+        let errorMessage = '提交AI題目失敗';
+        if (error.status === 401) {
+          errorMessage = '登入已過期，請重新登入';
+          this.authService.logout();
+        } else if (error.error?.message) {
+          errorMessage = error.error.message;
+        }
+        
+        alert(errorMessage);
+      }
+    });
+  }
+
+  // 處理AI測驗結果（參考quiz.py的流程）
+  private processAIQuizResult(submissionData: any, analysisResponse: any, sessionResponse: any): void {
+    console.log('🔄 處理AI測驗結果...');
+    
+    // 模擬quiz.py的完整提交流程
+    
+    // 階段1: 試卷批改 - 獲取題目數據
+    console.log('🔄 階段1: 試卷批改 - 獲取題目數據');
+    
+    // 階段2: 計算分數 - 分類題目
+    console.log('🔄 階段2: 計算分數 - 分類題目');
+    const { correctCount, wrongCount, totalScore, wrongQuestions, answeredCount, unansweredCount } = this.calculateAIQuizScore();
+    
+    // 階段3: 評判知識點 - AI評分
+    console.log('🔄 階段3: 評判知識點 - AI評分');
+    
+    // 階段4: 生成學習計畫 - 統計結果
+    console.log('🔄 階段4: 生成學習計畫 - 統計結果');
+    
+    // 計算統計數據（類似quiz.py的計算邏輯）
+    const totalQuestions = this.questions.length;
+    const accuracyRate = (correctCount / totalQuestions * 100) || 0;
+    const averageScore = (totalScore / answeredCount) || 0;
+    
+    // 準備測驗結果數據（完全參考quiz.py的結果格式）
+    const quizResultData = {
+      // 基本測驗信息
+      template_id: this.templateId,
+      quiz_history_id: `ai_${Date.now()}`, // AI題目使用時間戳作為ID
+      result_id: `ai_result_${Date.now()}`,
+      progress_id: `ai_progress_${Date.now()}`,
+      
+      // 題目統計
+      total_questions: totalQuestions,
+      answered_questions: answeredCount,
+      unanswered_questions: unansweredCount,
+      correct_count: correctCount,
+      wrong_count: wrongCount,
+      marked_count: this.getMarkedQuestions().length,
+      
+      // 分數統計
+      accuracy_rate: Math.round(accuracyRate * 100) / 100,
+      average_score: Math.round(averageScore * 100) / 100,
+      total_score: totalScore,
+      
+      // 時間統計
+      time_taken: submissionData.time_taken,
+      total_time: submissionData.time_taken,
+      
+      // 詳細結果
+      detailed_results: this.questions.map((q, i) => ({
+        question_index: i,
+        question_text: q.question_text,
+        user_answer: this.userAnswers[i] || '',
+        correct_answer: q.correct_answer,
+        is_correct: this.userAnswers[i] === q.correct_answer,
+        score: this.userAnswers[i] === q.correct_answer ? 100 : 0,
+        feedback: analysisResponse.analysis || {}
+      })),
+      
+      // 評分階段信息
+      grading_stages: [
+        { stage: 1, name: '試卷批改', status: 'completed', description: '獲取題目數據完成' },
+        { stage: 2, name: '計算分數', status: 'completed', description: '題目分類完成' },
+        { stage: 3, name: '評判知識點', status: 'completed', description: `AI評分完成，共評分${answeredCount}題` },
+        { stage: 4, name: '生成學習計畫', status: 'completed', description: `統計完成，正確率${accuracyRate.toFixed(1)}%` }
+      ],
+      
+      // AI相關數據
+      ai_analysis: analysisResponse.analysis,
+      learning_session: sessionResponse.session_data,
+      wrong_questions: wrongQuestions,
+      user_answers: this.userAnswers,
+      question_answer_times: this.questionAnswerTimes,
+      submit_time: new Date().toISOString()
+    };
+    
+    console.log('📊 AI測驗結果:', quizResultData);
+    
+    // 存入sessionStorage（類似quiz.py的數據存儲）
+    sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
+    
+    // 隱藏進度提示
+    this.hideProgressModal();
+    
+    // 跳轉到AI輔導頁面（類似quiz.py的結果頁面跳轉）
+    this.router.navigate(['/dashboard/ai-tutoring'], {
+      queryParams: {
+        mode: 'ai_quiz_review',
+        sessionId: sessionResponse.session_data?.session_id,
+        questionId: this.templateId,
+        resultData: JSON.stringify(quizResultData)
+      }
+    });
+  }
+
+  // 計算AI測驗分數（參考quiz.py的評分邏輯）
+  private calculateAIQuizScore(): { correctCount: number, wrongCount: number, totalScore: number, wrongQuestions: any[], answeredCount: number, unansweredCount: number } {
+    let correctCount = 0;
+    let wrongCount = 0;
+    let totalScore = 0;
+    let answeredCount = 0;
+    let unansweredCount = 0;
+    const wrongQuestions: any[] = [];
+    
+    this.questions.forEach((question, index) => {
+      const userAnswer = this.userAnswers[index];
+      
+      if (this.hasValidAnswer(userAnswer, question.type)) {
+        answeredCount++;
+        const isCorrect = this.checkAnswerCorrectness(question, userAnswer);
+        
+        if (isCorrect) {
+          correctCount++;
+          totalScore += 5; // 每題5分，類似quiz.py的評分邏輯
+        } else {
+          wrongCount++;
+          wrongQuestions.push({
+            question_id: question.id || `q${index + 1}`,
+            question_text: question.question_text,
+            question_type: question.type,
+            user_answer: userAnswer,
+            correct_answer: question.correct_answer,
+            options: question.options || [],
+            image_file: question.image_file || '',
+            original_exam_id: question.original_exam_id || '',
+            question_index: index
+          });
+        }
+      } else {
+        unansweredCount++;
+      }
+    });
+    
+    return { correctCount, wrongCount, totalScore, wrongQuestions, answeredCount, unansweredCount };
+  }
+
+  // 提交傳統題目
+  private submitTraditionalQuiz(submissionData: any): void {
+    console.log('📝 使用傳統Quiz服務提交題目');
+    
     this.quizService.submitQuiz(submissionData).subscribe({
       next: (response: any) => {
         console.log('✅ 測驗提交成功:', response);

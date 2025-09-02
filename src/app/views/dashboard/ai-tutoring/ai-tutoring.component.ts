@@ -17,6 +17,7 @@ import {
 } from '@coreui/angular';
 import { IconModule } from '@coreui/icons-angular';
 import { AiTutoringService, QuestionData } from '../../../service/ai-tutoring.service';
+import { AiQuizService, QuestionAnalysis, LearningPath, LearningSession } from '../../../service/ai-quiz.service';
 
 interface Note {
   id: string;
@@ -140,10 +141,17 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 新增：學習完成狀態
   currentQuestionCompleted: boolean = false;
 
+  // 新增：AI測驗服務相關屬性
+  questionAnalysis: QuestionAnalysis | null = null;
+  aiLearningPath: LearningPath | null = null;
+  learningSession: LearningSession | null = null;
+  learningSuggestions: string[] = [];
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private aiTutoringService: AiTutoringService
+    private aiTutoringService: AiTutoringService,
+    private aiQuizService: AiQuizService
   ) {
     this.checkMobile();
   }
@@ -231,44 +239,76 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
 
     try {
-      // 為引導學習生成一個有效的 sessionId
-      if (!this.sessionId || this.sessionId === '') {
-        this.sessionId = `guided_learning_${Date.now()}_${questionId}`;
-      }
-
-      // 創建引導學習的題目數據結構
-      const guidedQuestion: QuestionData = {
+      // 使用AI測驗服務開始引導學習
+      this.addMessage('ai', '🎯 正在分析題目，生成個性化學習計劃...');
+      
+      const questionData = {
         question_id: questionId,
         question_text: queryParams.questionText || '題目載入中...',
         user_answer: queryParams.studentAnswer || '未作答',
         correct_answer: queryParams.correctAnswer || '答案載入中...',
-        is_correct: queryParams.isCorrect === 'true',
-        score: parseInt(queryParams.score) || 0,
-        feedback: {
-          explanation: '',
-          strengths: '',
-          weaknesses: '',
-          suggestions: ''
-        },
-        subject: '計算機概論', // 可以從題目信息中獲取
-        difficulty: this.getDifficultyFromParams(queryParams.difficulty),
         topic: queryParams.topic || '',
-        options: [],
-        image_file: '',
-        question_type: queryParams.examType || 'general',
-        is_marked: false
+        chapter: queryParams.chapter || ''
       };
 
-      // 設置學習路徑為單題
-      this.learningPath = [guidedQuestion];
-      this.currentQuestionIndex = 0;
-      this.currentQuestion = guidedQuestion;
+      this.aiQuizService.startGuidedLearning(questionData).subscribe({
+        next: (response) => {
+          if (response.success) {
+            // 保存AI分析結果
+            this.questionAnalysis = response.analysis;
+            this.aiLearningPath = response.learning_path;
+            this.learningSession = response.session_data;
+            this.learningSuggestions = response.suggestions;
+            
+            // 設置sessionId
+            this.sessionId = response.session_data.session_id;
+            
+            // 創建引導學習的題目數據結構
+            const guidedQuestion: QuestionData = {
+              question_id: questionId,
+              question_text: queryParams.questionText || '題目載入中...',
+              user_answer: queryParams.studentAnswer || '未作答',
+              correct_answer: queryParams.correctAnswer || '答案載入中...',
+              is_correct: queryParams.isCorrect === 'true',
+              score: parseInt(queryParams.score) || 0,
+              feedback: {
+                explanation: '',
+                strengths: '',
+                weaknesses: '',
+                suggestions: ''
+              },
+              subject: '計算機概論',
+              difficulty: this.getDifficultyFromParams(queryParams.difficulty),
+              topic: queryParams.topic || '',
+              options: [],
+              image_file: '',
+              question_type: queryParams.examType || 'general',
+              is_marked: false
+            };
 
-      // 設置引導學習的特定配置
-      this.setupGuidedLearningConfig(queryParams);
+            // 設置學習路徑為單題
+            this.learningPath = [guidedQuestion];
+            this.currentQuestionIndex = 0;
+            this.currentQuestion = guidedQuestion;
 
-      // 開始引導學習會話
-      this.startGuidedLearningSession(queryParams);
+            // 設置引導學習的特定配置
+            this.setupGuidedLearningConfig(queryParams);
+
+            // 顯示AI分析結果
+            this.displayAIAnalysisResults();
+
+            // 開始引導學習會話
+            this.startGuidedLearningSession(queryParams);
+            
+          } else {
+            this.addMessage('ai', '❌ AI分析失敗，請重試。');
+          }
+        },
+        error: (error) => {
+          console.error('❌ AI引導學習初始化失敗:', error);
+          this.addMessage('ai', 'AI引導學習初始化失敗，請重試。');
+        }
+      });
       
     } catch (error) {
       console.error('❌ 初始化引導學習失敗:', error);
@@ -286,40 +326,72 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
 
     try {
-      // 為錯題複習生成一個有效的 sessionId
-      if (!this.sessionId || this.sessionId === '') {
-        this.sessionId = `mistake_review_${Date.now()}_${questionId}`;
-      }
-
-      // 創建錯題複習的題目數據結構
-      const reviewQuestion: QuestionData = {
+      // 使用AI測驗服務開始錯題複習
+      this.addMessage('ai', '🔍 正在分析錯題，生成複習計劃...');
+      
+      const questionData = {
         question_id: questionId,
         question_text: queryParams.questionText || '題目載入中...',
         user_answer: queryParams.studentAnswer || '未作答',
         correct_answer: queryParams.correctAnswer || '答案載入中...',
-        is_correct: false, // 錯題複習模式
-        score: parseInt(queryParams.score) || 0,
-        feedback: {
-          explanation: '',
-          strengths: '',
-          weaknesses: '',
-          suggestions: ''
-        },
-        subject: '計算機概論',
-        difficulty: 2, // 中等難度
         topic: queryParams.topic || '',
-        options: [],
-        image_file: '',
-        question_type: queryParams.examType || 'general',
-        is_marked: false
+        chapter: queryParams.chapter || ''
       };
 
-      this.learningPath = [reviewQuestion];
-      this.currentQuestionIndex = 0;
-      this.currentQuestion = reviewQuestion;
+      this.aiQuizService.startMistakeReview(questionData).subscribe({
+        next: (response) => {
+          if (response.success) {
+            // 保存AI分析結果
+            this.questionAnalysis = response.analysis;
+            this.aiLearningPath = response.learning_path;
+            this.learningSession = response.session_data;
+            this.learningSuggestions = response.suggestions;
+            
+            // 設置sessionId
+            this.sessionId = response.session_data.session_id;
+            
+            // 創建錯題複習的題目數據結構
+            const reviewQuestion: QuestionData = {
+              question_id: questionId,
+              question_text: queryParams.questionText || '題目載入中...',
+              user_answer: queryParams.studentAnswer || '未作答',
+              correct_answer: queryParams.correctAnswer || '答案載入中...',
+              is_correct: false, // 錯題複習模式
+              score: parseInt(queryParams.score) || 0,
+              feedback: {
+                explanation: '',
+                strengths: '',
+                weaknesses: '',
+                suggestions: ''
+              },
+              subject: '計算機概論',
+              difficulty: 2, // 中等難度
+              topic: queryParams.topic || '',
+              options: [],
+              image_file: '',
+              question_type: queryParams.examType || 'general',
+              is_marked: false
+            };
 
-      // 開始錯題複習會話
-      this.startMistakeReviewSession();
+            this.learningPath = [reviewQuestion];
+            this.currentQuestionIndex = 0;
+            this.currentQuestion = reviewQuestion;
+
+            // 顯示AI分析結果
+            this.displayAIAnalysisResults();
+
+            // 開始錯題複習會話
+            this.startMistakeReviewSession();
+            
+          } else {
+            this.addMessage('ai', '❌ AI錯題分析失敗，請重試。');
+          }
+        },
+        error: (error) => {
+          console.error('❌ AI錯題複習初始化失敗:', error);
+          this.addMessage('ai', 'AI錯題複習初始化失敗，請重試。');
+        }
+      });
       
     } catch (error) {
       console.error('❌ 初始化錯題複習失敗:', error);
@@ -664,6 +736,35 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     
     // 更新階段開始時間
     this.currentStageStartTime = new Date();
+    
+    // 同步更新到AI測驗服務
+    this.syncProgressToAIService(stage, level);
+  }
+
+  // 新增：同步進度到AI服務
+  private syncProgressToAIService(stage: string, level: number): void {
+    if (this.sessionId && this.currentQuestion) {
+      const learningTime = this.getStageLearningTime();
+      
+      this.aiQuizService.updateProgress(
+        this.sessionId,
+        this.currentQuestion.question_id,
+        level,
+        stage,
+        learningTime
+      ).subscribe({
+        next: (success) => {
+          if (success) {
+            console.log('✅ 學習進度已同步到AI服務');
+          } else {
+            console.warn('⚠️ 學習進度同步失敗');
+          }
+        },
+        error: (error) => {
+          console.error('❌ 學習進度同步錯誤:', error);
+        }
+      });
+    }
   }
 
   getLearningStageDisplayName(stage: string): string {
@@ -1225,6 +1326,30 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     setTimeout(() => {
       this.nextQuestion();
     }, 2000);
+  }
+
+  // 新增：顯示AI分析結果
+  private displayAIAnalysisResults(): void {
+    if (this.questionAnalysis && this.aiLearningPath && this.learningSuggestions.length > 0) {
+      let analysisMessage = '🎯 **AI題目分析結果**\n\n';
+      
+      // 顯示難度分析
+      analysisMessage += `**難度等級：** ${this.questionAnalysis.difficulty_level}\n`;
+      analysisMessage += `**重點領域：** ${this.questionAnalysis.focus_areas.join('、')}\n\n`;
+      
+      // 顯示學習建議
+      analysisMessage += '**學習建議：**\n';
+      this.learningSuggestions.forEach((suggestion, index) => {
+        analysisMessage += `${index + 1}. ${suggestion}\n`;
+      });
+      
+      analysisMessage += '\n**學習路徑：**\n';
+      this.aiLearningPath.stages.forEach((stage, index) => {
+        analysisMessage += `${index + 1}. ${stage.description} (預計${stage.estimated_time}分鐘)\n`;
+      });
+      
+      this.addMessage('ai', analysisMessage);
+    }
   }
 
   // 新增：安全處理AI回應，防止[object Object]錯誤
