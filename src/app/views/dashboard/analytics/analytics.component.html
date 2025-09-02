@@ -1,1 +1,156 @@
-<p>analytics works!</p>
+<div class="analytics-container">
+  <!-- 載入狀態 -->
+  <div *ngIf="loading" class="loading-overlay">
+    <div class="loading-content">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">載入中...</span>
+      </div>
+      <p class="mt-3">正在分析您的學習數據...</p>
+    </div>
+  </div>
+
+  <!-- 錯誤狀態 -->
+  <div *ngIf="error" class="alert alert-danger" role="alert">
+    <h4 class="alert-heading">載入失敗</h4>
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- 主要內容 -->
+  <div *ngIf="!loading && !error" class="analytics-main">
+    <!-- 知識圖譜區域 -->
+    <div class="row">
+      <div class="col-12">
+        <c-card class="knowledge-graph-card">
+          <c-card-header>
+            <h5 class="card-title">
+              <i class="cilBook"></i> 知識圖譜
+            </h5>
+          </c-card-header>
+          <c-card-body class="p-0">
+            <div class="knowledge-graph-container">
+              <!-- vis-network 容器 -->
+              <div #knowledgeGraphContainer class="knowledge-graph-vis"></div>
+              <!-- 圖例 -->
+              <div class="graph-legend">
+                <div class="legend-item">
+                  <span class="legend-color domain"></span>
+                  <span>大知識點</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-color block"></span>
+                  <span>章節</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-color micro"></span>
+                  <span>小知識點</span>
+                </div>
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 節點詳情Modal -->
+<c-modal 
+  [visible]="showNodeDetail" 
+  (visibleChange)="closeNodeDetail()" 
+  size="lg"
+  backdrop="static">
+  <c-modal-header>
+    <h5 class="modal-title">
+      <i class="cilInfo"></i> {{ selectedNode?.label || '未知節點' }}
+    </h5>
+    <button 
+      type="button" 
+      class="btn-close" 
+      (click)="closeNodeDetail()"
+      aria-label="Close">
+    </button>
+  </c-modal-header>
+  
+  <c-modal-body *ngIf="selectedNode">
+    <div class="row">
+      <!-- 左側：掌握度圓環圖 -->
+      <div class="col-md-6">
+        <div class="mastery-section mb-4">
+          <h6 class="section-title">掌握度</h6>
+          <div class="mastery-circle">
+            <div class="mastery-progress" 
+                 [style.background]="getMasteryCircleBackground(selectedNode?.mastery_score || 0)">
+              <div class="mastery-text">
+                <span class="mastery-percentage">{{ selectedNode?.mastery_score || 0 }}%</span>
+                <span class="mastery-label">{{ getMasteryText(selectedNode?.mastery_score || 0) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 節點類型與狀態 -->
+        <div class="node-info mb-4">
+          <div class="info-row">
+            <span class="info-label">類型：</span>
+            <span class="info-value">
+              <c-badge [color]="getNodeTypeColor(selectedNode?.type || 'unknown')">
+                {{ getNodeTypeText(selectedNode?.type || 'unknown') }}
+              </c-badge>
+            </span>
+          </div>
+          <div class="info-row" *ngIf="selectedNode?.weakness_level && selectedNode.weakness_level !== 'none'">
+            <span class="info-label">弱點等級：</span>
+            <span class="info-value">
+              <c-badge [color]="getWeaknessLevelColor(selectedNode.weakness_level)">
+                {{ getWeaknessLevelText(selectedNode.weakness_level) }}
+              </c-badge>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右側：詳細信息 -->
+      <div class="col-md-6">
+        <!-- 依存關係 -->
+        <div class="dependencies-section mb-4" *ngIf="selectedNode && getNodeDependencies(selectedNode).length > 0">
+          <h6 class="section-title">依存關係</h6>
+          <div class="dependency-list">
+            <div class="dependency-item" *ngFor="let dep of getNodeDependencies(selectedNode)">
+              <span class="dependency-type">{{ dep.type }}</span>
+              <span class="dependency-name">{{ dep.name }}</span>
+              <span class="dependency-mastery">{{ dep.mastery_score }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 練習建議區塊 -->
+    <div class="practice-suggestions-section mt-4" *ngIf="selectedNode">
+      <h6 class="section-title">練習建議</h6>
+      <div class="suggestion-main mb-3">
+        <p>根據您的掌握度，建議加強相關練習以提升學習效果。</p>
+      </div>
+      <div class="suggestion-actions">
+        <button class="btn btn-primary me-2">
+          <i class="cilBook"></i> 開始練習
+        </button>
+        <button class="btn btn-outline-secondary me-2">
+          <i class="cilInfo"></i> 查看教材
+        </button>
+        <button class="btn btn-outline-info">
+          <i class="cilChart"></i> 詳細分析
+        </button>
+      </div>
+    </div>
+  </c-modal-body>
+  
+  <c-modal-footer>
+    <button 
+      type="button" 
+      class="btn btn-secondary" 
+      (click)="closeNodeDetail()">
+      關閉
+    </button>
+  </c-modal-footer>
+</c-modal>

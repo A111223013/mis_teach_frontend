@@ -18,6 +18,11 @@ export const routes: Routes = [
             {
                 path: 'whiteboard',
                 loadChildren: () => import('./views/whiteboard/routes').then(m => m.routes)
+            },
+            {
+                path: 'material/:keypoint',
+                loadComponent: () => import('./views/dashboard/material/material.component').then(m => m.MaterialComponent),
+                data: { title: '教材' }
             }
         ]
     },

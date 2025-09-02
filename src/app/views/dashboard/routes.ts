@@ -26,7 +26,7 @@ export const routes: Routes = [
         }
     },
     {
-        path: 'material',
+        path: 'material/:keypoint',
         loadComponent: () => import('./material/material.component').then(m => m.MaterialComponent),
         data: {
           title: '教材'
