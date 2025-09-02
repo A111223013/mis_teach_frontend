@@ -1,21 +1,47 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MarkdownModule } from 'ngx-markdown';
-import { MaterialService } from '../../../service/material.service';
 import { ActivatedRoute } from '@angular/router';
+import { MaterialService } from '../../../service/material.service';
+import { 
+  CardBodyComponent,
+  CardComponent,
+  CardModule   
+} from '@coreui/angular';
+import { 
+  trigger, 
+  state, 
+  style, 
+  transition, 
+  animate 
+} from '@angular/animations';
 
 @Component({
   selector: 'app-material',
-  standalone: true,   // ✅ Standalone component
-  imports: [CommonModule, MarkdownModule],  // ✅ 匯入 markdown
+  standalone: true,
+  imports: [
+    CommonModule, 
+    MarkdownModule,
+    CardModule,
+    CardComponent,
+    CardBodyComponent
+  ],
   templateUrl: './material.component.html',
-  styleUrls: ['./material.component.scss']  // ✅ 改成複數
+  styleUrls: ['./material.component.scss'],
+  animations: [   // 👈 加入動畫設定
+    trigger('expandCollapse', [
+      state('collapsed', style({ height: '0px', opacity: 0, overflow: 'hidden' })),
+      state('expanded', style({ height: '*', opacity: 1, overflow: 'hidden' })),
+      transition('collapsed <=> expanded', animate('300ms ease-in-out'))
+    ])
+  ]
 })
 export class MaterialComponent {
   keypoint: string = '';
   domain: any = null;
   blocks: any[] = [];
   microConcepts: any[] = [];
+  selectedMaterialContent: string | null = null;  // ✅ 用來存教材內容
 
   constructor(
     private materialService: MaterialService,
@@ -38,25 +64,18 @@ export class MaterialComponent {
       this.domain = domains.find((d: any) => d.name.includes(this.keypoint));
       if (!this.domain) return;
 
-      const domainBlockIds = this.domain.blocks; // ["block_1","block_2"]
-
       this.materialService.getBlocks().subscribe(allBlocks => {
-        console.log('all blocks:', allBlocks);
-        
-        // 直接取所有 blocks（因為後端沒有完全對應的 id）
-        this.blocks = allBlocks;
-        
-        this.materialService.getMicroConcepts().subscribe(allMCs => {
-          // 過濾 micro concept 對應 domain.blocks
-          this.microConcepts = allMCs.filter(mc =>
-            domainBlockIds.includes(mc.block_id)
-          );
+        this.blocks = allBlocks.map((b: any) => ({
+          ...b,
+          expanded: false, // 預設收合
+          mcs: []          // 預設 microConcepts
+        }));
 
-          // 將 micro concepts 分組到各 block
+        this.materialService.getMicroConcepts().subscribe(allMCs => {
+          this.microConcepts = allMCs;
+
           this.blocks.forEach(b => {
-            b.mcs = this.microConcepts.filter(mc =>
-              b.subtopics.includes(mc._id) || domainBlockIds.includes(mc.block_id)
-            );
+            b.mcs = this.microConcepts.filter(mc => mc.block_id === b._id);
           });
 
           console.log('blocks with micro concepts:', this.blocks);
@@ -65,9 +84,25 @@ export class MaterialComponent {
     });
   }
 
+  // ✅ 點擊卡片切換展開/收起
+  toggleBlock(block: any) {
+    block.expanded = !block.expanded;
+  }
+
   getMicroConceptsByBlock(block: any) {
     return block.mcs || [];
   }
 
+  // ✅ 點擊 micro concept 時，載入教材
+  loadMaterial(filename: string) {
+    this.materialService.getMaterial(filename).subscribe({
+      next: (res) => {
+        this.selectedMaterialContent = res.content;
+      },
+      error: (err) => {
+        console.error('讀取教材失敗:', err);
+        this.selectedMaterialContent = '讀取教材失敗';
+      }
+    });
+  }
 }
-

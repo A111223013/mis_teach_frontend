@@ -11,11 +11,6 @@ export class MaterialService {
 
   constructor(private http: HttpClient) {}
 
-  // 取得教材列表
-  getMaterials(): Observable<any> {
-    return this.http.get(`${this.baseUrl}/list`);
-  }
-
   // 取得單一教材
   getMaterial(filename: string): Observable<any> {
     return this.http.get(`${this.baseUrl}/${filename}`);

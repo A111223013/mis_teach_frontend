@@ -1,18 +1,37 @@
-<h2>{{ keypoint }}</h2>
 <div *ngIf="domain; else noDomain">
-  <h3>區塊 (Block)</h3>
-  <ul>
-    <li *ngFor="let b of blocks">
-      {{ b.title }}
-      <ul>
-        <li *ngFor="let mc of getMicroConceptsByBlock(b)">
-          {{ mc.name }}
-        </li>
-      </ul>
-    </li>
-  </ul>
-</div>
-<ng-template #noDomain>
-  <p>查無此知識點</p>
-</ng-template>
+  <div class="row justify-content-center">
+    <div class="col-md-5 mb-4" *ngFor="let b of blocks">
+      <c-card class="h-100 c-card-hover" (click)="toggleBlock(b)">
+        
+        <!-- 標題 -->
+        <c-card-header class="text-center fw-bold">
+          {{ b.title }}
+          <span *ngIf="!b.expanded">▼</span>
+          <span *ngIf="b.expanded">▲</span>
+        </c-card-header>
 
+        <!-- 內容帶動畫 -->
+        <c-card-body class="text-center">
+          <ul 
+            class="list-unstyled mt-3"
+            [@expandCollapse]="b.expanded ? 'expanded' : 'collapsed'">
+            <li *ngFor="let mc of getMicroConceptsByBlock(b)">
+              <!-- 直接跳轉到 Flask API -->
+              <a [href]="'http://127.0.0.1:5000/materials/' + mc.name" target="_blank">
+                {{ mc.name }}
+              </a>
+              <span *ngIf="mc.dependencies?.length">
+                （依賴：{{ mc.dependencies.join(', ') }}）
+              </span>
+            </li>
+          </ul>
+        </c-card-body>
+
+      </c-card>
+    </div>
+  </div>
+</div>
+
+<ng-template #noDomain>
+  <p class="text-center">查無此知識點</p>
+</ng-template>
