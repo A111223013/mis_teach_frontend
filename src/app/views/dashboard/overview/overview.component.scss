@@ -88,30 +88,156 @@
   
   /* Add styles for charts or other dashboard elements here */
   
-  .calendar-container {
-  max-width: 450px;
-  margin: auto;
+  // 行事曆樣式
+.calendar-view {
+  min-height: 500px;
 }
 
-.modal-backdrop {
-  position: fixed;
-  top: 0; left: 0;
-  width: 75%; height: 75%;
-  background: rgba(0,0,0,0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.simple-calendar {
+  .calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background-color: var(--cui-primary);
+    border-radius: 0.5rem 0.5rem 0 0;
+    overflow: hidden;
+    
+    .weekday {
+      background-color: var(--cui-primary);
+      color: white;
+      padding: 0.75rem 0.5rem;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+  }
+  
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background-color: #e9ecef;
+    border: 1px solid #e9ecef;
+    border-top: none;
+    border-radius: 0 0 0.5rem 0.5rem;
+    overflow: hidden;
+  }
+  
+  .calendar-day {
+    background: white;
+    min-height: 120px;
+    padding: 0.5rem;
+    transition: all 0.2s ease;
+    border-right: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+    
+    &:hover {
+      background-color: #f8f9fa;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    &.today {
+      background-color: rgba(var(--cui-primary-rgb), 0.1);
+      border: 2px solid var(--cui-primary);
+      position: relative;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background-color: var(--cui-primary);
+      }
+    }
+    
+    &.other-month {
+      background-color: #f8f9fa;
+      color: #6c757d;
+      opacity: 0.6;
+    }
+    
+    &.has-events {
+      border-left: 3px solid var(--cui-success);
+    }
+    
+    .day-number {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 0.25rem;
+      transition: background-color 0.2s ease;
+      
+      &:hover {
+        background-color: rgba(var(--cui-primary-rgb), 0.1);
+      }
+    }
+    
+    .day-events {
+      .event-item {
+        background-color: var(--cui-primary);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        margin: 0.125rem 0;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        
+        &:hover {
+          background-color: var(--cui-primary-dark);
+          transform: scale(1.02);
+        }
+        
+        &.multiple-events {
+          background-color: var(--cui-warning);
+          
+          &:hover {
+            background-color: var(--cui-warning-dark);
+          }
+        }
+        
+        .more-events {
+          font-style: italic;
+          opacity: 0.9;
+        }
+      }
+    }
+  }
 }
 
-.modal {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  width: 300px;
+// Modal 樣式優化
+.modal-content {
+  border: none;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
-.modal-buttons {
-  margin-top: 10px;
-  display: flex;
-  gap: 10px;
+.modal-header {
+  background: linear-gradient(135deg, var(--cui-primary), var(--cui-primary-dark));
+  color: white;
+  border-bottom: none;
+  
+  .modal-title {
+    font-weight: 600;
+  }
+  
+  .btn-close {
+    filter: invert(1);
+  }
+}
+
+.card {
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+  }
 }
