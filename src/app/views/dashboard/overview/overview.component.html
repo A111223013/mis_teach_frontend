@@ -1,268 +1,247 @@
 <div class="dashboard-container">
-    <!-- Navigation Bar Removed - Handled by DefaultLayoutComponent -->
-  
-    <!-- Content Area -->
-    <c-container [fluid]="true">
-      <!-- Welcome Area -->
-      <c-card class="mb-4 border-start-primary border-start-4">
-        <c-card-body>
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h1 class="welcome-title fw-bold text-primary">歡迎回來，{{userName}}!</h1>
-              <p class="welcome-subtitle text-muted mb-0">今天是 {{currentDate | date:'yyyy-MM-dd'}}，繼續加油！</p>
-            </div>
-            <div>
-              <svg cIcon name="cilUser" width="64" height="64" class="text-primary-subtle"></svg>
-            </div>
+  <!-- Content Area -->
+  <c-container [fluid]="true">
+    <!-- Welcome Area -->
+    <c-card class="mb-4 border-start-primary border-start-4">
+      <c-card-body>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="welcome-title fw-bold text-primary">歡迎回來，{{userName}}!</h1>
+            <p class="welcome-subtitle text-muted mb-0">今天是 {{currentDate | date:'yyyy-MM-dd'}}，繼續加油！</p>
           </div>
-        </c-card-body>
-      </c-card>
-
-      <!-- 行事曆區塊 -->
-      <c-card class="mb-4">
-        <c-card-body>
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="fw-bold text-primary mb-0">
-              <svg cIcon name="cilCalendar" class="me-2"></svg>
-              個人行事曆
-            </h3>
-            <button 
-              type="button" 
-              class="btn btn-primary" 
-              (click)="openAddModal(goTodayDate())">
-              <svg cIcon name="cilPlus" class="me-1"></svg>
-              新增事件
-            </button>
-          </div>
-
-          <!-- 行事曆控制列 -->
-          <div class="d-flex align-items-center gap-2 mb-4">
-            <button 
-              type="button" 
-              class="btn btn-outline-secondary btn-sm" 
-              (click)="prevMonth()">
-              <svg cIcon name="cilChevronLeft"></svg>
-            </button>
-            <button 
-              type="button" 
-              class="btn btn-outline-primary btn-sm" 
-              (click)="goToday()">
-              今天
-            </button>
-            <button 
-              type="button" 
-              class="btn btn-outline-secondary btn-sm" 
-              (click)="nextMonth()">
-              <svg cIcon name="cilChevronRight"></svg>
-            </button>
-
-            <div class="ms-auto">
-              <span class="text-muted">{{ viewDate | date:'yyyy年MM月' }}</span>
-            </div>
-          </div>
-
-          <!-- 行事曆視圖 -->
-          <div class="calendar-view">
-            <div class="simple-calendar">
-              <!-- 星期標題 -->
-              <div class="calendar-weekdays">
-                <div class="weekday" *ngFor="let day of weekDays">{{ day }}</div>
-              </div>
-              
-              <!-- 日期網格 -->
-              <div class="calendar-grid">
-                <div class="calendar-day" 
-                     *ngFor="let day of getCalendarDays()" 
-                     [class.today]="isToday(day.date)"
-                     [class.other-month]="!day.isCurrentMonth"
-                     [class.has-events]="getEventsForDay(day.date).length > 0">
-                  
-                  <div class="day-number" (click)="openAddModal(day.date)">
-                    {{ day.dayNumber }}
-                  </div>
-                  
-                  <div class="day-events">
-                    <div *ngFor="let event of getEventsForDay(day.date); let i = index" 
-                         class="event-item"
-                         [class.multiple-events]="getEventsForDay(day.date).length > 2"
-                         (click)="openEventModal(day.date, $event); $event.stopPropagation()">
-                      <span *ngIf="i < 2">{{ event.title }}</span>
-                      <span *ngIf="i === 2 && getEventsForDay(day.date).length > 2" class="more-events">
-                        +{{ getEventsForDay(day.date).length - 2 }} 更多
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </c-card-body>
-      </c-card>
-    </c-container>
-
-    <!-- 事件編輯 Modal -->
-    <c-modal 
-      [visible]="modalOpen" 
-      (visibleChange)="modalOpen = $event"
-      [backdrop]="true"
-      [keyboard]="true"
-      [size]="'lg'">
-      <c-modal-header>
-        <h5 class="modal-title">
-          <svg cIcon name="cilCalendar" class="me-2"></svg>
-          {{ editingEvent ? '編輯事件' : '新增事件' }}
-        </h5>
-        <button 
-          type="button" 
-          class="btn-close" 
-          (click)="closeModal()">
-        </button>
-      </c-modal-header>
-      <c-modal-body>
-        <div class="row">
-          <div class="col-md-6">
-            <label class="form-label">
-              <svg cIcon name="cilCalendar" class="me-1"></svg>
-              日期
-            </label>
-            <input 
-              type="date" 
-              class="form-control" 
-              [(ngModel)]="selectedDateString">
-          </div>
-          <div class="col-md-6" *ngIf="notify">
-            <label class="form-label">
-              <svg cIcon name="cilClock" class="me-1"></svg>
-              提醒時間
-            </label>
-            <input 
-              type="datetime-local" 
-              class="form-control" 
-              [(ngModel)]="notifyTimeString">
+          <div>
+            <svg cIcon name="cilUser" width="64" height="64" class="text-primary-subtle"></svg>
           </div>
         </div>
+      </c-card-body>
+    </c-card>
 
-        <div class="mt-3">
-          <label class="form-label">
-            <svg cIcon name="cilNotes" class="me-1"></svg>
-            事件內容
-          </label>
-          <input 
-            type="text" 
-            class="form-control" 
-            [(ngModel)]="eventTitle"
-            placeholder="請輸入事件內容">
-        </div>
-
-        <div class="mt-3">
-          <div class="form-check">
-            <input 
-              class="form-check-input" 
-              type="checkbox" 
-              [(ngModel)]="notify" 
-              id="notifyCheck">
-            <label class="form-check-label" for="notifyCheck">
-              <svg cIcon name="cilBell" class="me-1"></svg>
-              啟用通知提醒
-            </label>
-          </div>
-        </div>
-      </c-modal-body>
-      <c-modal-footer>
-        <button 
-          type="button" 
-          class="btn btn-success" 
-          (click)="saveEvent()">
-          <svg cIcon name="cilCheck" class="me-1"></svg>
-          儲存
-        </button>
-        <button 
-          *ngIf="editingEvent" 
-          type="button" 
-          class="btn btn-danger" 
-          (click)="deleteEvent()">
-          <svg cIcon name="cilTrash" class="me-1"></svg>
-          刪除
-        </button>
-        <button 
-          type="button" 
-          class="btn btn-secondary" 
-          (click)="closeModal()">
-          <svg cIcon name="cilX" class="me-1"></svg>
-          取消
-        </button>
-      </c-modal-footer>
-    </c-modal>
-
-    <!-- 日期事件列表 Modal -->
-    <c-modal 
-      [visible]="dayEventsModalOpen" 
-      (visibleChange)="dayEventsModalOpen = $event"
-      [backdrop]="true"
-      [keyboard]="true"
-      [size]="'lg'">
-      <c-modal-header>
-        <h5 class="modal-title">
-          <svg cIcon name="cilCalendar" class="me-2"></svg>
-          {{ selectedDate | date:'yyyy年MM月dd日' }} 的事件
-        </h5>
-        <button 
-          type="button" 
-          class="btn-close" 
-          (click)="closeDayEventsModal()">
-        </button>
-      </c-modal-header>
-      <c-modal-body>
-        <div class="d-grid gap-2 mb-3">
+    <!-- 行事曆區塊 -->
+    <c-card class="mb-4">
+      <c-card-body>
+        <div class="d-flex justify-content-end align-items-center mb-3">
           <button 
             type="button" 
             class="btn btn-primary" 
-            (click)="openAddModal(selectedDate || getTodayDate())">
+            (click)="openAddEventFromCalendar()">
             <svg cIcon name="cilPlus" class="me-1"></svg>
             新增事件
           </button>
         </div>
-        
-        <div *ngIf="getEventsForDay(selectedDate || getTodayDate()).length === 0" class="text-center text-muted py-4">
-          <svg cIcon name="cilCalendar" size="3xl" class="mb-2"></svg>
-          <p>這一天沒有安排任何事件</p>
+
+        <!-- 行事曆控制列 -->
+        <div class="row text-center mb-3">
+          <div class="col-md-4">
+            <div class="btn-group">
+              <button
+                class="btn btn-primary"
+                (click)="prevMonth()">
+                <svg cIcon name="cilChevronLeft" class="me-1"></svg>
+                上個月
+              </button>
+              <button
+                class="btn btn-outline-secondary"
+                (click)="goToday()">
+                今天
+              </button>
+              <button
+                class="btn btn-primary"
+                (click)="nextMonth()">
+                下個月
+                <svg cIcon name="cilChevronRight" class="ms-1"></svg>
+              </button>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <h3>{{ viewDate | date:'yyyy年MM月' }}</h3>
+          </div>
+          <div class="col-md-4">
+            <!-- 空白區域，保持版面平衡 -->
+          </div>
+        </div>
+
+        <!-- 行事曆視圖 -->
+        <div class="calendar-view">
+          <mwl-calendar-month-view
+            [viewDate]="viewDate"
+            [events]="events"
+            [refresh]="refresh"
+            [activeDayIsOpen]="activeDayIsOpen"
+            (dayClicked)="dayClicked($event.day)"
+            (eventClicked)="handleEvent('Clicked', $event.event)"
+            (eventTimesChanged)="eventTimesChanged($event)">
+          </mwl-calendar-month-view>
+        </div>
+      </c-card-body>
+    </c-card>
+  </c-container>
+
+  <!-- 統一的事件 Modal -->
+  <c-modal 
+    [visible]="showEventModal" 
+    (visibleChange)="showEventModal = $event"
+    [backdrop]="true"
+    [keyboard]="true"
+    [size]="'lg'">
+    <c-modal-header>
+      <div class="d-flex justify-content-between align-items-center w-100">
+        <h5 class="modal-title mb-0">
+          <svg cIcon name="cilCalendar" class="me-2"></svg>
+          {{ selectedDate | date:'yyyy年MM月dd日' }} 事件清單
+        </h5>
+        <div class="d-flex gap-2">
+          <button 
+            type="button" 
+            class="btn btn-outline-primary btn-sm" 
+            (click)="addEvent()"
+            *ngIf="modalMode === 'list'">
+            <svg cIcon name="cilPlus" class="me-1"></svg>
+            新增事件
+          </button>
+          <button 
+            type="button" 
+            class="btn btn-outline-secondary btn-sm" 
+            (click)="closeEventModal()">
+            <svg cIcon name="cilX" class="me-1"></svg>
+            關閉
+          </button>
+        </div>
+      </div>
+    </c-modal-header>
+    
+    <c-modal-body>
+      <!-- 事件清單模式 -->
+      <div *ngIf="modalMode === 'list'">
+        <div *ngIf="selectedDateEvents.length === 0" class="text-center text-muted py-4">
+          <svg cIcon name="cilCalendar" class="display-4 mb-3"></svg>
+          <p class="mb-0">當日尚未有事件</p>
         </div>
         
-        <div *ngFor="let event of getEventsForDay(selectedDate || getTodayDate())" class="card mb-2">
-          <div class="card-body">
+        <div *ngIf="selectedDateEvents.length > 0" class="list-group">
+          <div *ngFor="let event of selectedDateEvents" class="list-group-item">
             <div class="d-flex justify-content-between align-items-start">
-              <div>
-                <h6 class="card-title mb-1">{{ event.title }}</h6>
-                <small class="text-muted">
-                  <svg cIcon name="cilClock" class="me-1"></svg>
-                  {{ event.start | date:'HH:mm' }}
-                </small>
-                <div *ngIf="event.meta?.notify" class="mt-1">
-                  <c-badge color="warning">
+              <div class="flex-grow-1">
+                <h6 class="mb-1">{{ event.title }}</h6>
+                <p class="mb-1 text-muted small" *ngIf="event.meta?.content">
+                  {{ event.meta.content }}
+                </p>
+                <div class="d-flex align-items-center gap-3">
+                  <small class="text-muted">
+                    <svg cIcon name="cilCalendar" class="me-1"></svg>
+                    {{ event.start | date:'yyyy年MM月dd日' }}
+                  </small>
+                  <small class="text-muted" *ngIf="event.meta?.notifyEnabled">
                     <svg cIcon name="cilBell" class="me-1"></svg>
-                    已設定提醒
-                  </c-badge>
+                    {{ event.meta.notifyTime | date:'HH:mm' }}
+                  </small>
                 </div>
               </div>
-              <div class="btn-group btn-group-sm">
-                <button 
-                  type="button" 
-                  class="btn btn-outline-primary" 
-                  (click)="openEditModal(event)">
+              <div class="d-flex gap-1">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  (click)="editEvent(event)">
                   <svg cIcon name="cilPencil"></svg>
                 </button>
-                <button 
-                  type="button" 
-                  class="btn btn-outline-danger" 
-                  (click)="deleteEventDirect(event)">
+                <button
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  (click)="deleteEvent(event)">
                   <svg cIcon name="cilTrash"></svg>
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </c-modal-body>
-    </c-modal>
-  </div>
-
-  
+      </div>
+      
+      <!-- 新增/編輯事件表單模式 -->
+      <div *ngIf="modalMode === 'add' || modalMode === 'edit'">
+        <div class="mb-3">
+          <label class="form-label">事件標題：<span class="text-danger">*</span></label>
+          <input 
+            type="text" 
+            class="form-control" 
+            [class.is-invalid]="formErrors.title"
+            [(ngModel)]="newEventForm.title"
+            placeholder="請輸入事件標題">
+          <div class="invalid-feedback" *ngIf="formErrors.title">
+            請輸入事件標題
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label">事件內容：<span class="text-danger">*</span></label>
+          <textarea 
+            class="form-control" 
+            [class.is-invalid]="formErrors.content"
+            rows="3"
+            [(ngModel)]="newEventForm.content"
+            placeholder="請輸入事件內容">
+          </textarea>
+          <div class="invalid-feedback" *ngIf="formErrors.content">
+            請輸入事件內容
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label">事件日期：<span class="text-danger">*</span></label>
+          <input 
+            type="date" 
+            class="form-control" 
+            [class.is-invalid]="formErrors.eventDate"
+            [ngModel]="newEventForm.eventDate | date:'yyyy-MM-dd'"
+            (ngModelChange)="updateEventDate($event)">
+          <div class="invalid-feedback" *ngIf="formErrors.eventDate">
+            請選擇事件日期
+          </div>
+        </div>
+        
+        <div class="mb-3">
+          <div class="form-check">
+            <input 
+              class="form-check-input" 
+              type="checkbox" 
+              [(ngModel)]="newEventForm.notifyEnabled"
+              id="notifyCheck">
+            <label class="form-check-label" for="notifyCheck">
+              是否通知
+            </label>
+          </div>
+        </div>
+        
+        <div class="mb-3" *ngIf="newEventForm.notifyEnabled">
+          <label class="form-label">通知時間：<span class="text-danger">*</span></label>
+          <input 
+            type="time" 
+            class="form-control" 
+            [class.is-invalid]="formErrors.notifyTime"
+            [ngModel]="newEventForm.notifyTime | date:'HH:mm'"
+            (ngModelChange)="updateNotifyTime($event)">
+          <div class="invalid-feedback" *ngIf="formErrors.notifyTime">
+            請選擇通知時間
+          </div>
+        </div>
+        
+      </div>
+    </c-modal-body>
+    
+    <c-modal-footer *ngIf="modalMode === 'add' || modalMode === 'edit'">
+      <button 
+        type="button" 
+        class="btn btn-secondary" 
+        (click)="modalMode = 'list'">
+        <svg cIcon name="cilX" class="me-1"></svg>
+        取消
+      </button>
+      
+      <button 
+        type="button" 
+        class="btn btn-primary" 
+        (click)="saveEvent()">
+        <svg cIcon name="cilCheck" class="me-1"></svg>
+        {{ modalMode === 'add' ? '新增事件' : '更新事件' }}
+      </button>
+    </c-modal-footer>
+  </c-modal>
+</div>

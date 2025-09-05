@@ -1,5 +1,5 @@
-import { Component, OnInit, } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { Component, OnInit, ChangeDetectionStrategy, ViewChild, TemplateRef, inject } from '@angular/core';
+import { CommonModule, DatePipe, JsonPipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import {
   CardComponent, CardBodyComponent,
@@ -7,7 +7,6 @@ import {
   ListGroupModule,
   TableModule,
   ModalModule,
-  BadgeComponent
 } from '@coreui/angular';
 import { IconDirective, IconSetService } from '@coreui/icons-angular';
 import { 
@@ -18,29 +17,65 @@ import { DashboardService } from '../../../service/dashboard.service';
 import { Chart, registerables } from 'chart.js';
 import { MathJaxService } from '../../../service/mathjax.service';
 import { FormsModule } from '@angular/forms';
-// 移除 angular-calendar 和 date-fns 依賴，使用原生 JavaScript
-import { HttpClientModule, HttpClient } from '@angular/common/http';
+import {
+  startOfDay,
+  endOfDay,
+  subDays,
+  addDays,
+  endOfMonth,
+  isSameDay,
+  isSameMonth,
+  addHours,
+} from 'date-fns';
+import { Subject } from 'rxjs';
+import {
+  CalendarEvent,
+  CalendarEventAction,
+  CalendarEventTimesChangedEvent,
+  CalendarView,
+  CalendarModule,
+  DateAdapter,
+  CalendarA11y,
+  CalendarEventTitleFormatter,
+  CalendarUtils,
+  CalendarDateFormatter,
+} from 'angular-calendar';
+import { EventColor } from 'calendar-utils';
+import {
+  provideFlatpickrDefaults,
+} from 'angularx-flatpickr';
+import { adapterFactory } from 'angular-calendar/date-adapters/date-fns';
 
-
-interface CalendarEvent {
-  start: Date;
-  title: string;
-  meta?: {
-    id?: number;
-    notify?: boolean;
-    notifyTime?: Date | null;
-  };
-}
+const colors: Record<string, EventColor> = {
+  red: {
+    primary: '#ad2121',
+    secondary: '#FAE3E3',
+  },
+  blue: {
+    primary: '#1e90ff',
+    secondary: '#D1E8FF',
+  },
+  yellow: {
+    primary: '#e3bc08',
+    secondary: '#FDF1BA',
+  },
+  green: {
+    primary: '#28a745',
+    secondary: '#D4EDDA',
+  },
+};
 
 @Component({
     selector: 'app-overview',
     templateUrl: './overview.component.html',
     styleUrls: ['./overview.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
     standalone: true,
     imports: [
         CommonModule,
         RouterModule,
         DatePipe,
+    JsonPipe,
         CardComponent,
         CardBodyComponent,
         ContainerComponent,
@@ -48,33 +83,89 @@ interface CalendarEvent {
         ListGroupModule,
         TableModule,
         ModalModule,
-        BadgeComponent,
         FormsModule,
-        HttpClientModule,
+    CalendarModule,
+  ],
+  providers: [
+    provideFlatpickrDefaults(),
+    {
+      provide: DateAdapter,
+      useFactory: adapterFactory,
+    },
+    CalendarA11y,
+    CalendarEventTitleFormatter,
+    CalendarUtils,
+    CalendarDateFormatter,
     ]
 })
 export class OverviewComponent implements OnInit {
+  @ViewChild('modalContent', { static: true }) modalContent!: TemplateRef<any>;
+
   userName: string = "";
   currentDate: Date = new Date();
+  view: CalendarView = CalendarView.Month;
   viewDate: Date = new Date();
   events: CalendarEvent[] = [];
-  
-  modalOpen: boolean = false;
-  dayEventsModalOpen: boolean = false;
+  activeDayIsOpen: boolean = true;
+  refresh = new Subject<void>();
+
+  modalData: {
+    action: string;
+    event: CalendarEvent;
+  } = {
+    action: '',
+    event: {} as CalendarEvent
+  };
+
+  // 統一的 modal 相關屬性
+  showEventModal: boolean = false;
+  modalMode: 'list' | 'add' | 'edit' = 'list';
+  selectedEvent: CalendarEvent | null = null;
   selectedDate: Date = new Date();
-  selectedDateString: string = '';
-  eventTitle: string = '';
-  notify: boolean = false;
-  notifyTime: Date | null = new Date();
-  notifyTimeString: string = '';
-  editingEvent: CalendarEvent | null = null;
-  weekDays: string[] = ['日', '一', '二', '三', '四', '五', '六'];
+  selectedDateEvents: CalendarEvent[] = [];
+  
+  // 新增事件表單
+  newEventForm = {
+    title: '',
+    content: '',
+    eventDate: new Date(),
+    notifyEnabled: false,
+    notifyTime: new Date()
+  };
+
+  // 表單驗證狀態
+  formErrors = {
+    title: false,
+    content: false,
+    eventDate: false,
+    notifyTime: false
+  };
+
+  // 讓 colors 在模板中可用
+  colors = colors;
+
+  actions: CalendarEventAction[] = [
+    {
+      label: '<i class="fas fa-fw fa-pencil-alt"></i>',
+      a11yLabel: 'Edit',
+      onClick: ({ event }: { event: CalendarEvent }): void => {
+        this.handleEvent('Edited', event);
+      },
+    },
+    {
+      label: '<i class="fas fa-fw fa-trash-alt"></i>',
+      a11yLabel: 'Delete',
+      onClick: ({ event }: { event: CalendarEvent }): void => {
+        this.events = this.events.filter((iEvent) => iEvent !== event);
+        this.handleEvent('Deleted', event);
+      },
+    },
+  ];
 
   constructor(
     private iconSetService: IconSetService, 
     private dashboardService: DashboardService,
-    private mathJaxService: MathJaxService,
-    private http: HttpClient
+    private mathJaxService: MathJaxService
   ) { 
     iconSetService.icons = { 
       cilUser, cilPlus, cilChevronLeft, cilChevronRight, cilCalendar, 
@@ -83,27 +174,11 @@ export class OverviewComponent implements OnInit {
     Chart.register(...registerables);
   }
     
-  // 控制列功能
-  goToday() { this.viewDate = new Date(); }
-  
-  prevMonth() { 
-    const newDate = new Date(this.viewDate);
-    newDate.setMonth(newDate.getMonth() - 1);
-    this.viewDate = newDate;
-  }
-  
-  nextMonth() { 
-    const newDate = new Date(this.viewDate);
-    newDate.setMonth(newDate.getMonth() + 1);
-    this.viewDate = newDate;
-  }
-  // demo.component.ts
-  goTodayDate(): Date {
-  return new Date();
-}
   ngOnInit(): void {
     this.getUserInfo();
     this.loadEvents();
+    // 更新所有事件的顏色
+    this.updateAllEventColors();
   }
 
   getUserInfo(): void {
@@ -118,247 +193,269 @@ export class OverviewComponent implements OnInit {
   }
 
   loadEvents(): void {
-    // 載入用戶的行事曆事件
-    this.http.get('/dashboard/calendar/events').subscribe(
-      (data: any) => {
-        this.events = data.events || [];
-      },
-      (error: any) => {
-        console.error('Error loading events:', error);
-        // 載入模擬數據
-        this.loadMockEvents();
+    // 初始化為空的事件列表
+    this.events = [];
+    
+    // 未來可以從後端 API 載入真實數據
+    // this.dashboardService.getEvents().subscribe(events => {
+    //   this.events = events;
+    //   this.updateAllEventColors();
+    // });
+  }
+
+  dayClicked({ date, events }: { date: Date; events: CalendarEvent[] }): void {
+    if (isSameMonth(date, this.viewDate)) {
+      if (
+        (isSameDay(this.viewDate, date) && this.activeDayIsOpen === true) ||
+        events.length === 0
+      ) {
+        this.activeDayIsOpen = false;
+      } else {
+        this.activeDayIsOpen = true;
       }
+      this.viewDate = date;
+      
+      // 點擊日期時打開事件清單 modal
+      this.openEventListModal(date);
+    }
+  }
+
+  eventTimesChanged({
+    event,
+    newStart,
+    newEnd,
+  }: CalendarEventTimesChangedEvent): void {
+    this.events = this.events.map((iEvent) => {
+      if (iEvent === event) {
+        return {
+          ...event,
+          start: newStart,
+          end: newEnd,
+        };
+      }
+      return iEvent;
+    });
+    this.handleEvent('Dropped or resized', event);
+  }
+
+  handleEvent(action: string, event: CalendarEvent): void {
+    this.selectedEvent = event;
+    this.modalMode = 'list';
+    this.showEventModal = true;
+    console.log('Event action:', action, event);
+  }
+
+  // 點擊日期開啟事件清單 modal
+  openEventListModal(date: Date): void {
+    this.selectedDate = date;
+    this.selectedDateEvents = this.getEventsForDate(date);
+    this.modalMode = 'list';
+    this.showEventModal = true;
+  }
+
+  addEvent(): void {
+    this.modalMode = 'add';
+    this.selectedEvent = null;
+    this.resetNewEventForm();
+  }
+
+  // 行事曆區塊的新增事件按鈕
+  openAddEventFromCalendar(): void {
+    this.selectedDate = new Date();
+    this.selectedDateEvents = this.getEventsForDate(this.selectedDate);
+    this.modalMode = 'add';
+    this.selectedEvent = null;
+    this.resetNewEventForm();
+    this.showEventModal = true;
+  }
+
+  // 編輯事件按鈕點擊
+  editEvent(event: CalendarEvent): void {
+    this.modalMode = 'edit';
+    this.selectedEvent = event;
+    this.newEventForm = {
+      title: event.title,
+      content: event.meta?.content || '',
+      eventDate: event.start,
+      notifyEnabled: event.meta?.notifyEnabled || false,
+      notifyTime: event.meta?.notifyTime ? new Date(event.meta.notifyTime) : new Date()
+    };
+  }
+
+  resetNewEventForm(): void {
+    this.newEventForm = {
+      title: '',
+      content: '',
+      eventDate: this.selectedDate,
+      notifyEnabled: false,
+      notifyTime: new Date()
+    };
+    this.resetFormErrors();
+  }
+
+  // 獲取特定日期的事件
+  getEventsForDate(date: Date): CalendarEvent[] {
+    return this.events.filter(event => 
+      isSameDay(event.start, date)
     );
   }
 
-  loadMockEvents(): void {
-    // 移除模擬數據，使用空陣列
-    this.events = [];
-  }
-  // Modal 新增/編輯日曆
-  openAddModal(date: Date) {
-    this.modalOpen = true;
-    this.selectedDate = date;
-    this.selectedDateString = this.formatDateForInput(date);
-    this.eventTitle = '';
-    this.notify = false;
-    this.notifyTime = date;
-    this.notifyTimeString = this.formatDateTimeForInput(date);
-    this.editingEvent = null;
-  }
-
-  openEditModal(event: CalendarEvent) {
-    this.modalOpen = true;
-    this.selectedDate = event.start;
-    this.selectedDateString = this.formatDateForInput(event.start);
-    this.eventTitle = event.title || '';
-    this.notify = !!(event.meta as any)?.notify;
-    this.notifyTime = (event.meta as any)?.notifyTime ?? null;
-    this.notifyTimeString = this.formatDateTimeForInput((event.meta as any)?.notifyTime ?? event.start);
-    this.editingEvent = event;
-  }
-  saveEvent() {
-    if (!this.selectedDateString || !this.eventTitle.trim()) {
-      alert('請填寫完整的備忘錄資訊');
-      return;
+  // 根據通知狀態決定事件顏色
+  getEventColor(event: CalendarEvent): EventColor {
+    const today = new Date();
+    const eventDate = event.start;
+    
+    // 如果有設置通知時間
+    if (event.meta?.notifyEnabled && event.meta?.notifyTime) {
+      // 如果事件日期是今天，使用紅色（緊急）
+      if (isSameDay(eventDate, today)) {
+        return colors['red'];
+      }
+      return colors['yellow'];
     }
+    
+    return colors['green'];
+  }
 
-    // 轉換字串為日期
-    const eventDate = new Date(this.selectedDateString);
-    const notifyDateTime = this.notifyTimeString ? new Date(this.notifyTimeString) : null;
+  // 更新所有事件的顏色
+  updateAllEventColors(): void {
+    this.events = this.events.map(event => ({
+      ...event,
+      color: this.getEventColor(event)
+    }));
+  }
 
-    // 準備事件資料
-    const newEvent: CalendarEvent = {
-      start: eventDate,
-      title: this.eventTitle,
-      meta: {
-        id: (this.editingEvent?.meta as any)?.id,
-        notify: this.notify,
-        notifyTime: notifyDateTime,
-      },
+  // 驗證表單
+  validateForm(): boolean {
+    this.formErrors = {
+      title: !this.newEventForm.title || this.newEventForm.title.trim() === '',
+      content: !this.newEventForm.content || this.newEventForm.content.trim() === '',
+      eventDate: !this.newEventForm.eventDate,
+      notifyTime: this.newEventForm.notifyEnabled && (!this.newEventForm.notifyTime)
     };
 
-    if (this.editingEvent) {
-      // 編輯現有事件
-      const index = this.events.findIndex(e => e === this.editingEvent);
-      if (index !== -1) {
-        this.events[index] = newEvent;
-      }
-      
-      // 發送到後端更新
-      this.http.put(`/dashboard/calendar/events/${(this.editingEvent.meta as any)?.id}`, newEvent).subscribe(
-        (res: any) => {
-          console.log('Event updated successfully');
-        },
-        (error: any) => {
-          console.error('Error updating event:', error);
-        }
-      );
-    } else {
-      // 新增事件
-      this.events.push(newEvent);
-      
-      // 發送到後端新增
-      this.http.post('/dashboard/calendar/events', newEvent).subscribe(
-        (res: any) => {
-          // 後端回傳 id
-          if (res.id) {
-            (newEvent.meta as any).id = res.id;
-          }
-          console.log('Event created successfully');
-        },
-        (error: any) => {
-          console.error('Error creating event:', error);
-        }
-      );
-    }
-
-    this.closeModal();
+    return !Object.values(this.formErrors).some(error => error);
   }
 
-  deleteEvent() {
-    if (!this.editingEvent) return;
+  // 重置表單驗證狀態
+  resetFormErrors(): void {
+    this.formErrors = {
+      title: false,
+      content: false,
+      eventDate: false,
+      notifyTime: false
+    };
+  }
 
-    if (confirm('確定要刪除此事件嗎？')) {
-      const eventId = (this.editingEvent.meta as any)?.id;
-      
-      // 從本地陣列移除
-      this.events = this.events.filter(e => e !== this.editingEvent);
+  closeEventModal(): void {
+    this.showEventModal = false;
+    this.modalMode = 'list';
+    this.selectedEvent = null;
+    this.resetNewEventForm();
+  }
 
-      // 發送到後端刪除
-      if (eventId) {
-        this.http.delete(`/dashboard/calendar/events/${eventId}`).subscribe(
-          (res: any) => {
-            console.log('Event deleted successfully');
+  updateEventDate(dateString: string): void {
+    this.newEventForm.eventDate = new Date(dateString);
+  }
+
+  updateNotifyTime(timeString: string): void {
+    const [hours, minutes] = timeString.split(':');
+    const notifyTime = new Date(this.newEventForm.eventDate);
+    notifyTime.setHours(parseInt(hours), parseInt(minutes));
+    this.newEventForm.notifyTime = notifyTime;
+  }
+
+  saveEvent(): void {
+    // 驗證表單
+    if (!this.validateForm()) {
+      return;
+    }
+    
+    if (this.modalMode === 'add') {
+        // 新增事件
+        const newEvent: CalendarEvent = {
+          title: this.newEventForm.title.trim(),
+          start: startOfDay(this.newEventForm.eventDate),
+          end: endOfDay(this.newEventForm.eventDate),
+          color: colors['green'], // 初始顏色，會在下面更新
+          draggable: true,
+          resizable: {
+            beforeStart: true,
+            afterEnd: true,
           },
-          (error: any) => {
-            console.error('Error deleting event:', error);
+          meta: {
+            content: this.newEventForm.content,
+            notifyEnabled: this.newEventForm.notifyEnabled,
+            notifyTime: this.newEventForm.notifyTime
           }
-        );
-      }
-      
-      this.closeModal();
-    }
-  }
-
-  closeModal() {
-    this.modalOpen = false;
-  }
-
-  // 日期格式化方法
-  formatDateForInput(date: Date): string {
-    return date.toISOString().split('T')[0];
-  }
-
-  formatDateTimeForInput(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  }
-
-  // 行事曆相關方法
-  getCalendarDays(): any[] {
-    const year = this.viewDate.getFullYear();
-    const month = this.viewDate.getMonth();
-    
-    // 取得當月第一天和最後一天
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    
-    // 取得第一天是星期幾（0=星期日）
-    const firstDayOfWeek = firstDay.getDay();
-    
-    // 建立行事曆陣列
-    const days = [];
-    
-    // 添加上個月的天數
-    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-      const date = new Date(firstDay);
-      date.setDate(date.getDate() - i - 1);
-      days.push({
-        date: date,
-        dayNumber: date.getDate(),
-        isCurrentMonth: false
-      });
-    }
-    
-    // 添加當月的天數
-    for (let day = 1; day <= lastDay.getDate(); day++) {
-      const date = new Date(year, month, day);
-      days.push({
-        date: date,
-        dayNumber: day,
-        isCurrentMonth: true
-      });
-    }
-    
-    // 添加下個月的天數，填滿6週
-    const remainingDays = 42 - days.length;
-    for (let day = 1; day <= remainingDays; day++) {
-      const date = new Date(year, month + 1, day);
-      days.push({
-        date: date,
-        dayNumber: day,
-        isCurrentMonth: false
-      });
-    }
-    
-    return days;
-  }
-
-  isToday(date: Date): boolean {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  }
-
-  isCurrentMonth(date: Date): boolean {
-    return date.getMonth() === this.viewDate.getMonth() && 
-           date.getFullYear() === this.viewDate.getFullYear();
-  }
-
-  getEventsForDay(date: Date): CalendarEvent[] {
-    return this.events.filter(event => {
-      const eventDate = new Date(event.start);
-      return eventDate.toDateString() === date.toDateString();
-    });
-  }
-
-  // 新的事件 Modal 方法
-  openEventModal(date: Date, event?: any): void {
-    this.selectedDate = date;
-    this.dayEventsModalOpen = true;
-  }
-
-  closeDayEventsModal(): void {
-    this.dayEventsModalOpen = false;
-  }
-
-  deleteEventDirect(event: CalendarEvent): void {
-    if (confirm('確定要刪除此事件嗎？')) {
-      const eventId = (event.meta as any)?.id;
-      
-      // 從本地陣列移除
-      this.events = this.events.filter(e => e !== event);
-
-      // 發送到後端刪除
-      if (eventId) {
-        this.http.delete(`/dashboard/calendar/events/${eventId}`).subscribe(
-          (res: any) => {
-            console.log('Event deleted successfully');
-          },
-          (error: any) => {
-            console.error('Error deleting event:', error);
+        };
+        
+        // 根據通知狀態設置正確的顏色
+        newEvent.color = this.getEventColor(newEvent);
+        this.events = [...this.events, newEvent];
+        this.modalMode = 'list';
+        this.selectedDateEvents = this.getEventsForDate(this.selectedDate);
+      } else if (this.modalMode === 'edit' && this.selectedEvent) {
+        // 更新事件
+        const updatedEvent: CalendarEvent = {
+          ...this.selectedEvent,
+          title: this.newEventForm.title.trim(),
+          start: startOfDay(this.newEventForm.eventDate),
+          end: endOfDay(this.newEventForm.eventDate),
+          color: colors['green'], // 初始顏色，會在下面更新
+          meta: {
+            content: this.newEventForm.content,
+            notifyEnabled: this.newEventForm.notifyEnabled,
+            notifyTime: this.newEventForm.notifyTime
           }
+        };
+        
+        // 根據通知狀態設置正確的顏色
+        updatedEvent.color = this.getEventColor(updatedEvent);
+        this.events = this.events.map(event => 
+          event === this.selectedEvent ? updatedEvent : event
         );
+        this.modalMode = 'list';
+        this.selectedDateEvents = this.getEventsForDate(this.selectedDate);
       }
     }
+  
+
+  deleteSelectedEvent(): void {
+    if (this.selectedEvent) {
+      this.events = this.events.filter((event) => event !== this.selectedEvent);
+      this.closeEventModal();
+    }
   }
 
-  // 輔助方法：取得今天的日期
-  getTodayDate(): Date {
+  deleteEvent(eventToDelete: CalendarEvent) {
+    this.events = this.events.filter((event) => event !== eventToDelete);
+  }
+
+
+
+  closeOpenMonthViewDay() {
+    this.activeDayIsOpen = false;
+  }
+
+  // 控制列功能
+  goToday() { 
+    this.viewDate = new Date(); 
+  }
+  
+  prevMonth() { 
+    const newDate = new Date(this.viewDate);
+    newDate.setMonth(newDate.getMonth() - 1);
+    this.viewDate = newDate;
+  }
+  
+  nextMonth() { 
+    const newDate = new Date(this.viewDate);
+    newDate.setMonth(newDate.getMonth() + 1);
+    this.viewDate = newDate;
+  }
+
+  goTodayDate(): Date {
     return new Date();
   }
 }
