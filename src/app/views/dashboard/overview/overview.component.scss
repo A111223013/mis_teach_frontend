@@ -91,9 +91,23 @@
   // 行事曆樣式
 .calendar-view {
   min-height: 500px;
+  width: 100%;
+  overflow: hidden;
   
   // 改善 angular-calendar 事件顯示
   ::ng-deep {
+    // 限制行事曆容器寬度
+    .cal-month-view {
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: hidden !important;
+    }
+    
+    // 限制事件容器寬度
+    .cal-events {
+      max-width: 100% !important;
+      overflow: hidden !important;
+    }
     .cal-event {
       border-radius: 6px !important;
       font-size: 11px !important;

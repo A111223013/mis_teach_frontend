@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy, ViewChild, TemplateRef, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, ViewChild, TemplateRef, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, DatePipe, JsonPipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import {
@@ -14,6 +14,7 @@ import {
   cilClock, cilNotes, cilBell, cilCheck, cilX, cilPencil, cilTrash 
 } from '@coreui/icons';
 import { DashboardService } from '../../../service/dashboard.service';
+import { OverviewService } from '../../../service/overview.service';
 import { Chart, registerables } from 'chart.js';
 import { MathJaxService } from '../../../service/mathjax.service';
 import { FormsModule } from '@angular/forms';
@@ -75,7 +76,6 @@ const colors: Record<string, EventColor> = {
         CommonModule,
         RouterModule,
         DatePipe,
-    JsonPipe,
         CardComponent,
         CardBodyComponent,
         ContainerComponent,
@@ -165,7 +165,9 @@ export class OverviewComponent implements OnInit {
   constructor(
     private iconSetService: IconSetService, 
     private dashboardService: DashboardService,
-    private mathJaxService: MathJaxService
+    private mathJaxService: MathJaxService,
+    private overviewService: OverviewService,
+    private cdr: ChangeDetectorRef
   ) { 
     iconSetService.icons = { 
       cilUser, cilPlus, cilChevronLeft, cilChevronRight, cilCalendar, 
@@ -177,8 +179,6 @@ export class OverviewComponent implements OnInit {
   ngOnInit(): void {
     this.getUserInfo();
     this.loadEvents();
-    // 更新所有事件的顏色
-    this.updateAllEventColors();
   }
 
   getUserInfo(): void {
@@ -193,14 +193,39 @@ export class OverviewComponent implements OnInit {
   }
 
   loadEvents(): void {
-    // 初始化為空的事件列表
+    this.overviewService.getCalendarEvents().subscribe({
+      next: (response: any) => {
+        console.log('✅ 成功載入行事曆事件:', response);
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        
+        this.events = response.events.map((event: any) => ({
+          id: event.id,
+          title: event.title,
+          content: event.content || '',
+          start: new Date(event.start),
+          end: new Date(event.start), // 單日事件，結束時間等於開始時間
+          allDay: true, // 標記為全天事件，這樣 angular-calendar 才會顯示
+          color: this.getEventColor({
+            id: event.id,
+            title: event.title,
+            start: new Date(event.start),
+            notifyEnabled: event.notifyEnabled,
+            notifyTime: event.notifyTime ? new Date(event.notifyTime) : null
+          } as CalendarEvent),
+          notifyEnabled: event.notifyEnabled,
+          notifyTime: event.notifyTime ? new Date(event.notifyTime) : null
+        }));
+        this.updateAllEventColors();
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('❌ 載入行事曆事件失敗:', error);
+        // 如果 API 失敗，使用空陣列
     this.events = [];
-    
-    // 未來可以從後端 API 載入真實數據
-    // this.dashboardService.getEvents().subscribe(events => {
-    //   this.events = events;
-    //   this.updateAllEventColors();
-    // });
+  }
+    });
   }
 
   dayClicked({ date, events }: { date: Date; events: CalendarEvent[] }): void {
@@ -275,10 +300,10 @@ export class OverviewComponent implements OnInit {
     this.selectedEvent = event;
     this.newEventForm = {
       title: event.title,
-      content: event.meta?.content || '',
+      content: (event as any).content || '',
       eventDate: event.start,
-      notifyEnabled: event.meta?.notifyEnabled || false,
-      notifyTime: event.meta?.notifyTime ? new Date(event.meta.notifyTime) : new Date()
+      notifyEnabled: (event as any).notifyEnabled || false,
+      notifyTime: (event as any).notifyTime ? new Date((event as any).notifyTime) : new Date()
     };
   }
 
@@ -306,7 +331,7 @@ export class OverviewComponent implements OnInit {
     const eventDate = event.start;
     
     // 如果有設置通知時間
-    if (event.meta?.notifyEnabled && event.meta?.notifyTime) {
+    if ((event as any).notifyEnabled && (event as any).notifyTime) {
       // 如果事件日期是今天，使用紅色（緊急）
       if (isSameDay(eventDate, today)) {
         return colors['red'];
@@ -370,61 +395,89 @@ export class OverviewComponent implements OnInit {
     if (!this.validateForm()) {
       return;
     }
-    
+
+    const eventData = {
+      title: this.newEventForm.title.trim(),
+      content: this.newEventForm.content.trim(),
+      start: this.newEventForm.eventDate.toISOString(),
+      notifyEnabled: this.newEventForm.notifyEnabled,
+      notifyTime: this.newEventForm.notifyEnabled ? this.newEventForm.notifyTime.toISOString() : null
+    };
+
     if (this.modalMode === 'add') {
-        // 新增事件
-        const newEvent: CalendarEvent = {
-          title: this.newEventForm.title.trim(),
-          start: startOfDay(this.newEventForm.eventDate),
-          end: endOfDay(this.newEventForm.eventDate),
-          color: colors['green'], // 初始顏色，會在下面更新
-          draggable: true,
-          resizable: {
-            beforeStart: true,
-            afterEnd: true,
-          },
-          meta: {
-            content: this.newEventForm.content,
-            notifyEnabled: this.newEventForm.notifyEnabled,
-            notifyTime: this.newEventForm.notifyTime
+      // 新增事件
+      this.overviewService.createCalendarEvent(eventData).subscribe({
+        next: (response: any) => {
+          console.log('✅ 事件新增成功:', response);
+          if (response.token) {
+            localStorage.setItem('token', response.token);
           }
-        };
-        
-        // 根據通知狀態設置正確的顏色
-        newEvent.color = this.getEventColor(newEvent);
-        this.events = [...this.events, newEvent];
-        this.modalMode = 'list';
-        this.selectedDateEvents = this.getEventsForDate(this.selectedDate);
-      } else if (this.modalMode === 'edit' && this.selectedEvent) {
-        // 更新事件
-        const updatedEvent: CalendarEvent = {
-          ...this.selectedEvent,
-          title: this.newEventForm.title.trim(),
-          start: startOfDay(this.newEventForm.eventDate),
-          end: endOfDay(this.newEventForm.eventDate),
-          color: colors['green'], // 初始顏色，會在下面更新
-          meta: {
-            content: this.newEventForm.content,
-            notifyEnabled: this.newEventForm.notifyEnabled,
-            notifyTime: this.newEventForm.notifyTime
+          
+          // 重新載入事件列表
+          this.loadEvents();
+          this.modalMode = 'list';
+          this.selectedDateEvents = this.getEventsForDate(this.selectedDate);
+          this.resetNewEventForm();
+          
+          // 關閉 modal
+          this.showEventModal = false;
+        },
+        error: (error: any) => {
+          console.error('❌ 新增事件失敗:', error);
+          alert('新增事件失敗，請稍後再試');
+        }
+      });
+    } else if (this.modalMode === 'edit' && this.selectedEvent) {
+      // 更新事件
+      this.overviewService.updateCalendarEvent(Number(this.selectedEvent.id!), eventData).subscribe({
+        next: (response: any) => {
+          console.log('✅ 事件更新成功:', response);
+          if (response.token) {
+            localStorage.setItem('token', response.token);
           }
-        };
-        
-        // 根據通知狀態設置正確的顏色
-        updatedEvent.color = this.getEventColor(updatedEvent);
-        this.events = this.events.map(event => 
-          event === this.selectedEvent ? updatedEvent : event
-        );
-        this.modalMode = 'list';
-        this.selectedDateEvents = this.getEventsForDate(this.selectedDate);
-      }
+          
+          // 重新載入事件列表
+          this.loadEvents();
+          this.modalMode = 'list';
+          this.selectedDateEvents = this.getEventsForDate(this.selectedDate);
+          this.resetNewEventForm();
+          
+          // 關閉 modal
+          this.showEventModal = false;
+        },
+        error: (error: any) => {
+          console.error('❌ 更新事件失敗:', error);
+          alert('更新事件失敗，請稍後再試');
+        }
+      });
     }
+  }
   
 
   deleteSelectedEvent(): void {
-    if (this.selectedEvent) {
-      this.events = this.events.filter((event) => event !== this.selectedEvent);
-      this.closeEventModal();
+    if (!this.selectedEvent) {
+      return;
+    }
+
+    if (confirm('確定要刪除這個事件嗎？')) {
+      this.overviewService.deleteCalendarEvent(Number(this.selectedEvent.id!)).subscribe({
+        next: (response: any) => {
+          console.log('✅ 事件刪除成功:', response);
+          
+          // 更新 token
+          if (response.token) {
+            localStorage.setItem('token', response.token);
+          }
+          
+          // 重新載入事件列表
+          this.loadEvents();
+          this.closeEventModal();
+        },
+        error: (error: any) => {
+          console.error('❌ 刪除事件失敗:', error);
+          alert('刪除事件失敗，請稍後再試');
+        }
+      });
     }
   }
 

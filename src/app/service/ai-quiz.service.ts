@@ -78,6 +78,13 @@ export class AiQuizService {
     });
 
     return this.http.post<any>(`${this.API_BASE_URL}/get-user-submissions-analysis`, {}, { headers }).pipe(
+      map((response: any) => {
+        // 檢查返回的響應是否包含新的 token
+        if (response && response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        return response;
+      }),
       catchError((error: any) => {
         if (error.status === 401) {
           localStorage.removeItem('token');
@@ -100,6 +107,13 @@ export class AiQuizService {
     });
 
     return this.http.post<any>(`${this.API_BASE_URL}/get-user-errors-mongo`, {}, { headers }).pipe(
+      map((response: any) => {
+        // 檢查返回的響應是否包含新的 token
+        if (response && response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        return response;
+      }),
       catchError((error: any) => {
         if (error.status === 401) {
           localStorage.removeItem('token');
