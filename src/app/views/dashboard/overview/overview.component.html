@@ -190,7 +190,7 @@
             type="date" 
             class="form-control" 
             [class.is-invalid]="formErrors.eventDate"
-            [ngModel]="newEventForm.eventDate | date:'yyyy-MM-dd'"
+            [ngModel]="newEventForm.eventDate"
             (ngModelChange)="updateEventDate($event)">
           <div class="invalid-feedback" *ngIf="formErrors.eventDate">
             請選擇事件日期

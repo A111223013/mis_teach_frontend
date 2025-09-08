@@ -4,7 +4,7 @@ import { LoginComponent } from './views/login/login.component';
 import { DefaultLayoutComponent } from './layout/default-layout/default-layout.component';
 
 export const routes: Routes = [
-    { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+    { path: '', redirectTo: 'login', pathMatch: 'full' },
     { path: 'login', component: LoginComponent },
     {
         path: 'dashboard',

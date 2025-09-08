@@ -19,20 +19,12 @@ import { Chart, registerables } from 'chart.js';
 import { MathJaxService } from '../../../service/mathjax.service';
 import { FormsModule } from '@angular/forms';
 import {
-  startOfDay,
-  endOfDay,
-  subDays,
-  addDays,
-  endOfMonth,
   isSameDay,
   isSameMonth,
-  addHours,
 } from 'date-fns';
 import { Subject } from 'rxjs';
 import {
   CalendarEvent,
-  CalendarEventAction,
-  CalendarEventTimesChangedEvent,
   CalendarView,
   CalendarModule,
   DateAdapter,
@@ -109,13 +101,6 @@ export class OverviewComponent implements OnInit {
   activeDayIsOpen: boolean = true;
   refresh = new Subject<void>();
 
-  modalData: {
-    action: string;
-    event: CalendarEvent;
-  } = {
-    action: '',
-    event: {} as CalendarEvent
-  };
 
   // 統一的 modal 相關屬性
   showEventModal: boolean = false;
@@ -128,7 +113,7 @@ export class OverviewComponent implements OnInit {
   newEventForm = {
     title: '',
     content: '',
-    eventDate: new Date(),
+    eventDate: '',
     notifyEnabled: false,
     notifyTime: new Date()
   };
@@ -144,23 +129,6 @@ export class OverviewComponent implements OnInit {
   // 讓 colors 在模板中可用
   colors = colors;
 
-  actions: CalendarEventAction[] = [
-    {
-      label: '<i class="fas fa-fw fa-pencil-alt"></i>',
-      a11yLabel: 'Edit',
-      onClick: ({ event }: { event: CalendarEvent }): void => {
-        this.handleEvent('Edited', event);
-      },
-    },
-    {
-      label: '<i class="fas fa-fw fa-trash-alt"></i>',
-      a11yLabel: 'Delete',
-      onClick: ({ event }: { event: CalendarEvent }): void => {
-        this.events = this.events.filter((iEvent) => iEvent !== event);
-        this.handleEvent('Deleted', event);
-      },
-    },
-  ];
 
   constructor(
     private iconSetService: IconSetService, 
@@ -205,8 +173,8 @@ export class OverviewComponent implements OnInit {
           title: event.title,
           content: event.content || '',
           start: new Date(event.start),
-          end: new Date(event.start), // 單日事件，結束時間等於開始時間
-          allDay: true, // 標記為全天事件，這樣 angular-calendar 才會顯示
+          end: new Date(event.start),
+          allDay: true,
           color: this.getEventColor({
             id: event.id,
             title: event.title,
@@ -245,23 +213,6 @@ export class OverviewComponent implements OnInit {
     }
   }
 
-  eventTimesChanged({
-    event,
-    newStart,
-    newEnd,
-  }: CalendarEventTimesChangedEvent): void {
-    this.events = this.events.map((iEvent) => {
-      if (iEvent === event) {
-        return {
-          ...event,
-          start: newStart,
-          end: newEnd,
-        };
-      }
-      return iEvent;
-    });
-    this.handleEvent('Dropped or resized', event);
-  }
 
   handleEvent(action: string, event: CalendarEvent): void {
     this.selectedEvent = event;
@@ -301,17 +252,23 @@ export class OverviewComponent implements OnInit {
     this.newEventForm = {
       title: event.title,
       content: (event as any).content || '',
-      eventDate: event.start,
+      eventDate: event.start.toISOString().split('T')[0],
       notifyEnabled: (event as any).notifyEnabled || false,
       notifyTime: (event as any).notifyTime ? new Date((event as any).notifyTime) : new Date()
     };
   }
 
   resetNewEventForm(): void {
+    // 使用本地時間格式化選中的日期，避免時區轉換
+    const year = this.selectedDate.getFullYear();
+    const month = String(this.selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(this.selectedDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
     this.newEventForm = {
       title: '',
       content: '',
-      eventDate: this.selectedDate,
+      eventDate: dateStr,
       notifyEnabled: false,
       notifyTime: new Date()
     };
@@ -380,15 +337,34 @@ export class OverviewComponent implements OnInit {
   }
 
   updateEventDate(dateString: string): void {
-    this.newEventForm.eventDate = new Date(dateString);
+    // 直接使用字符串格式，避免 Date 對象的時區問題
+    this.newEventForm.eventDate = dateString as any;
   }
 
   updateNotifyTime(timeString: string): void {
-    const [hours, minutes] = timeString.split(':');
-    const notifyTime = new Date(this.newEventForm.eventDate);
-    notifyTime.setHours(parseInt(hours), parseInt(minutes));
-    this.newEventForm.notifyTime = notifyTime;
+    // 使用本地時間構造 Date 對象，避免時區轉換
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const eventDate = new Date(this.newEventForm.eventDate + 'T00:00:00');
+    this.newEventForm.notifyTime = new Date(
+      eventDate.getFullYear(),
+      eventDate.getMonth(),
+      eventDate.getDate(),
+      hours,
+      minutes
+    );
   }
+
+  // 格式化本地時間為字符串，避免時區轉換
+  formatLocalDateTime(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  }
+
 
   saveEvent(): void {
     // 驗證表單
@@ -399,9 +375,9 @@ export class OverviewComponent implements OnInit {
     const eventData = {
       title: this.newEventForm.title.trim(),
       content: this.newEventForm.content.trim(),
-      start: this.newEventForm.eventDate.toISOString(),
+      start: this.newEventForm.eventDate + 'T00:00:00', // 本地時間格式
       notifyEnabled: this.newEventForm.notifyEnabled,
-      notifyTime: this.newEventForm.notifyEnabled ? this.newEventForm.notifyTime.toISOString() : null
+      notifyTime: this.newEventForm.notifyEnabled ? this.formatLocalDateTime(this.newEventForm.notifyTime) : null
     };
 
     if (this.modalMode === 'add') {
@@ -481,15 +457,9 @@ export class OverviewComponent implements OnInit {
     }
   }
 
-  deleteEvent(eventToDelete: CalendarEvent) {
-    this.events = this.events.filter((event) => event !== eventToDelete);
-  }
 
 
 
-  closeOpenMonthViewDay() {
-    this.activeDayIsOpen = false;
-  }
 
   // 控制列功能
   goToday() { 
@@ -508,7 +478,4 @@ export class OverviewComponent implements OnInit {
     this.viewDate = newDate;
   }
 
-  goTodayDate(): Date {
-    return new Date();
-  }
 }
