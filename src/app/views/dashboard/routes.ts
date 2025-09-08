@@ -33,6 +33,13 @@ export const routes: Routes = [
         }
     },
     {
+        path: 'material-view/:filename',
+        loadComponent: () => import('./material/material-view/material-view.component').then(m => m.MaterialViewComponent),
+        data: {
+          title: '教材內容'
+        }
+    },
+    {
         path: 'quiz-result/:resultId',
         loadComponent: () => import('./quiz-result/quiz-result.component').then(m => m.QuizResultComponent),
         data: {
