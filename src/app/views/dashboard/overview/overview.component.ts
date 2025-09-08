@@ -478,4 +478,21 @@ export class OverviewComponent implements OnInit {
     this.viewDate = newDate;
   }
 
+  deleteEvent(eventId: number): void {
+    this.overviewService.deleteCalendarEvent(eventId).subscribe({
+      next: (response) => {
+        console.log('✅ 事件刪除成功:', response);
+        this.loadEvents();
+        this.closeModal();
+      },
+      error: (error) => {
+        console.error('❌ 刪除事件失敗:', error);
+      }
+    });
+  }
+
+  closeModal(): void {
+    this.showEventModal = false;
+  }
+
 }

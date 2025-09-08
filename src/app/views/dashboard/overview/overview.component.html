@@ -68,8 +68,7 @@
             [refresh]="refresh"
             [activeDayIsOpen]="activeDayIsOpen"
             (dayClicked)="dayClicked($event.day)"
-            (eventClicked)="handleEvent('Clicked', $event.event)"
-            (eventTimesChanged)="eventTimesChanged($event)">
+            (eventClicked)="handleEvent('Clicked', $event.event)">
           </mwl-calendar-month-view>
         </div>
       </c-card-body>
@@ -146,7 +145,7 @@
                 <button
                   type="button"
                   class="btn btn-outline-danger btn-sm"
-                  (click)="deleteEvent(event)">
+                  (click)="deleteEvent(event.id)">
                   <svg cIcon name="cilTrash"></svg>
                 </button>
               </div>
