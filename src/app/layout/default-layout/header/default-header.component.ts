@@ -15,7 +15,7 @@ import { navItems } from '../_nav';
 import { 
   cilAccountLogout, 
   cilSpeedometer, cilBook, cilSchool, cilChartPie,
-  cilBrush, cilCog, cilSpeech
+  cilBrush, cilCog, cilSpeech, cilNewspaper
 } from '@coreui/icons';
 
 @Component({
@@ -44,7 +44,7 @@ export class DefaultHeaderComponent {
     iconSetService.icons = { 
       cilAccountLogout, 
       cilSpeedometer, cilBook, cilSchool, cilChartPie, 
-      cilBrush, cilCog, cilSpeech
+      cilBrush, cilCog, cilSpeech, cilNewspaper
     };
   }
 } 
