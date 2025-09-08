@@ -22,3 +22,102 @@ pre {
 html {
   scroll-behavior: smooth;
 }
+
+// 浮動按鈕樣式
+.floating-buttons {
+  position: fixed;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateX(-50%);
+  animation: fadeInUp 0.2s ease-out;
+  
+  .btn {
+    border-radius: 6px;
+    font-size: 0.875rem;
+    padding: 6px 12px;
+    
+    i {
+      margin-right: 4px;
+    }
+  }
+}
+
+// 動畫效果
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+// 文字選擇高亮效果
+::selection {
+  background-color: rgba(0, 123, 255, 0.2);
+  color: inherit;
+}
+
+::-moz-selection {
+  background-color: rgba(0, 123, 255, 0.2);
+  color: inherit;
+}
+
+// AI 回答模態框樣式
+.ai-response-content {
+  line-height: 1.6;
+  font-size: 1rem;
+  
+  p {
+    margin-bottom: 1rem;
+  }
+  
+  ul, ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+  }
+  
+  code {
+    background-color: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+  }
+  
+  pre {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+  }
+}
+
+// 通知動畫
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}

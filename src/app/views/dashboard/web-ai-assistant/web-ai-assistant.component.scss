@@ -449,3 +449,67 @@
     transform: translateY(-5px);
   }
 }
+
+/* 開始測驗按鈕區域 */
+.quiz-action-container {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #28a745;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px;
+  animation: slideInUp 0.3s ease-out;
+  
+  .quiz-info {
+    text-align: center;
+    margin-bottom: 12px;
+    
+    .quiz-title {
+      color: #28a745;
+      font-weight: 600;
+      margin-bottom: 4px;
+      font-size: 1rem;
+    }
+    
+    .quiz-details {
+      color: #6c757d;
+      font-size: 0.875rem;
+      margin: 0;
+    }
+  }
+  
+  .quiz-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    
+    .start-quiz-btn {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      padding: 12px 24px;
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+      transition: all 0.2s ease;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+      }
+      
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -198,6 +198,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         this.loadCurrentQuestion();
         
         console.log('✅ 测验加载完成，题目数量:', this.totalQuestions);
+        this.isLoading = false;
         
       } else {
         console.log('❌ 没有找到已存储的测验数据');
@@ -228,6 +229,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         
         // 如果不是正在提交且沒有完成，則重定向
         console.log('🔄 重定向到測驗中心');
+        this.isLoading = false;
         // 移除alert，直接跳轉
         this.router.navigate(['/dashboard/quiz-center']);
       }

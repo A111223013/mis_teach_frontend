@@ -106,4 +106,11 @@ export class QuizService {
       this.http.post(`${environment.apiBaseUrl}/quiz/get-user-errors-mongo`, {}, { headers })
     ).pipe(catchError(this.handleError));
   }
+
+  // 從數據庫獲取考卷數據
+  getQuizFromDatabase(quizData: any): Observable<any> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post(`${environment.apiBaseUrl}/quiz/get-quiz-from-database`, quizData, { headers })
+    ).pipe(catchError(this.handleError));
+  }
 } 

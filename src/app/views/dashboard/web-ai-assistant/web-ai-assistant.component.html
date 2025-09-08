@@ -97,6 +97,32 @@
       </div>
     </div>
 
+    <!-- 開始測驗按鈕 -->
+    <div class="quiz-action-container" *ngIf="showStartQuizButton">
+      <div class="quiz-info">
+        <h6 class="quiz-title">{{ currentQuizData?.quiz_info?.title }}</h6>
+        <p class="quiz-details">
+          {{ currentQuizData?.quiz_info?.question_count }} 題 • 
+          {{ currentQuizData?.quiz_info?.time_limit }} 分鐘
+        </p>
+      </div>
+      <div class="quiz-actions">
+        <button
+          type="button"
+          class="btn btn-success btn-lg start-quiz-btn"
+          (click)="startQuiz()">
+          <svg cIcon name="cilPlay" class="me-2"></svg>
+          開始測驗
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          (click)="hideStartQuizButton()">
+          關閉
+        </button>
+      </div>
+    </div>
+
     <!-- 輸入區域 -->
     <div class="input-container">
       <div class="input-wrapper">

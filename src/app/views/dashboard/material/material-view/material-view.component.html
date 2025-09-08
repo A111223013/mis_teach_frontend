@@ -16,3 +16,26 @@
     </div>
   </div>
 </div>
+
+<!-- 浮動按鈕組 -->
+<div 
+  *ngIf="showButtons" 
+  class="floating-buttons"
+  [style.left.px]="buttonPosition.x"
+  [style.top.px]="buttonPosition.y"
+>
+  <button 
+    class="btn btn-primary btn-sm me-2" 
+    (click)="askQuestion()"
+    title="詢問關於選中的內容"
+  >
+    <i class="cil-question-mark"></i> 詢問
+  </button>
+  <button 
+    class="btn btn-success btn-sm" 
+    (click)="generateQuiz()"
+    title="生成關於選中內容的題目"
+  >
+    <i class="cil-lightbulb"></i> 生成題目
+  </button>
+</div>

@@ -259,4 +259,5 @@ export class QuizCenterComponent implements OnInit {
       }
     });
   }
+
 }
