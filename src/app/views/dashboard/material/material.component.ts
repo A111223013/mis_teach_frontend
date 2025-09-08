@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MarkdownModule } from 'ngx-markdown';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MaterialService } from '../../../service/material.service';
 import { 
   CardBodyComponent,
@@ -24,7 +24,8 @@ import {
     MarkdownModule,
     CardModule,
     CardComponent,
-    CardBodyComponent
+    CardBodyComponent,
+    RouterModule
   ],
   templateUrl: './material.component.html',
   styleUrls: ['./material.component.scss'],
@@ -67,7 +68,7 @@ export class MaterialComponent {
       this.materialService.getBlocks().subscribe(allBlocks => {
         this.blocks = allBlocks.map((b: any) => ({
           ...b,
-          expanded: false, // 預設收合
+          expanded: true, // 預設展開
           mcs: []          // 預設 microConcepts
         }));
 

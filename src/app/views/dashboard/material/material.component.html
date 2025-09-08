@@ -1,13 +1,11 @@
 <div *ngIf="domain; else noDomain">
   <div class="row justify-content-center">
     <div class="col-md-5 mb-4" *ngFor="let b of blocks">
-      <c-card class="h-100 c-card-hover" (click)="toggleBlock(b)">
+      <c-card class="h-100 c-card-hover">
         
         <!-- 標題 -->
-        <c-card-header class="text-center fw-bold">
+        <c-card-header class="text-center fw-bold bg-primary text-white">
           {{ b.title }}
-          <span *ngIf="!b.expanded">▼</span>
-          <span *ngIf="b.expanded">▲</span>
         </c-card-header>
 
         <!-- 內容帶動畫 -->
@@ -16,8 +14,7 @@
             class="list-unstyled mt-3"
             [@expandCollapse]="b.expanded ? 'expanded' : 'collapsed'">
             <li *ngFor="let mc of getMicroConceptsByBlock(b)">
-              <!-- 直接跳轉到 Flask API -->
-              <a [href]="'http://127.0.0.1:5000/materials/' + mc.name" target="_blank">
+              <a [routerLink]="['/dashboard/material-view', mc.name]">
                 {{ mc.name }}
               </a>
               <span *ngIf="mc.dependencies?.length">
