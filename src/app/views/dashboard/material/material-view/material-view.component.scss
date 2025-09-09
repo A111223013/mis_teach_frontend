@@ -23,6 +23,42 @@ html {
   scroll-behavior: smooth;
 }
 
+.toc-wrapper {
+  position: fixed;
+  top: 82px;
+  left: 0;
+  width: 300px;
+  height: 100vh;
+  background-color: #f8f9fa;
+  border-right: 1px solid #dee2e6;
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+.toc-wrapper.collapsed {
+  transform: translateY(-100%);
+}
+
+.content-wrapper {
+  margin-left: 300px;
+  transition: margin-left 0.3s ease;
+}
+
+.content-wrapper.centered {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 800px;
+}
+
+.back-btn {
+  position: fixed;
+  top: 82px;
+  left: 300px;
+  z-index: 1100;
+}
+
+
+
 // 浮動按鈕樣式
 .floating-buttons {
   position: fixed;

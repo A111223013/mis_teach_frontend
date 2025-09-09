@@ -1,20 +1,26 @@
 <div class="container-fluid">
-  <div class="row">
-    <!-- TOC -->
-    <div class="col-md-3 toc p-3 border-end bg-light">
-      <h5>目錄</h5>
-      <div id="toc-list"></div>
-      <button class="btn btn-outline-secondary mt-3" (click)="goBack()">← 回上一頁</button>
-    </div>
+    <button class="btn btn-outline-secondary back-btn" (click)="goBack()">← 回上一頁</button>
+    
+    <div class="row">
+        <!-- TOC -->
+        <div class="toc-wrapper" [class.collapsed]="tocCollapsed">
+            <c-card>
+                <h5>目錄</h5>
+                <div id="toc-list"></div>
+                <button class="btn btn-sm btn-outline-secondary mt-3" (click)="toggleTOC()">收合目錄</button>
+            </c-card>
+        </div>
 
-    <!-- 內容 -->
-    <div class="col-md-9 content p-4" id="content">
-      <h2 class="text-center mb-4">{{ filename }}</h2>
-      <div class="card shadow-lg p-4">
-        <markdown [data]="content" (ready)="onMarkdownReady()"></markdown>
-      </div>
+        <!-- 內容 -->
+        <div class="content-wrapper" [class.centered]="tocCollapsed">
+            <div class="col-md-9 content p-4" id="content">
+                <h2 class="text-center mb-4">{{ filename }}</h2>
+                <div class="card shadow-lg p-4">
+                    <markdown [data]="content" (ready)="onMarkdownReady()"></markdown>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
 
 <!-- 浮動按鈕組 -->

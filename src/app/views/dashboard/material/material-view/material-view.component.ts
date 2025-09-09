@@ -1,16 +1,25 @@
 import { Component, ElementRef, AfterViewChecked } from '@angular/core';
-import { CommonModule, Location } from '@angular/common';
+import { CommonModule, Location, ViewportScroller  } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { MarkdownModule } from 'ngx-markdown';
 import { MaterialService } from '../../../../service/material.service';
 import { AiChatService } from '../../../../service/ai-chat.service';
 import { AiQuizService } from '../../../../service/ai-quiz.service';
 import { MessageBridgeService } from '../../../../service/message-bridge.service';
+import { 
+  CardComponent,
+  CardModule   
+} from '@coreui/angular';
 
 @Component({
   selector: 'app-material-view',
   standalone: true,
-  imports: [CommonModule, MarkdownModule],
+  imports: [
+    CommonModule, 
+    MarkdownModule,
+    CardModule,
+    CardComponent,
+  ],
   templateUrl: './material-view.component.html',
   styleUrls: ['./material-view.component.scss']
 })
@@ -31,7 +40,8 @@ export class MaterialViewComponent implements AfterViewChecked {
     private elRef: ElementRef,
     private aiChatService: AiChatService,
     private aiQuizService: AiQuizService,
-    private messageBridgeService: MessageBridgeService
+    private messageBridgeService: MessageBridgeService,
+    private viewportScroller: ViewportScroller
   ) {}
 
   ngOnInit(): void {
@@ -61,6 +71,12 @@ export class MaterialViewComponent implements AfterViewChecked {
 
   goBack(): void {
     this.location.back();
+  }
+
+  tocCollapsed = false;
+
+  toggleTOC() {
+    this.tocCollapsed = !this.tocCollapsed;
   }
 
   // Markdown 載入完成後
@@ -96,9 +112,13 @@ export class MaterialViewComponent implements AfterViewChecked {
       }
 
       const a = document.createElement('a');
-      a.href = `#${h.id}`;
       a.textContent = text;
       a.classList.add('d-block', 'mb-1', 'toc-link');
+      a.style.cursor = 'pointer';
+      a.addEventListener('click', () => {
+        this.viewportScroller.scrollToAnchor(h.id);
+      });
+
       tocList.appendChild(a);
     });
   }
