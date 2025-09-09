@@ -1,0 +1,225 @@
+<!-- 設定按鈕觸發模態框 -->
+<button 
+  type="button" 
+  class="btn btn-primary" 
+  (click)="openModal()"
+  data-coreui-toggle="modal" 
+  data-coreui-target="#settingsModal">
+  <svg cIcon name="cilCog" class="me-2"></svg>
+  編輯設定
+</button>
+
+<!-- 設定模態框 -->
+<c-modal 
+  id="settingsModal" 
+  [visible]="showModal" 
+  (visibleChange)="showModal = $event"
+  size="lg"
+  backdrop="static">
+  
+  <c-modal-header>
+    <h5 cModalTitle>
+      <svg cIcon name="cilCog" class="me-2"></svg>
+      個人設定
+    </h5>
+    <button 
+      type="button" 
+      class="btn-close" 
+      (click)="closeModal()"
+      aria-label="Close">
+    </button>
+  </c-modal-header>
+
+  <c-modal-body>
+    <!-- 成功訊息 -->
+    <c-alert 
+      *ngIf="saveMessage" 
+      [color]="saveMessage.includes('成功') ? 'success' : 'danger'"
+      [visible]="!!saveMessage">
+      {{ saveMessage }}
+    </c-alert>
+
+    <c-row>
+      <!-- 左側：基本資料 -->
+      <c-col [md]="8">
+        <c-card>
+          <c-card-header>
+            <h5 class="card-title mb-0">
+              <svg cIcon name="cilUser" class="me-2"></svg>
+              基本資料
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <!-- 姓名 -->
+            <div class="mb-3">
+              <label cFormLabel for="userName">姓名</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                id="userName"
+                [(ngModel)]="userProfile.name"
+                placeholder="請輸入您的姓名">
+            </div>
+
+            <!-- 郵箱 (只讀) -->
+            <div class="mb-3">
+              <label cFormLabel for="userEmail">郵箱</label>
+              <input 
+                type="email" 
+                class="form-control" 
+                id="userEmail"
+                [value]="userProfile.email"
+                readonly
+                style="background-color: #f8f9fa; cursor: not-allowed;">
+              <div class="form-text">郵箱無法修改</div>
+            </div>
+
+            <!-- 生日 -->
+            <div class="mb-3">
+              <label cFormLabel for="userBirthday">生日</label>
+              <input 
+                type="date" 
+                class="form-control" 
+                id="userBirthday"
+                [(ngModel)]="userProfile.birthday">
+            </div>
+
+            <!-- 目標學校 -->
+            <div class="mb-3">
+              <label cFormLabel for="userSchool">綁定目標學校</label>
+              <select 
+                class="form-select" 
+                id="userSchool"
+                [(ngModel)]="userProfile.school">
+                <option value="">請選擇學校</option>
+                <option *ngFor="let school of availableSchools" [value]="school">
+                  {{ school }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Line ID -->
+            <div class="mb-3">
+              <label for="userLineId" class="form-label">綁定 Line ID</label>
+              <div class="input-group">
+                <span class="input-group-text">
+                  <svg cIcon name="cilCommentBubble"></svg>
+                </span>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  id="userLineId"
+                  [(ngModel)]="userProfile.lineId"
+                  placeholder="請輸入您的 Line ID">
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </c-col>
+
+      <!-- 右側：頭像和學習目標 -->
+      <c-col [md]="4">
+        <!-- 頭像區域 -->
+        <c-card class="mb-3">
+          <c-card-header>
+            <h5 class="card-title mb-0">
+              <svg cIcon name="cilImage" class="me-2"></svg>
+              頭像
+            </h5>
+          </c-card-header>
+          <c-card-body class="text-center">
+            <div class="avatar-container mb-3">
+              <img 
+                *ngIf="userProfile.avatar; else noAvatar"
+                [src]="userProfile.avatar" 
+                class="avatar-preview"
+                alt="用戶頭像">
+              <ng-template #noAvatar>
+                <div class="avatar-placeholder">
+                  <svg cIcon name="cilUser" size="3xl"></svg>
+                </div>
+              </ng-template>
+            </div>
+            <input 
+              type="file" 
+              class="form-control" 
+              accept="image/*"
+              (change)="onAvatarChange($event)"
+              id="avatarUpload">
+            <label for="avatarUpload" class="btn btn-outline-primary btn-sm mt-2">
+              <svg cIcon name="cilImage" class="me-1"></svg>
+              選擇頭像
+            </label>
+          </c-card-body>
+        </c-card>
+
+        <!-- 學習目標 -->
+        <c-card>
+          <c-card-header>
+            <h5 class="card-title mb-0">
+              <svg cIcon name="cilTag" class="me-2"></svg>
+              學習目標
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <!-- 新增學習目標 -->
+            <div class="mb-3">
+              <div class="input-group">
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="newGoal"
+                  placeholder="新增學習目標"
+                  (keyup.enter)="addLearningGoal()">
+                <button 
+                  class="btn btn-outline-secondary" 
+                  type="button"
+                  (click)="addLearningGoal()">
+                  <svg cIcon name="cilTag"></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- 學習目標列表 -->
+            <div class="learning-goals-list">
+              <div 
+                *ngFor="let goal of userProfile.learningGoals; let i = index" 
+                class="learning-goal-item">
+                <span class="goal-text">{{ goal }}</span>
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-outline-danger"
+                  (click)="removeLearningGoal(i)">
+                  ×
+                </button>
+              </div>
+              <div 
+                *ngIf="userProfile.learningGoals.length === 0" 
+                class="text-muted text-center py-3">
+                尚未設定學習目標
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </c-col>
+    </c-row>
+  </c-modal-body>
+
+  <c-modal-footer>
+    <button 
+      type="button" 
+      class="btn btn-secondary" 
+      (click)="closeModal()"
+      [disabled]="isSaving">
+      取消
+    </button>
+    <button 
+      type="button" 
+      class="btn btn-primary" 
+      (click)="saveProfile()"
+      [disabled]="isSaving">
+      <span *ngIf="isSaving" class="spinner-border spinner-border-sm me-2"></span>
+      {{ isSaving ? '儲存中...' : '儲存設定' }}
+    </button>
+  </c-modal-footer>
+</c-modal>

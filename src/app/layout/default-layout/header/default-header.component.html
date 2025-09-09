@@ -48,13 +48,26 @@
       </ng-container>
     </c-header-nav>
 
-    <!-- Right Aligned Nav (e.g., Logout) -->
+    <!-- Right Aligned Nav (Settings Dropdown) -->
     <c-header-nav class="ms-auto">
-      <c-nav-item>
-        <a routerLink="/login" cNavLink class="text-danger">
-          <svg cIcon name="cilAccountLogout" size="lg" class="me-1"></svg> 登出
+      <c-dropdown variant="nav-item">
+        <a cDropdownToggle cNavLink>
+          <svg cIcon name="cilCog" size="lg" class="me-1"></svg> 設定
         </a>
-      </c-nav-item>
+        <ul cDropdownMenu>
+          <li>
+            <a cDropdownItem (click)="openSettingsModal()">
+              <svg cIcon name="cilSettings" class="me-2"></svg> 編輯設定
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a cDropdownItem (click)="logout()" class="text-danger">
+              <svg cIcon name="cilAccountLogout" class="me-2"></svg> 登出
+            </a>
+          </li>
+        </ul>
+      </c-dropdown>
     </c-header-nav>
 
     <!-- Optional Mobile Toggler for Nav (if nav collapses on mobile) -->
@@ -69,4 +82,7 @@
   <!-- <c-container [fluid]="true">
     <c-breadcrumb-router></c-breadcrumb-router>
   </c-container> -->
-</c-header> 
+</c-header>
+
+<!-- 設定模態框 -->
+<app-settings></app-settings> 
