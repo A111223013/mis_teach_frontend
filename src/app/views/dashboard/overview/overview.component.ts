@@ -191,7 +191,7 @@ export class OverviewComponent implements OnInit {
       error: (error: any) => {
         console.error('❌ 載入行事曆事件失敗:', error);
         // 如果 API 失敗，使用空陣列
-        this.events = [];
+    this.events = [];
         this.cdr.detectChanges();
       }
     });

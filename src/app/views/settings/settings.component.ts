@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpHeaders, HttpClientModule } from '@angular/common/http';
+import { HttpClientModule } from '@angular/common/http';
 import {
   ModalModule,
   ButtonModule,
@@ -12,17 +12,10 @@ import {
   AlertModule
 } from '@coreui/angular';
 import { IconDirective, IconModule, IconSetService } from '@coreui/icons-angular';
-import { cilUser, cilCalendar, cilSchool, cilCommentBubble, cilTag, cilImage } from '@coreui/icons';
+import { cilUser, cilCalendar, cilSchool, cilCommentBubble, cilTag, cilImage, cilCog, cilQrCode, cilCheckCircle, cilPlus, cilX, cilReload } from '@coreui/icons';
+import { SettingsService, UserProfile } from '../../service/settings.service';
 
-interface UserProfile {
-  name: string;
-  email: string;
-  birthday: string;
-  school: string;
-  lineId: string;
-  avatar: string;
-  learningGoals: string[];
-}
+// UserProfile 介面已從 service 導入
 
 @Component({
   selector: 'app-settings',
@@ -70,15 +63,19 @@ export class SettingsComponent implements OnInit {
   ];
 
   showModal = false;
+  showQRCode = false;
   isSaving = false;
   saveMessage = '';
+  avatarError = '';
+  bindingStatus = '';
+  qrCodeGenerated = false;
 
   constructor(
     private iconSetService: IconSetService,
-    private http: HttpClient
+    private settingsService: SettingsService
   ) {
     iconSetService.icons = { 
-      cilUser, cilCalendar, cilSchool, cilCommentBubble, cilTag, cilImage 
+      cilUser, cilCalendar, cilSchool, cilCommentBubble, cilTag, cilImage, cilCog, cilQrCode, cilCheckCircle, cilPlus, cilX, cilReload
     };
   }
 
@@ -87,43 +84,30 @@ export class SettingsComponent implements OnInit {
   }
 
   loadUserProfile(): void {
-    // 從 API 載入用戶資料
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.error('未找到 token');
-      return;
-    }
-
-    const headers = new HttpHeaders({
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
-
-    this.http.post<any>('http://localhost:5000/dashboard/get-user-info', {}, { headers })
-      .subscribe({
-        next: (response) => {
-          if (response.user) {
-            this.userProfile = response.user;
-            // 更新 token
-            if (response.token) {
-              localStorage.setItem('token', response.token);
-            }
+    this.settingsService.getUserProfile().subscribe({
+      next: (response) => {
+        if (response.user) {
+          this.userProfile = response.user;
+          // 更新 token
+          if (response.token) {
+            localStorage.setItem('token', response.token);
           }
-        },
-        error: (error) => {
-          console.error('載入用戶資料失敗:', error);
-          // 如果 API 失敗，使用預設資料
-          this.userProfile = {
-            name: '使用者',
-            email: '',
-            birthday: '',
-            school: '',
-            lineId: '',
-            avatar: '',
-            learningGoals: []
-          };
         }
-      });
+      },
+      error: (error) => {
+        console.error('載入用戶資料失敗:', error);
+        // 如果 API 失敗，使用預設資料
+        this.userProfile = {
+          name: '使用者',
+          email: '',
+          birthday: '',
+          school: '',
+          lineId: '',
+          avatar: '',
+          learningGoals: []
+        };
+      }
+    });
   }
 
   openModal(): void {
@@ -136,7 +120,7 @@ export class SettingsComponent implements OnInit {
   }
 
   addLearningGoal(): void {
-    if (this.newGoal.trim()) {
+    if (this.newGoal.trim() && this.userProfile.learningGoals.length < 10) {
       this.userProfile.learningGoals.push(this.newGoal.trim());
       this.newGoal = '';
     }
@@ -147,31 +131,147 @@ export class SettingsComponent implements OnInit {
   }
 
   onAvatarChange(event: any): void {
+    this.avatarError = '';
     const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        this.userProfile.avatar = e.target.result;
-      };
-      reader.readAsDataURL(file);
+    
+    if (!file) {
+      return;
+    }
+    
+    // 檢查檔案類型
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      this.avatarError = '請選擇 JPG、PNG 或 GIF 格式的圖片';
+      return;
+    }
+    
+    // 檢查檔案大小 (2MB = 2 * 1024 * 1024 bytes)
+    const maxSize = 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      this.avatarError = '檔案大小不能超過 2MB';
+      return;
+    }
+    
+    // 讀取檔案並轉換為 base64
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      this.userProfile.avatar = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  startLineBinding(): void {
+    this.showQRCode = true;
+    this.bindingStatus = '正在生成 QR Code...';
+    this.generateQRCode();
+  }
+
+  generateQRCode(): void {
+    // 生成唯一的綁定 token
+    const bindingToken = this.generateBindingToken();
+    
+    this.settingsService.generateLineQR(bindingToken).subscribe({
+      next: (response) => {
+        if (response.qrCodeUrl) {
+          this.displayQRCode(response.qrCodeUrl);
+          this.bindingStatus = '請使用 Line 掃描上方 QR Code 完成綁定';
+          this.startBindingPolling(bindingToken);
+        } else {
+          this.bindingStatus = '生成 QR Code 失敗，請重試';
+        }
+      },
+      error: (error) => {
+        console.error('生成 QR Code 失敗:', error);
+        this.bindingStatus = '生成 QR Code 失敗，請重試';
+      }
+    });
+  }
+
+  displayQRCode(qrCodeUrl: string): void {
+    // 清空之前的 QR Code
+    const qrContainer = document.getElementById('qrcode');
+    if (qrContainer) {
+      qrContainer.innerHTML = '';
+      
+      // 創建 QR Code 圖片
+      const img = document.createElement('img');
+      img.src = qrCodeUrl;
+      img.alt = 'Line Bot 綁定 QR Code';
+      img.style.maxWidth = '200px';
+      img.style.height = 'auto';
+      img.className = 'img-fluid';
+      qrContainer.appendChild(img);
+    }
+    this.qrCodeGenerated = true;
+  }
+
+  generateBindingToken(): string {
+    // 生成唯一的綁定 token
+    return 'bind_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  startBindingPolling(bindingToken: string): void {
+    // 每 3 秒檢查一次綁定狀態
+    const pollInterval = setInterval(() => {
+      this.checkBindingStatus(bindingToken, pollInterval);
+    }, 3000);
+  }
+
+  checkBindingStatus(bindingToken: string, pollInterval: any): void {
+    this.settingsService.checkLineBinding(bindingToken).subscribe({
+      next: (response) => {
+        if (response.bound) {
+          clearInterval(pollInterval);
+          this.userProfile.lineId = response.lineId || '已綁定';
+          this.showQRCode = false;
+          this.bindingStatus = '';
+          this.saveMessage = 'Line Bot 綁定成功！';
+          // 自動儲存設定
+          this.saveProfile();
+        }
+      },
+      error: (error) => {
+        console.error('檢查綁定狀態失敗:', error);
+      }
+    });
+  }
+
+  refreshQRCode(): void {
+    this.bindingStatus = '正在重新生成 QR Code...';
+    this.qrCodeGenerated = false;
+    
+    // 清空 QR Code 容器
+    const qrContainer = document.getElementById('qrcode');
+    if (qrContainer) {
+      qrContainer.innerHTML = '';
+    }
+    
+    this.generateQRCode();
+  }
+
+  cancelLineBinding(): void {
+    this.showQRCode = false;
+    this.bindingStatus = '';
+    this.qrCodeGenerated = false;
+    
+    // 清空 QR Code 容器
+    const qrContainer = document.getElementById('qrcode');
+    if (qrContainer) {
+      qrContainer.innerHTML = '';
+    }
+  }
+
+  unbindLine(): void {
+    if (confirm('確定要解除 Line 綁定嗎？')) {
+      this.userProfile.lineId = '';
+      this.saveMessage = 'Line 綁定已解除';
     }
   }
 
   saveProfile(): void {
     this.isSaving = true;
     this.saveMessage = '';
-
-    const token = localStorage.getItem('token');
-    if (!token) {
-      this.saveMessage = '未找到登入憑證';
-      this.isSaving = false;
-      return;
-    }
-
-    const headers = new HttpHeaders({
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
+    this.avatarError = '';
 
     // 準備要更新的資料（排除 email）
     const updateData = {
@@ -183,24 +283,23 @@ export class SettingsComponent implements OnInit {
       learningGoals: this.userProfile.learningGoals
     };
 
-    this.http.post<any>('http://localhost:5000/dashboard/update-user-info', updateData, { headers })
-      .subscribe({
-        next: (response) => {
-          this.saveMessage = '設定已成功儲存！';
-          // 更新 token
-          if (response.token) {
-            localStorage.setItem('token', response.token);
-          }
-          setTimeout(() => {
-            this.closeModal();
-            this.isSaving = false;
-          }, 1500);
-        },
-        error: (error) => {
-          console.error('儲存用戶資料失敗:', error);
-          this.saveMessage = '儲存失敗，請重試';
-          this.isSaving = false;
+    this.settingsService.updateUserProfile(updateData).subscribe({
+      next: (response) => {
+        this.saveMessage = '設定已成功儲存！';
+        // 更新 token
+        if (response.token) {
+          localStorage.setItem('token', response.token);
         }
-      });
+        setTimeout(() => {
+          this.closeModal();
+          this.isSaving = false;
+        }, 1500);
+      },
+      error: (error) => {
+        console.error('儲存用戶資料失敗:', error);
+        this.saveMessage = '儲存失敗，請重試';
+        this.isSaving = false;
+      }
+    });
   }
 }
