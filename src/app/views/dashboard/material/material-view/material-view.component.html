@@ -1,6 +1,51 @@
 <div class="container-fluid">
     <button class="btn btn-outline-secondary back-btn" (click)="goBack()">← 回上一頁</button>
     
+    <!-- 螢光筆工具列 - 右側簡潔版 -->
+    <div class="highlighter-sidebar" [class.active]="highlighterMode">
+        <div class="sidebar-content">
+            <!-- 顏色選擇 -->
+            <div class="color-section">
+                <div class="color-palette">
+                    <button 
+                        *ngFor="let color of highlightColors" 
+                        class="color-btn"
+                        [class.active]="selectedColor === color.value"
+                        [style.background-color]="color.value"
+                        [title]="color.name"
+                        (click)="selectColor(color.value)"
+                    ></button>
+                </div>
+            </div>
+            
+            <!-- 功能按鈕 -->
+            <div class="action-section">
+                <button 
+                    class="action-btn"
+                    [class.active]="highlighterMode"
+                    (click)="toggleHighlighterMode()"
+                    title="{{ highlighterMode ? '關閉' : '開啟' }}螢光筆"
+                >
+                    <i class="cil-highlight"></i>
+                </button>
+                <button 
+                    class="action-btn"
+                    (click)="clearAllHighlights()"
+                    title="清除所有劃記"
+                >
+                    <i class="cil-trash"></i>
+                </button>
+                <button 
+                    class="action-btn"
+                    (click)="exportHighlights()"
+                    title="匯出劃記內容"
+                >
+                    <i class="cil-export"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <div class="row">
         <!-- TOC -->
         <div class="toc-wrapper" [class.collapsed]="tocCollapsed">
@@ -38,10 +83,17 @@
     <i class="cil-question-mark"></i> 詢問
   </button>
   <button 
-    class="btn btn-success btn-sm" 
+    class="btn btn-success btn-sm me-2" 
     (click)="generateQuiz()"
     title="生成關於選中內容的題目"
   >
     <i class="cil-lightbulb"></i> 生成題目
+  </button>
+  <button 
+    class="btn btn-warning btn-sm" 
+    (click)="highlightSelectedText()"
+    title="劃記選中的文字"
+  >
+    <i class="cil-highlight"></i> 劃記
   </button>
 </div>
