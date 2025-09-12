@@ -42,7 +42,12 @@ import {
   cilEducation,
   cilArrowRight,
   cilReload,
-  cilNewspaper 
+  cilNewspaper,
+  cilQrCode,
+  cilTag,
+  cilImage,
+  cilSchool,
+  cilSettings
 } from '@coreui/icons';
 
 bootstrapApplication(AppComponent, {
@@ -88,7 +93,12 @@ bootstrapApplication(AppComponent, {
           cilEducation,
           cilArrowRight,
           cilReload,
-          cilNewspaper 
+          cilNewspaper,
+          cilQrCode,
+          cilTag,
+          cilImage,
+          cilSchool,
+          cilSettings
         };
         return iconSetService;
       }

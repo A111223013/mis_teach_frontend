@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, AfterViewChecked, ElementRef, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -55,6 +55,7 @@ interface QuizResponse {
 @Component({
   selector: 'app-quiz-taking',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -71,7 +72,7 @@ interface QuizResponse {
   templateUrl: './quiz-taking.component.html',
   styleUrls: ['./quiz-taking.component.css']
 })
-export class QuizTakingComponent implements OnInit, OnDestroy {
+export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked {
   templateId: string = '';  // 考卷模板ID
   quizId: string = '';      // 測驗ID（用於向後兼容）
   quizTitle: string = '';
@@ -115,7 +116,16 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   private progressInterval: any;
   
   // 新增：後端進度追蹤相關屬性
-  private progressId: string = '';
+  private progressId: string = ''
+  
+  // 數學公式相關屬性
+  hasLatexInQuestion: boolean = false;
+  mathAnswerMode: 'drawing' | 'formula' = 'drawing';
+  mathFormulaAnswer: string = '';
+  selectedMathTab: 'quick' | 'templates' = 'quick';
+  @ViewChild('mathCanvas', { static: false }) mathCanvas?: ElementRef<HTMLCanvasElement>;
+  private mathCtx?: CanvasRenderingContext2D;
+  private isMathDrawing = false;;
   private eventSource: EventSource | null = null;
   private isProgressConnected: boolean = false;
 
@@ -139,6 +149,17 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         this.isLoading = false;
       }
     });
+    
+    // 檢查KaTeX是否正確載入
+    this.checkKatexLoaded();
+
+    // 添加路由查詢參數監聽，處理刷新頁面的情況
+    this.route.queryParams.subscribe(queryParams => {
+      // 如果沒有測驗數據但有查詢參數，嘗試重新載入
+      if (this.questions.length === 0 && !this.isLoading && queryParams['type']) {
+        this.loadQuiz();
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -147,6 +168,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     }
     this.stopProgressAnimation(); // 確保在組件銷毀時停止動畫
     this.disconnectProgressTracking(); // 確保在組件銷毀時斷開進度追蹤
+    
+    // 注意：不要在組件銷毀時清除測驗數據，因為用戶可能只是刷新頁面
+    // 測驗數據應該在測驗完成後才清除
   }
 
   loadQuiz(): void {
@@ -154,6 +178,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       this.router.navigate(['/dashboard/quiz-center']);
       return;
     }
+
+    // 設置載入狀態
+    this.isLoading = true;
+    this.error = '';
 
     // 从路由参数获取基本信息
     const quizType = this.route.snapshot.queryParamMap.get('type');
@@ -166,71 +194,76 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     // 设置 templateId
     if (templateId) {
       this.templateId = templateId;
-      console.log('✅ 从路由参数获取 template_id:', this.templateId);
     } else {
-      console.warn('⚠️ 路由参数中没有 template_id，使用 quizId 作为备选');
       this.templateId = this.quizId;
     }
     
+    // 設置超時機制
+    const timeoutId = setTimeout(() => {
+      if (this.isLoading) {
+        this.isLoading = false;
+        this.error = '載入測驗超時，請重新開始測驗';
+        this.router.navigate(['/dashboard/quiz-center']);
+      }
+    }, 10000); // 10秒超時
+    
     // 从服务中获取已存储的测验数据
-    this.quizService.getCurrentQuizData().subscribe(quizData => {
-      console.log('🔍 从服务获取的测验数据:', quizData);
-      
-      if (quizData && quizData.questions && quizData.questions.length > 0) {
-        // 使用已存储的数据
-        console.log('✅ 使用已存储的测验数据');
+    this.quizService.getCurrentQuizData().subscribe({
+      next: (quizData) => {
+        clearTimeout(timeoutId); // 清除超時計時器
         
-        // 设置测验信息
-        this.quizTitle = this.generateQuizTitle(quizType, school, year, department, topic);
-        this.questions = quizData.questions;
-        this.timeLimit = quizData.time_limit || 60;
-        this.totalQuestions = this.questions.length;
-        
-        // 初始化答題狀態
-        this.answers = new Array(this.totalQuestions).fill(null);
-        this.markedQuestions = {};
-        
-        // 設置計時器
-        this.initializeTimer();
-        
-        // 載入第一題
-        this.currentQuestionIndex = 0;
-        this.loadCurrentQuestion();
-        
-        console.log('✅ 测验加载完成，题目数量:', this.totalQuestions);
-        this.isLoading = false;
-        
-      } else {
-        console.log('❌ 没有找到已存储的测验数据');
-        console.log('🔍 调试信息 - quizData:', quizData);
-        console.log('🔍 调试信息 - questions:', quizData?.questions);
-        console.log('🔍 调试信息 - questions length:', quizData?.questions?.length);
-        
-        // 檢查是否正在提交測驗，如果是則不重定向
-        if (this.isLoading) {
-          console.log('🔄 正在提交測驗，等待完成...');
-          return;
-        }
-        
-        // 檢查是否已經完成測驗，如果是則不顯示錯誤提示
-        const quizResultDataStr = sessionStorage.getItem('quiz_result_data');
-        if (quizResultDataStr) {
-          try {
-            const quizResultData = JSON.parse(quizResultDataStr);
-            if (quizResultData.result_id && quizResultData.result_id !== 'undefined') {
-              console.log('✅ 測驗已完成，直接跳轉到結果頁面');
-              this.router.navigate(['/dashboard/quiz-result', quizResultData.result_id]);
-              return;
+        if (quizData && quizData.questions && quizData.questions.length > 0) {
+          // 使用已存储的数据
+          
+          // 设置测验信息
+          this.quizTitle = this.generateQuizTitle(quizType, school, year, department, topic);
+          this.questions = quizData.questions;
+          this.timeLimit = quizData.time_limit || 60;
+          this.totalQuestions = this.questions.length;
+          
+          // 初始化答題狀態
+          this.answers = new Array(this.totalQuestions).fill(null);
+          this.markedQuestions = {};
+          
+          // 設置計時器
+          this.initializeTimer();
+          
+          // 載入第一題
+          this.currentQuestionIndex = 0;
+          this.loadCurrentQuestion();
+          
+          console.log('✅ 测验加载完成，题目数量:', this.totalQuestions);
+          this.isLoading = false;
+          
+          // 強制觸發變更檢測，確保UI更新
+          this.cdr.detectChanges();
+          
+        } else {
+          // 檢查是否已經完成測驗，如果是則不顯示錯誤提示
+          const quizResultDataStr = sessionStorage.getItem('quiz_result_data');
+          if (quizResultDataStr) {
+            try {
+              const quizResultData = JSON.parse(quizResultDataStr);
+              if (quizResultData.result_id && quizResultData.result_id !== 'undefined') {
+                this.router.navigate(['/dashboard/quiz-result', quizResultData.result_id]);
+                return;
+              }
+            } catch (error) {
+              console.error('❌ 解析測驗結果數據失敗:', error);
             }
-          } catch (error) {
-            console.error('❌ 解析測驗結果數據失敗:', error);
           }
+          
+
+          this.isLoading = false;
+          this.error = '未找到測驗數據，請重新開始測驗';
+          this.router.navigate(['/dashboard/quiz-center']);
         }
-        
-        // 如果不是正在提交且沒有完成，則重定向
-        console.log('🔄 重定向到測驗中心');
+      },
+      error: (error) => {
+        clearTimeout(timeoutId); // 清除超時計時器
+        console.error('❌ 載入測驗數據失敗:', error);
         this.isLoading = false;
-        // 移除alert，直接跳轉
+        this.error = '載入測驗失敗，請重新開始測驗';
         this.router.navigate(['/dashboard/quiz-center']);
       }
     });
@@ -261,7 +294,13 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 載入指定題目
   loadCurrentQuestion(): void {
-    if (this.questions.length === 0) return;
+    if (this.questions.length === 0) {
+      return;
+    }
+    
+    if (this.currentQuestionIndex >= this.questions.length) {
+      this.currentQuestionIndex = 0;
+    }
     
     this.currentQuestion = this.questions[this.currentQuestionIndex];
     
@@ -349,6 +388,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   }
 
   goToQuestion(index: number): void {
+
     if (index >= 0 && index < this.questions.length) {
       // 暫停當前題目的計時器
       if (this.currentQuestionIndex !== index) {
@@ -357,6 +397,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       
       this.currentQuestionIndex = index;
       this.currentQuestion = this.questions[index];
+
       this.resetImageLoadState(); // 重置圖片載入狀態
       
       // 預載入新題目的圖片
@@ -366,6 +407,11 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       
       // 開始新題目的計時器
       this.recordQuestionStartTime(index);
+      
+      // 強制觸發變更檢測
+      this.cdr.detectChanges();
+    } else {
+      console.log('❌ 無效的題目索引:', index);
     }
   }
 
@@ -453,14 +499,11 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
   // 填空題、簡答題、長答題處理
   updateTextAnswer(value: string): void {
     if (!this.currentQuestion) return;
-    console.log(`Debug: 更新文字答案 - 題目 ${this.currentQuestionIndex}, 答案: "${value}"`);
     this.userAnswers[this.currentQuestionIndex] = value;
-    console.log(`Debug: 當前用戶答案對象:`, this.userAnswers);
   }
 
   getTextAnswer(): string {
     const answer = this.userAnswers[this.currentQuestionIndex] || '';
-    console.log(`Debug: 獲取文字答案 - 題目 ${this.currentQuestionIndex}, 答案: "${answer}"`);
     return answer;
   }
 
@@ -741,30 +784,17 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       question_answer_times: this.questionAnswerTimes  // 新增：傳遞每題作答時間（秒）
     };
 
-    console.log('Debug: 提交資料:', submissionData);
-    console.log('Debug: 使用的 template_id:', this.templateId);
-    console.log('Debug: 原始 quiz_id:', this.quizId);
-    console.log('Debug: 每題作答時間（秒）:', this.questionAnswerTimes);
-    console.log('Debug: 每題活動狀態:', this.questionIsActive);
-    
-    // 新增：調試作答時間數據
-    console.log('🔍 Debug: 檢查作答時間數據:');
-    for (let i = 0; i < this.questions.length; i++) {
-      const answerTime = this.questionAnswerTimes[i] || 0;
-      const isActive = this.questionIsActive[i] || false;
-      const startTime = this.questionStartTimes[i];
-      console.log(`  題目 ${i}: 作答時間=${answerTime}秒, 活動狀態=${isActive}, 開始時間=${startTime}`);
-    }
+
 
     // 顯示進度提示
     this.showProgressModal();
 
     // 判斷是否為AI題目，使用不同的提交邏輯
     if (this.isAIQuiz()) {
-      console.log('🎯 檢測到AI題目，使用AI Quiz服務提交');
+
       this.submitAIQuiz(submissionData);
     } else {
-      console.log('📝 傳統題目，使用Quiz服務提交');
+ 
       this.submitTraditionalQuiz(submissionData);
     }
   }
@@ -776,12 +806,11 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     // 這樣可以確保AI題目和傳統題目使用相同的提交流程
     this.quizService.submitQuiz(submissionData).subscribe({
       next: (response: any) => {
-        console.log('✅ AI題目提交成功:', response);
-        
+
         // 獲取進度追蹤ID
         const progressId = response.data?.progress_id;
         if (progressId) {
-          console.log('🎯 開始進度追蹤，progress_id:', progressId);
+
           // 連接後端進度追蹤
           this.connectProgressTracking(progressId);
         } else {
@@ -810,7 +839,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
           time_taken: submissionData.time_taken,
           question_answer_times: this.questionAnswerTimes
         };
-        console.debug('[submitAIQuiz] 存入 sessionStorage 的 quizResultData:', quizResultData);
+
         
         sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
         
@@ -840,22 +869,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 處理AI測驗結果（參考quiz.py的流程）
   private processAIQuizResult(submissionData: any, analysisResponse: any, sessionResponse: any): void {
-    console.log('🔄 處理AI測驗結果...');
-    
-    // 模擬quiz.py的完整提交流程
-    
-    // 階段1: 試卷批改 - 獲取題目數據
-    console.log('🔄 階段1: 試卷批改 - 獲取題目數據');
-    
-    // 階段2: 計算分數 - 分類題目
-    console.log('🔄 階段2: 計算分數 - 分類題目');
+
     const { correctCount, wrongCount, totalScore, wrongQuestions, answeredCount, unansweredCount } = this.calculateAIQuizScore();
     
-    // 階段3: 評判知識點 - AI評分
-    console.log('🔄 階段3: 評判知識點 - AI評分');
-    
-    // 階段4: 生成學習計畫 - 統計結果
-    console.log('🔄 階段4: 生成學習計畫 - 統計結果');
+
     
     // 計算統計數據（類似quiz.py的計算邏輯）
     const totalQuestions = this.questions.length;
@@ -915,8 +932,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       submit_time: new Date().toISOString()
     };
     
-    console.log('📊 AI測驗結果:', quizResultData);
-    
+
     // 存入sessionStorage（類似quiz.py的數據存儲）
     sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
     
@@ -977,20 +993,18 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 提交傳統題目
   private submitTraditionalQuiz(submissionData: any): void {
-    console.log('📝 使用傳統Quiz服務提交題目');
-    
+
     this.quizService.submitQuiz(submissionData).subscribe({
       next: (response: any) => {
-        console.log('✅ 測驗提交成功:', response);
-        
+
         // 獲取進度追蹤ID
         const progressId = response.data?.progress_id;
         if (progressId) {
-          console.log('🎯 開始進度追蹤，progress_id:', progressId);
+
           // 連接後端進度追蹤
           this.connectProgressTracking(progressId);
         } else {
-          console.warn('⚠️ 沒有收到progress_id，使用默認進度顯示');
+
           // 如果沒有progress_id，隱藏進度提示並直接跳轉
           this.hideProgressModal();
         }
@@ -998,8 +1012,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         // 準備錯題和標記題目的資料
         const wrongQuestions = this.getWrongQuestions();
         const markedQuestions = this.getMarkedQuestions();
-        console.debug('[submitQuiz] 錯題資料:', wrongQuestions);
-        console.debug('[submitQuiz] 標記題目資料:', markedQuestions);
+
         
         // 將測驗結果存入 sessionStorage 供 AI tutoring 使用
         const quizResultData = {
@@ -1015,8 +1028,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
           time_taken: submissionData.time_taken,
           question_answer_times: this.questionAnswerTimes  // 新增：包含每題作答時間
         };
-        console.debug('[submitQuiz] 存入 sessionStorage 的 quizResultData:', quizResultData);
-        
+
         sessionStorage.setItem('quiz_result_data', JSON.stringify(quizResultData));
         
         // 注意：現在不立即跳轉，而是等待進度追蹤完成後再跳轉
@@ -1058,11 +1070,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 隱藏進度提示模態框
   hideProgressModal(): void {
-    console.log('🔄 隱藏進度模態框 - 當前狀態:', this.isProgressModalVisible);
-    
+
     // 防止重複調用
     if (!this.isProgressModalVisible) {
-      console.log('⚠️ 模態框已經隱藏，跳過');
+
       return;
     }
     
@@ -1074,7 +1085,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     // 強制觸發變更檢測
     this.cdr.detectChanges();
     
-    console.log('✅ 進度模態框已隱藏');
+
   }
 
   // 開始進度動畫（保留用於向後兼容）
@@ -1122,7 +1133,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       this.eventSource = new EventSource(sseUrl);
       
       this.eventSource.onopen = () => {
-        console.log('✅ 進度追蹤連接已建立');
+
         this.isProgressConnected = true;
         this.progressMessage = '進度追蹤已連接，等待AI批改...';
       };
@@ -1141,10 +1152,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         
         // 檢查連接狀態
         if (this.eventSource && this.eventSource.readyState === EventSource.CLOSED) {
-          console.log('🔄 SSE連接已正常關閉');
+
           // 如果已經收到完成消息，不需要處理錯誤
           if (this.currentProgressStep === 4) {
-            console.log('✅ 進度已完成，忽略連接關閉錯誤');
+
             return;
           }
           // 如果沒有完成，嘗試重新連接
@@ -1164,8 +1175,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 新增：處理進度更新
   private handleProgressUpdate(data: any): void {
-    console.log('📊 收到進度更新:', data);
-    
+
     switch (data.type) {
       case 'connected':
         this.progressMessage = data.message;
@@ -1179,14 +1189,13 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
       case 'completion':
         this.currentProgressStep = 4; // 最後一個階段
         this.progressMessage = data.message;
-        console.log('✅ 收到完成消息，準備跳轉...');
-        
+
         // 立即斷開SSE連接，避免後續錯誤
         this.disconnectProgressTracking();
         
         // 延遲一下再隱藏模態框，讓用戶看到完成狀態
         setTimeout(() => {
-          console.log('🔄 隱藏進度模態框...');
+
           this.hideProgressModal();
           
           // AI批改完成後，跳轉到結果頁面
@@ -1208,8 +1217,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 新增：跳轉到結果頁面
   private navigateToResultPage(): void {
-    console.log('🎯 準備跳轉到結果頁面...');
-    
+
     // 注意：這裡不需要再調用hideProgressModal，因為在handleProgressUpdate中已經調用了
     
     // 從sessionStorage獲取測驗結果數據
@@ -1220,8 +1228,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         const resultId = quizResultData.result_id;
         
         if (resultId && resultId !== 'undefined') {
-          console.log('🎯 AI批改完成，導航到結果頁面，result_id:', resultId);
-          
+
           // 清除當前組件狀態
           this.isLoading = false;
           this.userAnswers = {};
@@ -1267,7 +1274,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
 
   // 新增：回退到輪詢方式（如果SSE失敗）
   private fallbackToPolling(): void {
-    console.log('🔄 回退到輪詢方式獲取進度');
+
     
     if (this.progressId) {
       this.progressInterval = setInterval(() => {
@@ -1433,8 +1440,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
         }
       }
     });
-    
-    console.log(`Debug: 收集到 ${wrongQuestions.length} 道錯題`);
+
     return wrongQuestions;
   }
 
@@ -1567,4 +1573,569 @@ export class QuizTakingComponent implements OnInit, OnDestroy {
     
     return markedQuestions;
   }
+
+  // ==================== 數學公式相關方法 ====================
+  
+  ngAfterViewChecked(): void {
+    // 檢查當前題目是否包含 LaTeX
+    this.checkLatexInQuestion();
+    // 渲染數學公式
+    this.renderMathInElement();
+  }
+
+  renderQuestionText(): string {
+    if (!this.currentQuestion) {
+      return '';
+    }
+    
+    const questionType = this.getQuestionType(this.currentQuestion);
+    const questionText = questionType === 'group' 
+      ? this.currentQuestion.group_question_text 
+      : this.currentQuestion.question_text;
+
+    if (!questionText) {
+      return '';
+    }
+
+    // 將 LaTeX 語法轉換為 HTML 格式供 KaTeX 渲染
+    return questionText
+      .replace(/\$\$(.*?)\$\$/g, '<div class="math-display">$$$1$$</div>')
+      .replace(/\$(.*?)\$/g, '<span class="math-inline">$$$1$$</span>')
+      .replace(/\\\((.*?)\\\)/g, '<span class="math-inline">$$$1$$</span>')
+      .replace(/\\\[(.*?)\\\]/g, '<div class="math-display">$$$1$$</div>');
+  }
+
+  checkKatexLoaded(): void {
+    // 檢查KaTeX是否正確載入
+    const checkKatex = () => {
+      if ((window as any).katex) {
+        // KaTeX已載入，觸發變更檢測以重新渲染數學公式
+        this.cdr.detectChanges();
+      } else {
+        console.warn('⚠️ KaTeX 未載入，將在1秒後重試');
+        setTimeout(checkKatex, 1000);
+      }
+    };
+    checkKatex();
+  }
+
+  renderMathFormula(formula: string): string {
+    if (!formula) return '';
+    
+    try {
+      // 使用 KaTeX 渲染數學公式
+      if ((window as any).katex) {
+        const rendered = (window as any).katex.renderToString(formula, {
+          throwOnError: false,
+          displayMode: false
+        });
+        return rendered;
+      }
+      // 如果KaTeX未載入，返回原始公式
+      return formula;
+    } catch (error) {
+      console.warn('KaTeX rendering error:', error);
+      return formula;
+    }
+  }
+
+  renderMathInElement(): void {
+    // 使用 KaTeX 的 auto-render 功能
+    if ((window as any).renderMathInElement) {
+      setTimeout(() => {
+        (window as any).renderMathInElement(document.body, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '\\[', right: '\\]', display: true }
+          ],
+          throwOnError: false
+        });
+        // 觸發變更檢測以確保所有數學公式都正確渲染
+        this.cdr.detectChanges();
+      }, 100);
+    }
+  }
+
+  checkLatexInQuestion(): void;
+  checkLatexInQuestion(questionText: string): boolean;
+  checkLatexInQuestion(questionText?: string): boolean | void {
+    if (questionText !== undefined) {
+      // 重載版本：接受questionText參數並返回boolean
+      if (!questionText) return false;
+      
+      const latexPatterns = [
+        /\$\$.*?\$\$/g,  // 塊級數學公式
+        /\$.*?\$/g,      // 行內數學公式
+        /\\\(.*?\\\)/g,  // LaTeX 行內公式
+        /\\\[.*?\\\]/g   // LaTeX 塊級公式
+      ];
+      
+      return latexPatterns.some(pattern => pattern.test(questionText));
+    } else {
+      // 原版本：檢查當前題目並設置hasLatexInQuestion
+      if (!this.currentQuestion) {
+        this.hasLatexInQuestion = false;
+        return;
+      }
+
+      const currentQuestionText = this.getQuestionType(this.currentQuestion) === 'group' 
+        ? this.currentQuestion.group_question_text 
+        : this.currentQuestion.question_text;
+
+      if (!currentQuestionText) {
+        this.hasLatexInQuestion = false;
+        return;
+      }
+
+      this.hasLatexInQuestion = this.checkLatexInQuestion(currentQuestionText);
+    }
+  }
+
+  shouldShowMathAnswerMode(): boolean {
+    if (!this.currentQuestion) return false;
+    
+    const questionType = this.getQuestionType(this.currentQuestion);
+    const isChoiceQuestion = ['single-choice', 'multiple-choice', 'true-false'].includes(questionType);
+    
+    // 對於畫圖題，總是顯示數學答題模式
+    if (questionType === 'draw-answer') {
+      return true;
+    }
+    
+    // 對於其他非選擇題，檢查是否有LaTeX內容
+    if (!isChoiceQuestion) {
+      const questionText = this.currentQuestion.question_text || '';
+      return this.checkLatexInQuestion(questionText);
+    }
+    
+    return false;
+  }
+
+  switchMathAnswerMode(mode: 'drawing' | 'formula'): void {
+    this.mathAnswerMode = mode;
+  }
+
+  // 選擇數學工具標籤頁
+  selectMathTab(tab: 'quick' | 'templates'): void {
+    this.selectedMathTab = tab;
+  }
+
+  // 快捷數學工具
+  quickMathTools = [
+    // 基本結構
+    { symbol: '^{}', name: '上標' },
+    { symbol: '_{}', name: '下標' },
+    { symbol: '^{}_{}', name: '上下標' },
+    { symbol: '\\frac{}{}', name: '分數' },
+    { symbol: '\\sqrt{}', name: '根號' },
+    { symbol: '\\sqrt[n]{}', name: 'n次方根' },
+    
+    // 常用組合
+    { symbol: 'x^{2}', name: 'x平方' },
+    { symbol: 'x_{1}', name: 'x下標1' },
+    { symbol: 'x^{2}_{1}', name: 'x平方下標1' },
+    { symbol: '\\frac{1}{2}', name: '分數1/2' },
+    { symbol: '\\sqrt{2}', name: '根號2' },
+    { symbol: '\\sqrt[3]{8}', name: '三次方根8' },
+    
+    // 括號和分隔符
+    { symbol: '\\left( \\right)', name: '括號' },
+    { symbol: '\\left[ \\right]', name: '方括號' },
+    { symbol: '\\left\\{ \\right\\}', name: '大括號' },
+    { symbol: '\\left| \\right|', name: '絕對值' },
+    { symbol: '\\left\\langle \\right\\rangle', name: '角括號' },
+    
+    // 關係符號
+    { symbol: '\\leq', name: '小於等於' },
+    { symbol: '\\geq', name: '大於等於' },
+    { symbol: '\\neq', name: '不等於' },
+    { symbol: '\\approx', name: '約等於' },
+    { symbol: '\\equiv', name: '恆等於' },
+    { symbol: '\\sim', name: '相似' },
+    { symbol: '\\propto', name: '正比於' },
+    
+    // 集合符號
+    { symbol: '\\in', name: '屬於' },
+    { symbol: '\\notin', name: '不屬於' },
+    { symbol: '\\subset', name: '子集' },
+    { symbol: '\\supset', name: '超集' },
+    { symbol: '\\subseteq', name: '子集或等於' },
+    { symbol: '\\supseteq', name: '超集或等於' },
+    { symbol: '\\cup', name: '聯集' },
+    { symbol: '\\cap', name: '交集' },
+    { symbol: '\\emptyset', name: '空集' },
+    
+    // 邏輯符號
+    { symbol: '\\forall', name: '全稱量詞' },
+    { symbol: '\\exists', name: '存在量詞' },
+    { symbol: '\\land', name: '且' },
+    { symbol: '\\lor', name: '或' },
+    { symbol: '\\lnot', name: '非' },
+    { symbol: '\\Rightarrow', name: '蘊含' },
+    { symbol: '\\Leftrightarrow', name: '等價' },
+    
+    // 運算符號
+    { symbol: '\\pm', name: '正負號' },
+    { symbol: '\\mp', name: '負正號' },
+    { symbol: '\\times', name: '乘號' },
+    { symbol: '\\div', name: '除號' },
+    { symbol: '\\cdot', name: '點乘' },
+    { symbol: '\\ast', name: '星號' },
+    { symbol: '\\oplus', name: '直和' },
+    { symbol: '\\otimes', name: '張量積' },
+    
+    // 希臘字母（常用）
+    { symbol: '\\alpha', name: 'α' },
+    { symbol: '\\beta', name: 'β' },
+    { symbol: '\\gamma', name: 'γ' },
+    { symbol: '\\delta', name: 'δ' },
+    { symbol: '\\epsilon', name: 'ε' },
+    { symbol: '\\theta', name: 'θ' },
+    { symbol: '\\lambda', name: 'λ' },
+    { symbol: '\\mu', name: 'μ' },
+    { symbol: '\\pi', name: 'π' },
+    { symbol: '\\sigma', name: 'σ' },
+    { symbol: '\\phi', name: 'φ' },
+    { symbol: '\\omega', name: 'ω' },
+    
+    // 微積分
+    { symbol: '\\sum', name: '求和' },
+    { symbol: '\\prod', name: '乘積' },
+    { symbol: '\\int', name: '積分' },
+    { symbol: '\\oint', name: '環積分' },
+    { symbol: '\\lim', name: '極限' },
+    { symbol: '\\partial', name: '偏微分' },
+    { symbol: '\\nabla', name: '梯度' },
+    { symbol: '\\infty', name: '無窮大' },
+    
+    // 三角函數
+    { symbol: '\\sin', name: 'sin' },
+    { symbol: '\\cos', name: 'cos' },
+    { symbol: '\\tan', name: 'tan' },
+    { symbol: '\\arcsin', name: 'arcsin' },
+    { symbol: '\\arccos', name: 'arccos' },
+    { symbol: '\\arctan', name: 'arctan' },
+    
+    // 對數和指數
+    { symbol: '\\log', name: 'log' },
+    { symbol: '\\ln', name: 'ln' },
+    { symbol: '\\exp', name: 'exp' },
+    { symbol: 'e^{}', name: 'e的次方' },
+    
+    // 箭頭
+    { symbol: '\\rightarrow', name: '右箭頭' },
+    { symbol: '\\leftarrow', name: '左箭頭' },
+    { symbol: '\\leftrightarrow', name: '雙向箭頭' },
+    { symbol: '\\Rightarrow', name: '雙線右箭頭' },
+    { symbol: '\\Leftarrow', name: '雙線左箭頭' },
+    { symbol: '\\Leftrightarrow', name: '雙線雙向箭頭' },
+    
+    // 幾何
+    { symbol: '\\angle', name: '角度' },
+    { symbol: '\\triangle', name: '三角形' },
+    { symbol: '\\perp', name: '垂直' },
+    { symbol: '\\parallel', name: '平行' },
+    { symbol: '\\cong', name: '全等' },
+    { symbol: '\\sim', name: '相似' }
+  ];
+
+  // 數學繪圖相關方法
+  startMathDrawing(event: MouseEvent): void {
+    if (!this.mathCanvas || !this.mathCtx) {
+      this.setupMathCanvas();
+    }
+    
+    if (this.mathCtx) {
+      this.isMathDrawing = true;
+      const rect = this.mathCanvas!.nativeElement.getBoundingClientRect();
+      this.mathCtx.beginPath();
+      this.mathCtx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+    }
+  }
+
+  drawMath(event: MouseEvent): void {
+    if (!this.isMathDrawing || !this.mathCtx || !this.mathCanvas) return;
+    
+    const rect = this.mathCanvas.nativeElement.getBoundingClientRect();
+    this.mathCtx.lineWidth = 3;
+    this.mathCtx.lineCap = 'round';
+    this.mathCtx.strokeStyle = '#000000';
+    
+    this.mathCtx.lineTo(event.clientX - rect.left, event.clientY - rect.top);
+    this.mathCtx.stroke();
+  }
+
+  stopMathDrawing(): void {
+    this.isMathDrawing = false;
+    if (this.mathCtx) {
+      this.mathCtx.beginPath();
+    }
+  }
+
+  clearMathCanvas(): void {
+    if (this.mathCtx && this.mathCanvas) {
+      this.mathCtx.clearRect(0, 0, this.mathCanvas.nativeElement.width, this.mathCanvas.nativeElement.height);
+    }
+  }
+
+  saveMathDrawing(): void {
+    if (this.mathCanvas) {
+      const dataURL = this.mathCanvas.nativeElement.toDataURL('image/png');
+      this.userAnswers[this.currentQuestionIndex] = dataURL;
+    }
+  }
+
+  private setupMathCanvas(): void {
+    if (this.mathCanvas) {
+      const context = this.mathCanvas.nativeElement.getContext('2d');
+      if (context) {
+        this.mathCtx = context;
+      }
+    }
+  }
+
+  // 數學公式編輯器相關方法
+  updateMathFormula(): void {
+    this.userAnswers[this.currentQuestionIndex] = this.mathFormulaAnswer;
+  }
+
+  getMathFormulaAnswer(): string {
+    return this.userAnswers[this.currentQuestionIndex] || '';
+  }
+
+  // 常用的數學符號和公式模板
+  insertMathSymbol(symbol: any): void {
+    const symbolText = typeof symbol === 'string' ? symbol : symbol.symbol;
+    this.insertAtCursor(symbolText);
+    this.updateMathFormula();
+  }
+
+  insertMathTemplate(template: any): void {
+    const templateText = typeof template === 'string' ? template : template.latex;
+    this.insertAtCursor(templateText);
+    this.updateMathFormula();
+  }
+
+  // 在游標位置插入文字
+  insertAtCursor(text: string): void {
+    const textarea = document.querySelector('.math-latex-input') as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const before = this.mathFormulaAnswer.substring(0, start);
+      const after = this.mathFormulaAnswer.substring(end);
+      
+      this.mathFormulaAnswer = before + text + after;
+      
+      // 設定游標位置到插入文字之後
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + text.length, start + text.length);
+      }, 0);
+    } else {
+      this.mathFormulaAnswer += text;
+    }
+  }
+
+  // 聚焦公式編輯器
+  focusFormulaEditor(): void {
+    const editor = document.querySelector('.math-preview-editor') as HTMLElement;
+    if (editor) {
+      editor.focus();
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  }
+
+  // 處理公式編輯器輸入
+  onFormulaEditorInput(event: any): void {
+    const text = event.target.textContent || '';
+    this.mathFormulaAnswer = text;
+    this.updateMathFormula();
+  }
+
+  // 處理公式編輯器鍵盤事件
+  onFormulaEditorKeydown(event: KeyboardEvent): void {
+    // 允許基本編輯操作
+    if (event.ctrlKey || event.metaKey) {
+      if (['a', 'c', 'v', 'x', 'z', 'y'].includes(event.key.toLowerCase())) {
+        return; // 允許複製、貼上、剪下、復原、重做
+      }
+    }
+    
+    // 允許數字、字母、基本符號
+    if (/[0-9a-zA-Z+\-*/=<>(){}[\].,;:!?@#$%^&|\\]/.test(event.key) || 
+        event.key === ' ' || 
+        event.key === 'Backspace' || 
+        event.key === 'Delete' || 
+        event.key === 'ArrowLeft' || 
+        event.key === 'ArrowRight' || 
+        event.key === 'ArrowUp' || 
+        event.key === 'ArrowDown' ||
+        event.key === 'Enter' ||
+        event.key === 'Tab') {
+      return; // 允許這些按鍵
+    }
+    
+    // 阻止其他按鍵
+    event.preventDefault();
+  }
+
+  // 處理公式編輯器貼上事件
+  onFormulaEditorPaste(event: ClipboardEvent): void {
+    event.preventDefault();
+    const text = event.clipboardData?.getData('text') || '';
+    this.insertAtCursor(text);
+    this.updateMathFormula();
+  }
+
+ // 數學公式模板
+mathTemplates = [
+  // 基本代數與對數
+  { name: '對數換底公式', latex: '\\log_a b = \\frac{\\ln b}{\\ln a}' },
+  { name: '對數性質', latex: '\\log(ab)=\\log a + \\log b, \\quad \\log(\\tfrac{a}{b})=\\log a - \\log b' },
+  { name: '指數與對數關係', latex: 'a^{\\log_a b} = b' },
+
+  // 極限
+  { name: '極限定義', latex: '\\lim_{x \\to a} f(x) = L' },
+  { name: '導數定義', latex: '\\lim_{h \\to 0} \\frac{f(x+h)-f(x)}{h}' },
+  { name: 'e的極限', latex: '\\lim_{n \\to \\infty} \\left(1+\\frac{1}{n}\\right)^n = e' },
+  { name: '等比數列極限', latex: '\\lim_{n \\to \\infty} r^n = 0, |r|<1' },
+  { name: 'sinx極限', latex: '\\lim_{x \\to 0} \\frac{\\sin x}{x} = 1' },
+
+  // 微積分
+  { name: '導數規則', latex: '(x^n)\' = n x^{n-1}, (e^x)\'=e^x, (\\ln x)\'=1/x' },
+  { name: '鏈鎖法則', latex: '(f(g(x)))\' = f\'(g(x)) g\'(x)' },
+  { name: '積分基本公式', latex: '\\int x^n dx = \\tfrac{x^{n+1}}{n+1} + C' },
+  { name: '分部積分', latex: '\\int u dv = uv - \\int v du' },
+  { name: '泰勒展開', latex: 'f(x) = f(a)+f\'(a)(x-a)+\\tfrac{f\'\'(a)}{2!}(x-a)^2+\\cdots' },
+
+  // 線性代數
+  { name: '矩陣乘法', latex: '(AB)_{ij} = \\sum_{k} a_{ik} b_{kj}' },
+  { name: '行列式2x2', latex: '\\det\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix} = ad-bc' },
+  { name: '克拉瑪法則', latex: 'x_i = \\tfrac{\\det(A_i)}{\\det(A)}' },
+  { name: '特徵值方程', latex: '\\det(A-\\lambda I)=0' },
+  { name: '內積', latex: '\\vec{a}\\cdot\\vec{b} = \\sum a_i b_i' },
+  { name: '範數', latex: '\\|x\\| = \\sqrt{\\sum x_i^2}' },
+
+  // 機率與統計
+  { name: '機率加法公式', latex: 'P(A\\cup B) = P(A)+P(B)-P(A\\cap B)' },
+  { name: '條件機率', latex: 'P(A|B) = \\tfrac{P(A\\cap B)}{P(B)}' },
+  { name: '貝氏定理', latex: 'P(A|B)=\\tfrac{P(B|A)P(A)}{P(B)}' },
+  { name: '期望值', latex: 'E[X]=\\sum x P(x)' },
+  { name: '變異數', latex: 'Var(X)=E[X^2]-(E[X])^2' },
+  { name: '常態分布', latex: 'X \\sim N(\\mu, \\sigma^2)' },
+  { name: '中央極限定理', latex: '\\frac{\\bar{X}-\\mu}{\\sigma/\\sqrt{n}} \\to N(0,1)' },
+
+  // 離散數學 / 資管考常用
+  { name: '排列', latex: 'P(n,k) = \\tfrac{n!}{(n-k)!}' },
+  { name: '組合', latex: '\\binom{n}{k} = \\tfrac{n!}{k!(n-k)!}' },
+  { name: '二項式展開', latex: '(a+b)^n = \\sum_{k=0}^n \\binom{n}{k} a^{n-k} b^k' },
+  { name: '集合運算', latex: 'A \\cup B, A \\cap B, A - B, A^c' },
+  { name: '數列遞迴', latex: 'a_n = r a_{n-1}, \\quad a_n = a_1 r^{n-1}' },
+  { name: '大O記號', latex: 'T(n) = O(f(n))' },
+  // 基本運算（移除重複項目）
+  { name: '階乘', latex: 'n!' },
+
+  // 微積分（移除重複項目）
+  { name: '拉普拉斯算子', latex: '\\nabla^2 f = \\frac{\\partial^2 f}{\\partial x^2}+\\frac{\\partial^2 f}{\\partial y^2}+\\frac{\\partial^2 f}{\\partial z^2}' },
+  { name: '曲線積分', latex: '\\int_C \\vec{F} \\cdot d\\vec{r}' },
+  { name: '曲面積分', latex: '\\iint_S \\vec{F} \\cdot d\\vec{S}' },
+  { name: '線積分(閉合)', latex: '\\oint_C f(x,y) ds' },
+
+  // 級數與求和（移除重複項目）
+  { name: '無窮乘積', latex: '\\prod_{n=1}^{\\infty} a_n' },
+  { name: '等比級數', latex: 'S_n = a \\frac{1-r^n}{1-r}' },
+  { name: '等差級數', latex: 'S_n = \\frac{n(a_1+a_n)}{2}' },
+
+  // 矩陣與向量（移除重複項目）
+  { name: '3x3矩陣', latex: '\\begin{pmatrix} a & b & c \\\\ d & e & f \\\\ g & h & i \\end{pmatrix}' },
+  { name: '向量範數', latex: '\\|\\vec{v}\\| = \\sqrt{x^2+y^2+z^2}' },
+
+  // 函數（移除重複項目）
+  { name: '雙曲函數', latex: '\\sinh(x), \\cosh(x), \\tanh(x)' },
+  { name: '對數函數', latex: '\\log_a(x), \\ln(x), \\lg(x)' },
+  { name: '指數函數', latex: 'e^x, a^x' },
+
+  // 集合與邏輯（移除重複項目）
+  { name: '差集補集', latex: 'A - B, A^{c}' },
+  { name: '子集', latex: 'A \\subset B, A \\subseteq B' },
+  { name: '全稱量詞', latex: '\\forall x \\in A, P(x)' },
+  { name: '存在量詞', latex: '\\exists x \\in A, P(x)' },
+
+  // 方程與不等式（移除重複項目）
+  { name: '解二次方程', latex: 'x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}' },
+  { name: '絕對值', latex: '|x|, |x - a| < \\epsilon' },
+
+  // 幾何（移除重複項目）
+  { name: '相似', latex: '\\triangle ABC \\sim \\triangle DEF' },
+  { name: '全等', latex: '\\triangle ABC \\cong \\triangle DEF' },
+  { name: '畢氏定理', latex: 'a^2+b^2=c^2' },
+
+  // 統計與機率（移除重複項目）
+  { name: '標準差', latex: '\\sigma = \\sqrt{Var(X)}' },
+  { name: '常態分布', latex: 'X \\sim N(\\mu, \\sigma^2)' },
+  { name: '機率', latex: 'P(A \\cap B) = P(A) P(B|A)' },
+  { name: '貝氏定理', latex: 'P(A|B) = \\frac{P(B|A)P(A)}{P(B)}' }
+];
+
+  // 完整的數學符號庫
+  mathSymbols = [
+    // 希臘字母 (大寫)
+    '\\Alpha', '\\Beta', '\\Gamma', '\\Delta', '\\Epsilon', '\\Zeta', '\\Eta', '\\Theta',
+    '\\Iota', '\\Kappa', '\\Lambda', '\\Mu', '\\Nu', '\\Xi', '\\Pi', '\\Rho', '\\Sigma',
+    '\\Tau', '\\Upsilon', '\\Phi', '\\Chi', '\\Psi', '\\Omega',
+    
+    // 希臘字母 (小寫)
+    '\\alpha', '\\beta', '\\gamma', '\\delta', '\\epsilon', '\\varepsilon', '\\zeta', '\\eta',
+    '\\theta', '\\vartheta', '\\iota', '\\kappa', '\\lambda', '\\mu', '\\nu', '\\xi',
+    '\\pi', '\\varpi', '\\rho', '\\varrho', '\\sigma', '\\varsigma', '\\tau', '\\upsilon',
+    '\\phi', '\\varphi', '\\chi', '\\psi', '\\omega',
+    
+    // 基本運算符
+    '\\pm', '\\mp', '\\times', '\\div', '\\cdot', '\\ast', '\\star', '\\bullet',
+    '\\circ', '\\diamond', '\\triangle', '\\bigtriangleup', '\\bigtriangledown',
+    
+    // 關係符號
+    '\\leq', '\\geq', '\\neq', '\\approx', '\\equiv', '\\propto', '\\sim', '\\simeq',
+    '\\cong', '\\ll', '\\gg', '\\prec', '\\succ', '\\preceq', '\\succeq',
+    '\\subset', '\\supset', '\\subseteq', '\\supseteq', '\\in', '\\notin',
+    '\\cup', '\\cap', '\\sqcup', '\\sqcap', '\\vee', '\\wedge',
+    
+    // 箭頭符號
+    '\\rightarrow', '\\leftarrow', '\\leftrightarrow', '\\Rightarrow', '\\Leftarrow',
+    '\\Leftrightarrow', '\\mapsto', '\\hookleftarrow', '\\hookrightarrow',
+    '\\nearrow', '\\searrow', '\\swarrow', '\\nwarrow', '\\uparrow', '\\downarrow',
+    '\\updownarrow', '\\Uparrow', '\\Downarrow', '\\Updownarrow',
+    
+    // 微積分符號
+    '\\partial', '\\nabla', '\\infty', '\\lim', '\\limsup', '\\liminf',
+    '\\int', '\\iint', '\\iiint', '\\oint', '\\sum', '\\prod', '\\coprod',
+    '\\bigcup', '\\bigcap', '\\bigsqcup', '\\bigvee', '\\bigwedge',
+    '\\bigoplus', '\\bigotimes', '\\bigodot',
+    
+    // 函數符號
+    '\\sin', '\\cos', '\\tan', '\\cot', '\\sec', '\\csc',
+    '\\arcsin', '\\arccos', '\\arctan', '\\sinh', '\\cosh', '\\tanh',
+    '\\log', '\\ln', '\\lg', '\\exp', '\\min', '\\max', '\\sup', '\\inf',
+    '\\det', '\\dim', '\\ker', '\\deg', '\\arg', '\\gcd', '\\lcm',
+    
+    // 集合符號
+    '\\emptyset', '\\varnothing', '\\mathbb{N}', '\\mathbb{Z}', '\\mathbb{Q}',
+    '\\mathbb{R}', '\\mathbb{C}', '\\mathbb{P}', '\\mathbb{F}',
+    
+    // 邏輯符號
+    '\\land', '\\lor', '\\lnot', '\\neg', '\\forall', '\\exists', '\\nexists',
+    '\\therefore', '\\because', '\\iff', '\\implies', '\\impliedby',
+    
+    // 其他符號
+    '\\hbar', '\\ell', '\\wp', '\\Re', '\\Im', '\\aleph', '\\beth', '\\gimel',
+    '\\daleth', '\\backslash', '\\setminus', '\\smallsetminus'
+  ];
 }

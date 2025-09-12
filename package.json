@@ -52,6 +52,7 @@
     "luxon": "^3.7.1",
     "marked": "^15.0.11",
     "mathjax": "^3.2.2",
+    "ng-katex": "^2.0.3",
     "ng2-charts": "^7.0.0",
     "ngx-clipboard": "^16.0.0",
     "ngx-markdown": "^19.1.1",

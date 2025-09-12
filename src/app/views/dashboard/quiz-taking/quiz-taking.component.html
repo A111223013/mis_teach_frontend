@@ -66,9 +66,7 @@
                   <span *ngIf="quizType === 'knowledge'" class="badge bg-secondary me-2">{{ getTopicName() }}</span>
                   <span class="badge bg-primary me-2">{{ getQuestionTypeDisplayName(getQuestionType(currentQuestion)) }}</span>
                 </div>
-                <p class="question-text">
-                  {{ getQuestionType(currentQuestion) === 'group' ? currentQuestion.group_question_text : currentQuestion.question_text }}
-                </p>
+                <div class="question-text" [innerHTML]="renderQuestionText()"></div>
               </div>
               <div *ngIf="currentQuestion.key_points">
                 <span>知識點：{{ currentQuestion.key_points }}</span>
@@ -214,7 +212,7 @@
             </div>
 
             <!-- 填空題 -->
-            <div *ngIf="getQuestionType(currentQuestion) === 'fill-in-the-blank'" class="fill-blank-section">
+            <div *ngIf="getQuestionType(currentQuestion) === 'fill-in-the-blank' && !shouldShowMathAnswerMode()" class="fill-blank-section">
               <label class="form-label">請填入答案：</label>
               <input 
                 type="text" 
@@ -225,7 +223,7 @@
             </div>
 
             <!-- 簡答題 -->
-            <div *ngIf="getQuestionType(currentQuestion) === 'short-answer'" class="text-answer-section">
+            <div *ngIf="getQuestionType(currentQuestion) === 'short-answer' && !shouldShowMathAnswerMode()" class="text-answer-section">
               <label class="form-label">簡答：</label>
               <textarea 
                 class="form-control" 
@@ -236,7 +234,7 @@
             </div>
 
             <!-- 長答題 -->
-            <div *ngIf="getQuestionType(currentQuestion) === 'long-answer'" class="text-answer-section">
+            <div *ngIf="getQuestionType(currentQuestion) === 'long-answer' && !shouldShowMathAnswerMode()" class="text-answer-section">
               <label class="form-label">申論題：</label>
               <textarea 
                 class="form-control" 
@@ -298,6 +296,170 @@
                   <div class="d-inline-block">
                     <label class="form-label me-2">筆刷大小：</label>
                     <input type="range" min="1" max="10" [(ngModel)]="brushSize" class="form-range d-inline-block" style="width: 100px;">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 數學公式答題模式 -->
+            <div *ngIf="shouldShowMathAnswerMode()" class="math-answer-section">
+              <div class="math-mode-selector mb-4">
+                <div class="d-flex align-items-center justify-content-between">
+                  <h6 class="mb-0 text-primary">
+                    <i class="cil-calculator me-2"></i>數學公式答題
+                  </h6>
+                  <div class="btn-group" role="group">
+                    <button 
+                      type="button" 
+                      class="btn btn-sm" 
+                      [class.btn-primary]="mathAnswerMode === 'drawing'"
+                      [class.btn-outline-primary]="mathAnswerMode !== 'drawing'"
+                      (click)="switchMathAnswerMode('drawing')">
+                      <i class="cil-brush me-1"></i> 繪圖模式
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn btn-sm" 
+                      [class.btn-primary]="mathAnswerMode === 'formula'"
+                      [class.btn-outline-primary]="mathAnswerMode !== 'formula'"
+                      (click)="switchMathAnswerMode('formula')">
+                      <i class="cil-calculator me-1"></i> 公式模式
+                    </button>
+                  </div>
+                </div>
+                <small class="text-muted">選擇適合的答題方式來輸入數學公式或繪製圖形</small>
+              </div>
+
+              <!-- 繪圖模式 -->
+              <div *ngIf="mathAnswerMode === 'drawing'" class="math-drawing-mode">
+                <div class="card border-primary">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                      <i class="cil-brush me-2"></i>數學公式繪圖
+                    </h6>
+                    <small class="text-muted">在下方畫布中繪製數學公式、圖形或圖表</small>
+                  </div>
+                  <div class="card-body">
+                    <div class="math-drawing-area">
+                      <div class="math-drawing-canvas-container">
+                        <canvas 
+                          #mathCanvas
+                          width="600" 
+                          height="400" 
+                          class="math-drawing-canvas"
+                          (mousedown)="startMathDrawing($event)"
+                          (mousemove)="drawMath($event)"
+                          (mouseup)="stopMathDrawing()"
+                          (mouseleave)="stopMathDrawing()">
+                        </canvas>
+                      </div>
+                      <div class="math-drawing-controls mt-3 d-flex justify-content-between align-items-center">
+                        <div class="drawing-tools">
+                          <span class="text-muted me-3">繪圖工具：</span>
+                          <button class="btn btn-sm btn-outline-secondary me-2" (click)="clearMathCanvas()">
+                            <i class="cil-trash me-1"></i>清除
+                          </button>
+                          <button class="btn btn-sm btn-outline-primary" (click)="saveMathDrawing()">
+                            <i class="cil-save me-1"></i>儲存繪圖
+                          </button>
+                        </div>
+                        <div class="drawing-info">
+                          <small class="text-muted">
+                            <i class="cil-info me-1"></i>使用滑鼠在畫布上繪製
+                          </small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 公式模式 -->
+              <div *ngIf="mathAnswerMode === 'formula'" class="math-formula-mode">
+                <div class="card border-success">
+                  <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div>
+                        <h6 class="mb-0">
+                          <i class="cil-calculator me-2"></i>數學公式編輯器
+                        </h6>
+                        <small class="text-muted">左側輸入LaTeX語法，右側即時預覽渲染結果</small>
+                      </div>
+                      <!-- 工具選擇下拉選單 -->
+                      <div class="math-tools-dropdown">
+                        <select 
+                          class="form-select math-tools-select"
+                          [(ngModel)]="selectedMathTab"
+                          (change)="selectMathTab($any($event).target.value)">
+                          <option value="quick">快捷工具</option>
+                          <option value="templates">公式模板</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-body p-0">
+                    <!-- 左右分佈的編輯器 -->
+                    <div class="math-editor-layout">
+                      <!-- 左側：輸入區域 -->
+                      <div class="math-input-section">
+                        <div class="math-input-header">
+                          <h6 class="mb-0 text-primary">
+                            <i class="cil-edit me-2"></i>LaTeX 輸入
+                          </h6>
+                        </div>
+                        <div class="math-input-area">
+                          <textarea 
+                            class="math-latex-input" 
+                            [(ngModel)]="mathFormulaAnswer"
+                            (input)="updateMathFormula()"
+                            placeholder="請輸入 LaTeX 數學公式，例如：\frac{a}{b} 或 x^2 + y^2 = r^2">
+                          </textarea>
+                        </div>
+                      </div>
+
+                      <!-- 右側：預覽區域 -->
+                      <div class="math-preview-section">
+                        <div class="math-preview-header">
+                          <h6 class="mb-0 text-success">
+                            <i class="cil-eye me-2"></i>即時預覽
+                          </h6>
+                        </div>
+                        <div class="math-preview-area">
+                          <div class="math-preview-content" [innerHTML]="renderMathFormula(mathFormulaAnswer)"></div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- 工具選擇內容區域 -->
+                    <div class="math-tools-content">
+                      <!-- 快捷工具內容 -->
+                      <div *ngIf="selectedMathTab === 'quick'" class="math-quick-tools">
+                        <div class="quick-tools-grid">
+                          <button 
+                            *ngFor="let tool of quickMathTools" 
+                            class="quick-tool-btn"
+                            (click)="insertMathSymbol(tool)"
+                            [title]="tool.name">
+                            <div class="tool-preview" [innerHTML]="renderMathFormula(tool.symbol)"></div>
+                            <div class="tool-name">{{ tool.name }}</div>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- 公式模板內容 -->
+                      <div *ngIf="selectedMathTab === 'templates'" class="math-templates-content">
+                        <div class="templates-grid">
+                          <button 
+                            *ngFor="let template of mathTemplates" 
+                            class="template-btn"
+                            (click)="insertMathTemplate(template)"
+                            [title]="template.name">
+                            <div class="template-preview" [innerHTML]="renderMathFormula(template.latex)"></div>
+                            <div class="template-name">{{ template.name }}</div>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

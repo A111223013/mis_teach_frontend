@@ -11,8 +11,12 @@ export class QuizService {
 
   // 添加测验数据存储
   private currentQuizData = new BehaviorSubject<any>(null);
+  private readonly QUIZ_DATA_KEY = 'current_quiz_data';
 
-  constructor(private http: HttpClient, private authService: AuthService) {}
+  constructor(private http: HttpClient, private authService: AuthService) {
+    // 在構造函數中嘗試從localStorage恢復數據
+    this.loadQuizDataFromStorage();
+  }
 
   // 統一錯誤處理
   private handleError = (error: any) => {
@@ -22,9 +26,49 @@ export class QuizService {
     return throwError(() => error);
   }
 
+  // 從localStorage載入測驗數據
+  private loadQuizDataFromStorage(): void {
+    try {
+      const storedData = localStorage.getItem(this.QUIZ_DATA_KEY);
+      if (storedData) {
+        const quizData = JSON.parse(storedData);
+        console.log('🔄 從localStorage恢復測驗數據:', quizData);
+        this.currentQuizData.next(quizData);
+      }
+    } catch (error) {
+      console.error('❌ 從localStorage載入測驗數據失敗:', error);
+      this.clearQuizDataFromStorage();
+    }
+  }
+
+  // 將測驗數據保存到localStorage
+  private saveQuizDataToStorage(quizData: any): void {
+    try {
+      if (quizData) {
+        localStorage.setItem(this.QUIZ_DATA_KEY, JSON.stringify(quizData));
+        console.log('💾 測驗數據已保存到localStorage');
+      } else {
+        this.clearQuizDataFromStorage();
+      }
+    } catch (error) {
+      console.error('❌ 保存測驗數據到localStorage失敗:', error);
+    }
+  }
+
+  // 從localStorage清除測驗數據
+  private clearQuizDataFromStorage(): void {
+    try {
+      localStorage.removeItem(this.QUIZ_DATA_KEY);
+      console.log('🗑️ 已從localStorage清除測驗數據');
+    } catch (error) {
+      console.error('❌ 從localStorage清除測驗數據失敗:', error);
+    }
+  }
+
   // 存储当前测验数据
   setCurrentQuizData(quizData: any): void {
     this.currentQuizData.next(quizData);
+    this.saveQuizDataToStorage(quizData);
   }
 
   // 获取当前测验数据
@@ -35,6 +79,7 @@ export class QuizService {
   // 清除当前测验数据
   clearCurrentQuizData(): void {
     this.currentQuizData.next(null);
+    this.clearQuizDataFromStorage();
   }
 
   // 獲取所有考題

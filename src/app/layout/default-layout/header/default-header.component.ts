@@ -17,7 +17,8 @@ import { SettingsComponent } from '../../../views/settings/settings.component';
 import { 
   cilAccountLogout, 
   cilSpeedometer, cilBook, cilSchool, cilChartPie,
-  cilBrush, cilCog, cilSettings, cilSpeech, cilNewspaper
+  cilBrush, cilCog, cilSettings, cilSpeech, cilNewspaper,
+  cilQrCode, cilTag, cilImage
 } from '@coreui/icons';
 
 @Component({
@@ -51,7 +52,8 @@ export class DefaultHeaderComponent {
     iconSetService.icons = { 
       cilAccountLogout, 
       cilSpeedometer, cilBook, cilSchool, cilChartPie, 
-      cilBrush, cilCog, cilSettings, cilSpeech, cilNewspaper
+      cilBrush, cilCog, cilSettings, cilSpeech, cilNewspaper,
+      cilQrCode, cilTag, cilImage
     };
   }
 
