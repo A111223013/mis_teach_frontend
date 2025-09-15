@@ -69,6 +69,7 @@ export class SettingsComponent implements OnInit {
   avatarError = '';
   bindingStatus = '';
   qrCodeGenerated = false;
+  currentBindingToken = '';
 
   constructor(
     private iconSetService: IconSetService,
@@ -169,6 +170,7 @@ export class SettingsComponent implements OnInit {
   generateQRCode(): void {
     // 生成唯一的綁定 token
     const bindingToken = this.generateBindingToken();
+    this.currentBindingToken = bindingToken; // 保存綁定碼供顯示
     
     this.settingsService.generateLineQR(bindingToken).subscribe({
       next: (response) => {
@@ -210,9 +212,43 @@ export class SettingsComponent implements OnInit {
     return 'bind_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   }
 
+  copyBindingToken(): void {
+    if (this.currentBindingToken) {
+      navigator.clipboard.writeText(this.currentBindingToken).then(() => {
+        // 可以添加一個短暫的提示
+        const originalText = this.bindingStatus;
+        this.bindingStatus = '綁定碼已複製到剪貼簿！';
+        setTimeout(() => {
+          this.bindingStatus = originalText;
+        }, 2000);
+      }).catch(err => {
+        console.error('複製失敗:', err);
+        // 降級方案：選擇文字
+        const input = document.querySelector('input[readonly]') as HTMLInputElement;
+        if (input) {
+          input.select();
+          document.execCommand('copy');
+        }
+      });
+    }
+  }
+
   startBindingPolling(bindingToken: string): void {
-    // 每 3 秒檢查一次綁定狀態
+    // 每 3 秒檢查一次綁定狀態，最多檢查 60 次（3分鐘）
+    let pollCount = 0;
+    const maxPolls = 60; // 3分鐘 = 60次 * 3秒
+    
     const pollInterval = setInterval(() => {
+      pollCount++;
+      
+      if (pollCount > maxPolls) {
+        console.log('綁定檢查超時，停止輪詢');
+        clearInterval(pollInterval);
+        this.bindingStatus = '綁定超時，請重新生成 QR Code';
+        this.showQRCode = false;
+        return;
+      }
+      
       this.checkBindingStatus(bindingToken, pollInterval);
     }, 3000);
   }
@@ -220,7 +256,7 @@ export class SettingsComponent implements OnInit {
   checkBindingStatus(bindingToken: string, pollInterval: any): void {
     this.settingsService.checkLineBinding(bindingToken).subscribe({
       next: (response) => {
-        if (response.bound) {
+        if (response.bound === true) {
           clearInterval(pollInterval);
           this.userProfile.lineId = response.lineId || '已綁定';
           this.showQRCode = false;
@@ -228,10 +264,15 @@ export class SettingsComponent implements OnInit {
           this.saveMessage = 'Line Bot 綁定成功！';
           // 自動儲存設定
           this.saveProfile();
+        } else {
+          console.log('尚未綁定，繼續輪詢...');
         }
       },
       error: (error) => {
         console.error('檢查綁定狀態失敗:', error);
+        // 發生錯誤時也停止輪詢，避免無限重試
+        clearInterval(pollInterval);
+        this.bindingStatus = '檢查綁定狀態時發生錯誤';
       }
     });
   }

@@ -289,7 +289,7 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
   }
 
   /**
-   * 檢查回應中是否包含考卷 ID
+   * 檢查回應中是否包含考卷 ID 或 JavaScript 代碼
    */
   private checkForQuizData(content: string): void {
     try {
@@ -316,11 +316,78 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
         
         this.showStartQuizButton = true;
       }
+      
+      // 檢查是否包含測驗操作指令
+      this.checkForQuizAction(content);
     } catch (error) {
       console.warn('解析考卷 ID 失敗:', error);
       this.showStartQuizButton = false;
     }
   }
+
+  /**
+   * 檢查並執行 JavaScript 代碼
+   */
+  private checkForQuizAction(content: string): void {
+    try {
+      console.log('🔍 開始檢查測驗操作指令...');
+      
+      // 檢查是否為 JSON 格式的測驗指令
+      if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
+        try {
+          const quizData = JSON.parse(content);
+          console.log('🔍 找到測驗操作指令:', quizData);
+          
+          if (quizData.type === 'university_quiz') {
+            this.handleUniversityQuiz(quizData);
+          } else if (quizData.type === 'knowledge_quiz') {
+            this.handleKnowledgeQuiz(quizData);
+          }
+        } catch (e) {
+          console.log('🔍 JSON 解析失敗，不是測驗指令');
+        }
+      }
+    } catch (error) {
+      console.warn('檢查測驗操作失敗:', error);
+    }
+  }
+
+  private handleUniversityQuiz(data: any): void {
+    console.log('🎯 處理大學考古題測驗:', data);
+    const { university, department } = data.argument;
+    const year = data.number;
+    
+    // 將數據存儲到 localStorage，供目標頁面使用
+    localStorage.setItem('quiz_automation_data', JSON.stringify({
+      type: 'university_quiz',
+      university,
+      department,
+      year
+    }));
+    
+    // 導航到測驗中心
+    window.location.href = '/dashboard/quiz-center';
+  }
+
+  private handleKnowledgeQuiz(data: any): void {
+    console.log('🎯 處理知識點測驗:', data);
+    const { knowledge_point, difficulty } = data.argument;
+    const questionCount = data.number;
+    
+    // 將數據存儲到 localStorage，供目標頁面使用
+    localStorage.setItem('quiz_automation_data', JSON.stringify({
+      type: 'knowledge_quiz',
+      knowledge_point,
+      difficulty,
+      questionCount
+    }));
+    
+    // 導航到測驗中心
+    window.location.href = '/dashboard/quiz-center';
+  }
+
+  
+  
 
   /**
    * 開始測驗

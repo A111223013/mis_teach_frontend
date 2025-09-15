@@ -47,7 +47,8 @@ import {
   cilTag,
   cilImage,
   cilSchool,
-  cilSettings
+  cilSettings,
+  cilMediaPlay
 } from '@coreui/icons';
 
 bootstrapApplication(AppComponent, {
@@ -98,7 +99,8 @@ bootstrapApplication(AppComponent, {
           cilTag,
           cilImage,
           cilSchool,
-          cilSettings
+          cilSettings,
+          cilMediaPlay
         };
         return iconSetService;
       }

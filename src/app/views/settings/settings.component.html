@@ -96,6 +96,29 @@
                   <div class="mb-3">
                     <h6 class="text-primary">掃描 QR Code 加入 Line Bot</h6>
                     <p class="text-muted small">掃描後會自動加入我們的 Line Bot 為好友</p>
+                    <div class="alert alert-warning small">
+                      <strong>綁定步驟：</strong><br>
+                      1. 掃描下方 QR Code 加入 Line Bot<br>
+                      2. 複製下方綁定碼<br>
+                      3. 在 Line Bot 中發送：<code>bind:綁定碼</code>
+                    </div>
+                    <div class="mb-2">
+                      <label class="form-label small fw-bold">您的綁定碼：</label>
+                      <div class="input-group input-group-sm">
+                        <input 
+                          type="text" 
+                          class="form-control font-monospace" 
+                          [value]="currentBindingToken" 
+                          readonly>
+                        <button 
+                          class="btn btn-outline-secondary" 
+                          type="button"
+                          (click)="copyBindingToken()">
+                          <svg cIcon name="cilCopy" class="me-1"></svg>
+                          複製
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div class="qr-code-container mb-3">
                     <div id="qrcode" class="d-flex justify-content-center">

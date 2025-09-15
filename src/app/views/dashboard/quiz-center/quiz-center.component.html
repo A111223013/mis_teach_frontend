@@ -116,7 +116,7 @@
                 </div>
                 
                 <div class="mb-3">
-                  <select class="form-select" [(ngModel)]="selectedSchool" (ngModelChange)="onSchoolChange()">
+                  <select class="form-select school-select" [(ngModel)]="selectedSchool" (ngModelChange)="onSchoolChange()">
                     <option value="">請選擇學校</option>
                     <option *ngFor="let school of availableSchools" [value]="school">{{ school }}</option>
                   </select>
@@ -127,7 +127,7 @@
                 </div>
                 
                 <div class="mb-3">
-                  <select class="form-select" [(ngModel)]="selectedYear" (ngModelChange)="onYearChange()">
+                  <select class="form-select year-select" [(ngModel)]="selectedYear" (ngModelChange)="onYearChange()">
                     <option value="">請選擇年度</option>
                     <option *ngFor="let year of availableYears" [value]="year">{{ year }}年</option>
                   </select>
@@ -138,7 +138,7 @@
                 </div>
                 
                 <div class="mb-4">
-                  <select class="form-select" [(ngModel)]="selectedDepartment" (ngModelChange)="onDepartmentChange()">
+                  <select class="form-select dept-select" [(ngModel)]="selectedDepartment" (ngModelChange)="onDepartmentChange()">
                     <option value="">請選擇系所</option>
                     <option *ngFor="let dept of availableDepartments" [value]="dept">{{ dept }}</option>
                   </select>
