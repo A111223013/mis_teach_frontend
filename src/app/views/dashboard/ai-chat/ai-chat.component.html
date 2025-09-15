@@ -80,16 +80,18 @@
                 <div class="message-text" [innerHTML]="message.content | markdown"></div>
                 
                 <!-- 考卷生成後的開始測驗按鈕 -->
-                <div *ngIf="isQuizGenerationMessage(message.content)" class="quiz-actions mt-3">
+                <div *ngIf="message.content && isQuizGenerationMessage(message.content)" class="quiz-actions mt-3">
                   <button 
                     class="btn btn-primary btn-lg"
-                    (click)="startQuizFromMessage(message.content)">
+                    (click)="startQuizFromMessage(message.content)"
+                    [disabled]="!message.content">
                     <i class="cil-media-play me-2"></i>
                     開始測驗
                   </button>
                   <button 
                     class="btn btn-outline-secondary ms-2"
-                    (click)="viewQuizDetails(message.content)">
+                    (click)="viewQuizDetails(message.content)"
+                    [disabled]="!message.content">
                     <i class="cil-eye me-2"></i>
                     查看詳情
                   </button>

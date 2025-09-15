@@ -777,6 +777,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     
     // 準備提交資料
     const submissionData = {
+      quiz_id: this.quizId,        // 新增：AI 測驗需要的 quiz_id
       template_id: this.templateId,  // 使用 template_id
       answers: this.userAnswers,
       time_taken: this.timeLimit > 0 ? (this.timeLimit * 60 - this.timer) : 0,
@@ -799,18 +800,16 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
   }
 
-  // 提交AI題目 - 按照quiz.py的流程
+  // 提交AI題目 - 使用 ai-quiz 端點
   private submitAIQuiz(submissionData: any): void {
     
-    // 直接調用後端的submit_quiz API，讓後端處理AI題目的提交流程
-    // 這樣可以確保AI題目和傳統題目使用相同的提交流程
-    this.quizService.submitQuiz(submissionData).subscribe({
+    // 使用 ai-quiz 端點提交 AI 生成的測驗
+    this.quizService.submitAiQuiz(submissionData).subscribe({
       next: (response: any) => {
-
         // 獲取進度追蹤ID
         const progressId = response.data?.progress_id;
+        
         if (progressId) {
-
           // 連接後端進度追蹤
           this.connectProgressTracking(progressId);
         } else {

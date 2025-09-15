@@ -150,25 +150,27 @@ export class MistakeAnalysisComponent implements OnInit {
            if (answer && typeof answer === 'object') {
              console.log(`     📋 處理答案 ${index + 1}:`, {
                question_text: answer.question_text?.substring(0, 50) + '...',
-               answer: answer.answer,
-               is_correct: answer.is_correct
+               user_answer: answer.user_answer,
+               is_correct: answer.is_correct,
+               topic: answer.topic,
+               chapter: answer.chapter
              });
              
              const question: MistakeQuestion = {
                id: `${submission.submission_id}_${index}`,
                question_text: answer.question_text || '題目內容未提供',
-               student_answer: answer.answer || '', // 使用 answer 字段
+               student_answer: answer.user_answer || '', // 修正：使用 user_answer 字段
                correct_answer: answer.correct_answer || '',
-               topic: this.extractTopic(answer) || '未分類',
-               chapter: '未分類', // 移除章節邏輯
+               topic: answer.topic || '未分類', // 修正：直接使用 topic 字段
+               chapter: answer.chapter || '未分類', // 修正：使用 chapter 字段
                timestamp: submitTime,
                exam_id: submission.submission_id,
-               exam_type: submission.subject || 'unknown', // 使用 subject 作為測驗類型
+               exam_type: submission.quiz_type || 'unknown', // 修正：使用 quiz_type
                score: answer.score || 0,
                is_correct: answer.is_correct || false,
                question_number: answer.question_number || index.toString(),
                type: answer.type || 'unknown',
-               feedback: answer.feedback || `用戶回答：${answer.answer}，正確答案：${answer.correct_answer}`,
+               feedback: JSON.stringify(answer.feedback) || `用戶回答：${answer.user_answer}，正確答案：${answer.correct_answer}`,
                status: answer.is_correct ? 'correct' : 'wrong'
              };
              
