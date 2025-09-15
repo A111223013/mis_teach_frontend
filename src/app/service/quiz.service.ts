@@ -117,6 +117,13 @@ export class QuizService {
     ).pipe(catchError(this.handleError));
   }
 
+  // 提交 AI 生成的測驗答案
+  submitAiQuiz(submissionData: any): Observable<any> {
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post(`${environment.apiUrl}/ai_quiz/submit-ai-quiz`, submissionData, { headers })
+    ).pipe(catchError(this.handleError));
+  }
+
   /**
    * 檢視測驗結果 - 從submissions載入數據並統計
    */

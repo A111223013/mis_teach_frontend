@@ -107,18 +107,33 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.aiChatService.getCurrentUserId()
     ).subscribe({
       next: (response) => {
+
         if (response.success) {
-          const aiMessage: ChatMessage = {
-            id: this.generateId(),
-            type: 'assistant',
-            content: response.message,
-            timestamp: new Date(),
-            aiModel: 'gemini'
-          };
-          this.addMessage(aiMessage);
+          // 修正：後端回傳的是 content 欄位，不是 message
+          const responseContent = response.content || response.message || '';
           
-          // 檢查是否為考卷生成回應
-          this.checkAndHandleQuizGeneration(response.message);
+          if (!responseContent || responseContent.trim() === '') {
+            const errorMessage: ChatMessage = {
+              id: this.generateId(),
+              type: 'assistant',
+              content: '❌ 抱歉，AI 回應為空，請稍後再試或聯繫管理員。',
+              timestamp: new Date(),
+              aiModel: 'gemini'
+            };
+            this.addMessage(errorMessage);
+          } else {
+            const aiMessage: ChatMessage = {
+              id: this.generateId(),
+              type: 'assistant',
+              content: responseContent,
+              timestamp: new Date(),
+              aiModel: 'gemini'
+            };
+            this.addMessage(aiMessage);
+            
+            // 檢查是否為考卷生成回應
+            this.checkAndHandleQuizGeneration(responseContent);
+          }
         } else {
           // 處理錯誤回應
           const errorMessage: ChatMessage = {
@@ -134,7 +149,6 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.shouldScrollToBottom = true;
       },
       error: (error) => {
-        console.error('聊天API錯誤:', error);
         const errorMessage: ChatMessage = {
           id: this.generateId(),
           type: 'assistant',
@@ -155,6 +169,10 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    * 檢查並處理考卷生成回應
    */
   private checkAndHandleQuizGeneration(response: string): void {
+    if (!response || typeof response !== 'string') {
+      return;
+    }
+
     // 檢查是否包含考卷生成的JSON數據
     if (response.includes('```json') && response.includes('quiz_id')) {
       try {
@@ -169,10 +187,9 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.quizService.setCurrentQuizData(quizData);
         
         // 不再自動跳轉，讓用戶點擊按鈕
-        console.log('考卷數據已準備就緒，等待用戶點擊開始測驗按鈕');
         
       } catch (error) {
-        console.error('解析考卷數據失敗:', error);
+        // 解析考卷數據失敗
       }
     }
   }
@@ -181,6 +198,10 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    * 檢查是否為考卷生成訊息
    */
   isQuizGenerationMessage(content: string): boolean {
+    if (!content || typeof content !== 'string') {
+      return false;
+    }
+
     return content.includes('考卷生成成功') || 
            content.includes('開始測驗') || 
            content.includes('```json');
@@ -191,22 +212,22 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   startQuizFromMessage(content: string): void {
     try {
-      console.log('開始從訊息中提取考卷ID...');
-      
-      // 從訊息中提取 MongoDB 考卷 ID
-      const quizIds = this.extractQuizIdsFromMessage(content);
-      
-      if (!quizIds || quizIds.length === 0) {
-        throw new Error('無法從訊息中提取有效的考卷ID');
+      if (!content || typeof content !== 'string') {
+        throw new Error('訊息內容無效');
       }
       
-      console.log('✅ 提取到考卷ID:', quizIds);
+      // 嘗試從訊息中提取考卷 ID
+      const quizIds = this.extractQuizIdsFromMessage(content);
       
-      // 從後端獲取完整的考卷數據
-      this.loadQuizFromDatabase(quizIds);
+      if (quizIds && quizIds.length > 0) {
+        // 直接使用提取到的考卷 ID 跳轉到測驗頁面
+        this.navigateToQuiz(quizIds[0]);
+      } else {
+        // 如果無法提取 ID，嘗試從 MongoDB 讀取最新的考卷
+        this.loadLatestQuizFromDatabase();
+      }
       
     } catch (error) {
-      console.error('開始測驗失敗:', error);
       
       // 顯示詳細的錯誤訊息
       let errorMsg = '開始測驗失敗';
@@ -230,9 +251,19 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   private extractQuizIdsFromMessage(content: string): string[] {
     try {
-      console.log('開始提取考卷ID...');
+      if (!content || typeof content !== 'string') {
+        return [];
+      }
       
-      // 方法1: 從 AI 回應中提取 MongoDB ObjectId 格式的字符串（優先）
+      // 方法1: 從 AI 回應中提取考卷 ID（支援多種格式）
+      // 1.1 提取時間戳格式的考卷 ID (ai_generated_1234567890)
+      const timestampIdPattern = /ai_generated_\d+/g;
+      const timestampIds = content.match(timestampIdPattern);
+      if (timestampIds && timestampIds.length > 0) {
+        return timestampIds;
+      }
+
+      // 1.2 提取 MongoDB ObjectId 格式的字符串
       const objectIdPattern = /[a-f0-9]{24}/g;
       const objectIds = content.match(objectIdPattern);
       if (objectIds && objectIds.length > 0) {
@@ -247,7 +278,6 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           !id.includes('\\n')
         );
         if (validObjectIds.length > 0) {
-          console.log('✅ 從內容中提取到有效的 ObjectId 格式考卷ID:', validObjectIds);
           return validObjectIds;
         }
       }
@@ -262,20 +292,17 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           try {
             const parsed = JSON.parse(jsonData);
             if (parsed.database_ids && Array.isArray(parsed.database_ids) && parsed.database_ids.length > 0) {
-              console.log('✅ 從JSON database_ids提取到考卷ID:', parsed.database_ids);
               return parsed.database_ids;
             }
           } catch (parseError) {
-            console.warn('JSON解析失敗:', parseError);
+            // JSON解析失敗
           }
         }
       }
       
-      console.log('❌ 無法提取到考卷ID');
       return [];
       
     } catch (error) {
-      console.error('提取考卷ID失敗:', error);
       return [];
     }
   }
@@ -284,21 +311,20 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    * 從資料庫載入考卷數據
    */
   private loadQuizFromDatabase(quizIds: string[]): void {
-    console.log('🔄 從資料庫載入考卷數據...');
     
     // 調用後端API獲取考卷數據
     this.aiChatService.getQuizFromDatabase(quizIds).subscribe({
       next: (response: any) => {
-        if (response.success) {
-          console.log('✅ 成功載入考卷數據:', response.data);
-          
-          const quizData = response.data;
+        // 檢查回應結構：response.data.success 或 response.success
+        const isSuccess = (response.data && response.data.success) || response.success;
+        const quizData = response.data?.data || response.data;
+        
+        if (isSuccess && quizData) {
           
           // 將考卷數據存儲到QuizService
           this.quizService.setCurrentQuizData(quizData);
           
           // 跳轉到測驗頁面
-          console.log('🚀 跳轉到測驗頁面...');
           
           // 構建查詢參數
           const queryParams = {
@@ -308,12 +334,86 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.router.navigate(['/dashboard/quiz-taking', quizData.quiz_id], { queryParams });
           
         } else {
-          throw new Error(response.message || '載入考卷數據失敗');
+          console.error('❌ API 回應失敗:', response);
+          const errorMessage = response.data?.message || response.message || response.error || '載入考卷數據失敗';
+          console.error('❌ 錯誤訊息:', errorMessage);
+          
+          // 顯示錯誤訊息給用戶
+          const errorChatMessage: ChatMessage = {
+            id: this.generateId(),
+            type: 'assistant',
+            content: `❌ 載入考卷失敗：${errorMessage}`,
+            timestamp: new Date(),
+            aiModel: 'gemini'
+          };
+          this.addMessage(errorChatMessage);
         }
       },
       error: (error: any) => {
-        console.error('載入考卷數據失敗:', error);
-        throw new Error('載入考卷數據失敗');
+        console.error('❌ 載入考卷數據失敗:', error);
+        console.error('❌ 錯誤詳情:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          url: error.url
+        });
+        
+        // 顯示錯誤訊息給用戶
+        const errorChatMessage: ChatMessage = {
+          id: this.generateId(),
+          type: 'assistant',
+          content: `❌ 載入考卷失敗：${error.message || '網路錯誤'}`,
+          timestamp: new Date(),
+          aiModel: 'gemini'
+        };
+        this.addMessage(errorChatMessage);
+      }
+    });
+  }
+
+  /**
+   * 載入考卷數據並跳轉到測驗頁面
+   */
+  private navigateToQuiz(quizId: string): void {
+    console.log('🚀 載入考卷數據並跳轉到測驗頁面，考卷ID:', quizId);
+    
+    // 先從 MongoDB 載入考卷數據
+    this.loadQuizFromDatabase([quizId]);
+  }
+
+  /**
+   * 從 MongoDB 載入最新的考卷數據
+   */
+  private loadLatestQuizFromDatabase(): void {
+    console.log('🔄 從 MongoDB 載入最新考卷數據...');
+    
+    // 調用後端API獲取最新考卷數據
+    this.aiChatService.getLatestQuizFromDatabase().subscribe({
+      next: (response: any) => {
+        if (response.success) {
+          console.log('✅ 成功載入最新考卷數據:', response.data);
+          
+          const quizData = response.data;
+          
+          // 將考卷數據存儲到QuizService
+          this.quizService.setCurrentQuizData(quizData);
+          
+          // 跳轉到測驗頁面
+          
+          // 構建查詢參數
+          const queryParams = {
+            template_id: quizData.template_id
+          };
+          
+          this.router.navigate(['/dashboard/quiz-taking', quizData.quiz_id], { queryParams });
+          
+        } else {
+          throw new Error(response.message || '載入最新考卷數據失敗');
+        }
+      },
+      error: (error: any) => {
+        console.error('載入最新考卷數據失敗:', error);
+        throw new Error('載入最新考卷數據失敗');
       }
     });
   }
@@ -323,6 +423,12 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   viewQuizDetails(content: string): void {
     try {
+      // 防禦性檢查：確保 content 不為 undefined 或 null
+      if (!content || typeof content !== 'string') {
+        console.error('viewQuizDetails: content 參數無效', content);
+        return;
+      }
+
       // 更安全的JSON提取
       const jsonData = this.extractJsonFromMessage(content);
       
@@ -400,6 +506,20 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /**
+   * 安全的字串檢查工具函數
+   * @param str 要檢查的字串
+   * @param methodName 調用此函數的方法名稱（用於日誌）
+   * @returns 如果字串有效返回 true，否則返回 false
+   */
+  private isValidString(str: any, methodName: string = 'unknown'): str is string {
+    if (!str || typeof str !== 'string') {
+      console.warn(`${methodName}: 無效的字串參數`, str);
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * 滾動到底部
    */
   private scrollToBottom(): void {
@@ -452,6 +572,12 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   extractJsonFromMessage(content: string): string | null {
     try {
+      // 防禦性檢查：確保 content 不為 undefined 或 null
+      if (!content || typeof content !== 'string') {
+        console.warn('extractJsonFromMessage: content 參數無效', content);
+        return null;
+      }
+
       console.log('開始提取JSON，內容長度:', content.length);
       
       // 方法1: 尋找 ```json ... ``` 格式（後端現在使用這種格式）

@@ -68,9 +68,7 @@
                 </div>
                 <div class="question-text" [innerHTML]="renderQuestionText()"></div>
               </div>
-              <div *ngIf="currentQuestion.key_points">
-                <span>知識點：{{ currentQuestion.key_points }}</span>
-              </div>
+              <!-- key_points 不應該在答題時顯示，只在查看詳情時顯示 -->
               <div class="question-actions">
                 <button class="btn btn-sm btn-outline-warning flag-btn" (click)="toggleMarkQuestion()">
                   {{ markedQuestions[currentQuestionIndex] ? '取消標記' : '標記此題' }} ★

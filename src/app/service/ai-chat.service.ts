@@ -20,6 +20,7 @@ export interface ChatRequest {
 export interface ChatResponse {
   success: boolean;
   message: string;
+  content?: string;  // 添加 content 欄位以支援後端回應
   timestamp: string;
   error?: string;
 }
@@ -120,6 +121,17 @@ export class AiChatService {
 
     return this.authService.authenticatedRequest((headers) =>
       this.http.post<QuizDataResponse>(`${this.apiUrl}/get-quiz-from-database`, request, { headers })
+    ).pipe(catchError(this.handleError));
+  }
+
+  /**
+   * 從資料庫獲取最新的考卷數據
+   */
+  getLatestQuizFromDatabase(): Observable<QuizDataResponse> {
+    // 使用 ai-quiz 端點而不是 web-ai 端點
+    const aiQuizUrl = `${environment.apiUrl}/ai-quiz`;
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.get<QuizDataResponse>(`${aiQuizUrl}/get-latest-quiz`, { headers })
     ).pipe(catchError(this.handleError));
   }
 }
