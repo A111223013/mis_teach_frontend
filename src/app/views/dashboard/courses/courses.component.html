@@ -1,9 +1,31 @@
-<section class="keypoints">
-  <div class="card-container">
-    <c-card *ngFor="let kp of keyPoints" (click)="goToMaterial(kp)" style="cursor:pointer;">
-      <div class="card-content">
-        {{ kp }}
+<section class="courses-swiper">
+  <!-- ✅ Web Components 版本 -->
+  <swiper-container
+    navigation="true"
+    pagination="true"
+    effect="coverflow"
+    grab-cursor="true"
+    centered-slides="true"
+    slides-per-view="auto"
+    parallax="true"
+    class="mySwiper"
+    loop="true"
+  >
+    <swiper-slide *ngFor="let c of courses">
+      <div class="card-wrapper">
+        <div class="course-card" (click)="goToMaterial(c)">
+          <!-- 上層圖片 -->
+          <div class="image-container" data-swiper-parallax="-100">
+            <img [src]="c.image" [alt]="c.name" />
+          </div>
+
+          <!-- 下層文字 -->
+          <div class="text-container" data-swiper-parallax="-200">
+            <h3>{{ c.name }}</h3>
+            <p>{{ c.description }}</p>
+          </div>
+        </div>
       </div>
-    </c-card>
-  </div>
+    </swiper-slide>
+  </swiper-container>
 </section>
