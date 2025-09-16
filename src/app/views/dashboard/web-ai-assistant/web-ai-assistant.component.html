@@ -94,6 +94,19 @@
             </div>
           </div>
         </div>
+
+        <!-- AI處理提示 -->
+        <div *ngIf="isAiTakingOver" class="ai-processing-overlay">
+          <div class="processing-content">
+            <div class="processing-icon">
+              <svg cIcon name="cilSettings" class="rotating-icon"></svg>
+            </div>
+            <div class="processing-text">
+              <h5>AI正在處理中...</h5>
+              <p>請稍候</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

@@ -41,6 +41,7 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
   // 組件狀態
   isExpanded = false;
   isTyping = false;
+  isAiTakingOver = false;
   shouldScrollToBottom = false;
   currentMessage = '';
   
@@ -179,6 +180,9 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
     this.currentMessage = '';
     this.isTyping = true;
 
+    // 啟動AI接管狀態（只顯示提示，不禁用操作）
+    this.isAiTakingOver = true;
+
     this.webAiService.sendMessage(message).subscribe({
       next: (response: ChatResponse) => {
         if (response.success) {
@@ -191,11 +195,17 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
         }
         this.isTyping = false;
         this.focusInput();
+        
+        // 結束AI接管狀態
+        this.isAiTakingOver = false;
       },
       error: (error) => {
         this.addMessage('assistant', '抱歉，目前無法連接到AI助手。請稍後再試或聯繫管理員。');
         this.isTyping = false;
         this.focusInput();
+        
+        // 結束AI接管狀態
+        this.isAiTakingOver = false;
       }
     });
   }
@@ -448,5 +458,52 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
   hideStartQuizButton(): void {
     this.showStartQuizButton = false;
     this.currentQuizData = null;
+  }
+
+  /**
+   * 控制AI接管畫面狀態
+   */
+  public setAiTakeoverState(takingOver: boolean): void {
+    this.isAiTakingOver = takingOver;
+    
+    if (takingOver) {
+      // 禁用所有互動元素
+      this.disableAllInteractions();
+    } else {
+      // 重新啟用互動元素
+      this.enableAllInteractions();
+    }
+  }
+
+  /**
+   * 禁用所有互動元素
+   */
+  private disableAllInteractions(): void {
+    // 禁用輸入框
+    if (this.messageInput) {
+      this.messageInput.nativeElement.disabled = true;
+    }
+    
+    // 禁用所有按鈕
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(button => {
+      button.disabled = true;
+    });
+  }
+
+  /**
+   * 重新啟用互動元素
+   */
+  private enableAllInteractions(): void {
+    // 重新啟用輸入框
+    if (this.messageInput) {
+      this.messageInput.nativeElement.disabled = false;
+    }
+    
+    // 重新啟用所有按鈕
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(button => {
+      button.disabled = false;
+    });
   }
 }

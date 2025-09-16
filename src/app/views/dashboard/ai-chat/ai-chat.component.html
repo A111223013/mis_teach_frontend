@@ -130,6 +130,24 @@
             </div>
           </div>
         </div>
+
+        <!-- AI接管畫面提示 -->
+        <div *ngIf="isAiTakingOver" class="ai-takeover-overlay">
+          <div class="takeover-content">
+            <div class="takeover-icon">
+              <svg cIcon name="cilSettings" class="rotating-icon"></svg>
+            </div>
+            <div class="takeover-text">
+              <h5>AI正在接管畫面...</h5>
+              <p>請稍候，AI正在為您操作介面</p>
+            </div>
+            <div class="takeover-progress">
+              <div class="progress-bar">
+                <div class="progress-fill"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 

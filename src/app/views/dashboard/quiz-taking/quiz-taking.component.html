@@ -273,6 +273,17 @@
             <!-- 畫圖題 -->
             <div *ngIf="getQuestionType(currentQuestion) === 'draw-answer'" class="draw-answer-section">
               <label class="form-label">畫圖答案：</label>
+              
+              <!-- 狀態提示 -->
+              <div class="drawing-status mb-2">
+                <span *ngIf="hasDrawAnswer()" class="badge bg-success">
+                  <i class="cil-check me-1"></i>已自動儲存繪圖
+                </span>
+                <span *ngIf="!hasDrawAnswer()" class="badge bg-warning">
+                  <i class="cil-warning me-1"></i>尚未繪圖
+                </span>
+              </div>
+              
               <div class="drawing-area">
                 <canvas 
                   #drawingCanvas 
@@ -282,25 +293,43 @@
                   (mousedown)="startDrawing($event)"
                   (mousemove)="draw($event)"
                   (mouseup)="stopDrawing()"
-                  (mouseleave)="stopDrawing()">
+                  (mouseleave)="stopDrawing()"
+                  [style.border]="isCanvasReady() ? '2px solid #28a745' : '2px solid #dc3545'">
                 </canvas>
                 <div class="drawing-controls mt-2">
                   <button class="btn btn-sm btn-outline-secondary me-2" (click)="clearCanvas()">
-                    清除
+                    清除畫布
                   </button>
                   <button class="btn btn-sm btn-outline-primary me-2" (click)="saveDrawing()">
-                    儲存繪圖
+                    確認儲存
                   </button>
                   <div class="d-inline-block">
                     <label class="form-label me-2">筆刷大小：</label>
                     <input type="range" min="1" max="10" [(ngModel)]="brushSize" class="form-range d-inline-block" style="width: 100px;">
                   </div>
                 </div>
+                
+                <!-- 自動儲存提示 -->
+                <div class="auto-save-hint mt-2">
+                  <small class="text-muted">
+                    <i class="cil-save me-1"></i>繪圖會自動儲存，無需手動操作
+                  </small>
+                </div>
               </div>
             </div>
 
             <!-- 數學公式答題模式 -->
             <div *ngIf="shouldShowMathAnswerMode()" class="math-answer-section">
+              <!-- 狀態提示 -->
+              <div class="drawing-status mb-2">
+                <span *ngIf="hasMathAnswer()" class="badge bg-success">
+                  <i class="cil-check me-1"></i>已自動儲存繪圖
+                </span>
+                <span *ngIf="!hasMathAnswer()" class="badge bg-warning">
+                  <i class="cil-warning me-1"></i>尚未繪圖
+                </span>
+              </div>
+              
               <div class="math-mode-selector mb-4">
                 <div class="d-flex align-items-center justify-content-between">
                   <h6 class="mb-0 text-primary">

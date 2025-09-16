@@ -123,6 +123,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   mathAnswerMode: 'drawing' | 'formula' = 'drawing';
   mathFormulaAnswer: string = '';
   selectedMathTab: 'quick' | 'templates' = 'quick';
+  @ViewChild('drawingCanvas', { static: false }) drawingCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('mathCanvas', { static: false }) mathCanvas?: ElementRef<HTMLCanvasElement>;
   private mathCtx?: CanvasRenderingContext2D;
   private isMathDrawing = false;;
@@ -274,9 +275,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (type === 'pastexam' && school && year && department) {
       return `${school} - ${year}年 - ${department}`;
     } else if (type === 'knowledge' && topic) {
-      return `${topic} - 知识测验`;
+      return `${topic} - 知識測驗`;
     } else {
-      return '测验';
+      return '測驗';
     }
   }
 
@@ -306,6 +307,16 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     
     // 新增：記錄題目開始作答時間（第一題計時器啟動）
     this.recordQuestionStartTime(this.currentQuestionIndex);
+    
+    // 如果顯示數學答題模式（包括畫圖題和LaTeX題目），初始化畫布
+    if (this.shouldShowMathAnswerMode()) {
+      setTimeout(() => {
+        this.initializeDrawingCanvas();
+      }, 300);
+    } else {
+      // 如果不顯示數學答題模式，清理畫布狀態
+      this.clearCanvasState();
+    }
     
     this.cdr.detectChanges();
   }
@@ -397,7 +408,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       
       this.currentQuestionIndex = index;
       this.currentQuestion = this.questions[index];
-
       this.resetImageLoadState(); // 重置圖片載入狀態
       
       // 預載入新題目的圖片
@@ -407,6 +417,17 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       
       // 開始新題目的計時器
       this.recordQuestionStartTime(index);
+      
+      // 如果顯示數學答題模式（包括畫圖題和LaTeX題目），初始化畫布
+      if (this.shouldShowMathAnswerMode()) {
+        // 使用 ngAfterViewInit 的時機，確保DOM已準備好
+        setTimeout(() => {
+          this.initializeDrawingCanvas();
+        }, 300);
+      } else {
+        // 如果不顯示數學答題模式，清理畫布狀態
+        this.clearCanvasState();
+      }
       
       // 強制觸發變更檢測
       this.cdr.detectChanges();
@@ -543,6 +564,22 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   getDrawAnswer(): string {
     return this.userAnswers[this.currentQuestionIndex] || '';
+  }
+
+  // 檢查畫圖題是否有已儲存的答案
+  hasDrawAnswer(): boolean {
+    const answer = this.userAnswers[this.currentQuestionIndex];
+    return answer && typeof answer === 'string' && answer.startsWith('data:image/') && answer.length > 100;
+  }
+
+  // 檢查數學答題模式是否有已儲存的答案
+  hasMathAnswer(): boolean {
+    return this.hasDrawAnswer();
+  }
+
+  // 檢查畫布是否已初始化
+  isCanvasReady(): boolean {
+    return !!(this.canvas && this.ctx);
   }
 
   // 通用答案處理
@@ -709,6 +746,20 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     // 對於是非題，布爾值 false 也是有效答案
     if (questionType === 'true-false') {
       return typeof answer === 'boolean';
+    }
+    
+    // 對於畫圖題，檢查是否為有效的base64圖片數據
+    if (questionType === 'draw-answer') {
+      if (typeof answer === 'string' && answer.startsWith('data:image/')) {
+        // 進一步檢查是否為有效的圖片數據
+        return answer.length > 100; // base64圖片數據應該有一定長度
+      }
+      return false;
+    }
+    
+    // 對於程式撰寫題，檢查是否有實際內容
+    if (questionType === 'coding-answer') {
+      return typeof answer === 'string' && answer.trim().length > 0;
     }
     
     // 對於其他題型，空字符串視為無答案
@@ -1342,11 +1393,23 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       const rect = this.canvas!.getBoundingClientRect();
       this.ctx.beginPath();
       this.ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+      
+      // 開始繪圖時立即儲存一次（清除之前的記錄）
+      this.autoSaveDrawing();
+    } else {
+      console.error('❌ 無法開始繪圖，ctx 不存在');
     }
   }
 
   draw(event: MouseEvent): void {
-    if (!this.isDrawing || !this.ctx || !this.canvas) return;
+    if (!this.isDrawing || !this.ctx || !this.canvas) {
+      console.log('🔄 draw 被調用但條件不滿足:', {
+        isDrawing: this.isDrawing,
+        hasCtx: !!this.ctx,
+        hasCanvas: !!this.canvas
+      });
+      return;
+    }
     
     const rect = this.canvas.getBoundingClientRect();
     this.ctx.lineWidth = this.brushSize;
@@ -1357,36 +1420,168 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.ctx.stroke();
     this.ctx.beginPath();
     this.ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+    
+    // 繪圖過程中持續自動儲存（每10次繪圖才儲存一次，避免過於頻繁）
+    if (Math.random() < 0.1) { // 10% 機率儲存
+      this.autoSaveDrawing();
+    }
   }
 
   stopDrawing(): void {
     if (this.ctx) {
       this.isDrawing = false;
       this.ctx.beginPath();
+      
+      // 結束繪圖時最後儲存一次
+      this.autoSaveDrawing();
+    } else {
+      console.log('❌ 無法結束繪圖，ctx 不存在');
     }
   }
 
   clearCanvas(): void {
     if (this.ctx && this.canvas) {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      // 清除後立即儲存空白畫布
+      this.autoSaveDrawing();
+    }
+  }
+
+  // 自動儲存繪圖（覆蓋式儲存）
+  private autoSaveDrawing(): void {
+    if (!this.canvas) {
+      return;
+    }
+    
+    try {
+      const dataURL = this.canvas.toDataURL('image/png');
+      
+      // 直接覆蓋儲存到該題的答案中
+      this.userAnswers[this.currentQuestionIndex] = dataURL;
+      
+      
+      // 更新狀態顯示
+      this.cdr.detectChanges();
+      
+    } catch (error) {
+      console.error('❌ 自動儲存繪圖失敗:', error);
     }
   }
 
   saveDrawing(): void {
-    if (this.canvas) {
-      const dataURL = this.canvas.toDataURL('image/png');
-      this.userAnswers[this.currentQuestionIndex] = dataURL;
+    // 手動儲存按鈕 - 觸發一次儲存
+    this.autoSaveDrawing();
+    
+    // 檢查畫布是否有實際內容
+    const hasContent = this.checkCanvasContent();
+    if (!hasContent) {
+      console.warn('畫布內容為空，請先繪圖再儲存');
+      alert('畫布內容為空，請先繪圖再儲存');
+      return;
     }
+    
+    // 顯示儲存成功訊息
+    alert('繪圖已儲存！');
+  }
+
+  // 檢查畫布是否有實際內容
+  private checkCanvasContent(): boolean {
+    if (!this.canvas || !this.ctx) return false;
+    
+    const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+    const data = imageData.data;
+    
+    // 檢查是否有非透明的像素
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 0) { // 檢查alpha通道
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   private setupCanvas(): void {
-    const canvasElement = document.querySelector('canvas') as HTMLCanvasElement;
-    if (canvasElement) {
-      this.canvas = canvasElement;
+    
+    // 根據數學答題模式選擇正確的畫布
+    let targetCanvas: ElementRef<HTMLCanvasElement> | undefined;
+    
+    if (this.mathAnswerMode === 'drawing' && this.mathCanvas?.nativeElement) {
+      targetCanvas = this.mathCanvas;
+    } else if (this.drawingCanvas?.nativeElement) {
+      targetCanvas = this.drawingCanvas;
+    }
+    
+    if (targetCanvas?.nativeElement) {
+      this.canvas = targetCanvas.nativeElement;
+      
       const context = this.canvas.getContext('2d');
       if (context) {
         this.ctx = context;
+        
+        // 設置繪圖樣式
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = this.brushSize;
+        this.ctx.lineCap = 'round';
+      } else {
+        console.error('❌ 無法獲取 2D context');
       }
+    } else {
+      console.error('❌ 找不到可用的畫布元素');
+      console.error('❌ drawingCanvas.nativeElement:', this.drawingCanvas?.nativeElement);
+      console.error('❌ mathCanvas.nativeElement:', this.mathCanvas?.nativeElement);
+    }
+  }
+
+  // 初始化畫圖題畫布
+  private initializeDrawingCanvas(): void {
+    
+    if (!this.currentQuestion || !this.shouldShowMathAnswerMode()) {
+      return;
+    }
+
+    // 清理舊的畫布狀態
+    this.clearCanvasState();
+    
+    // 延遲執行，確保DOM已更新
+    setTimeout(() => {
+      this.setupCanvas();
+      this.loadSavedDrawing();
+    }, 100);
+  }
+
+  // 清理畫布狀態
+  private clearCanvasState(): void {
+    this.canvas = undefined;
+    this.ctx = undefined;
+    this.isDrawing = false;
+  }
+
+  // 載入已儲存的繪圖
+  private loadSavedDrawing(): void {
+    
+    if (!this.canvas || !this.ctx) {
+      console.log('❌ canvas 或 ctx 不存在，無法載入');
+      return;
+    }
+
+    const savedAnswer = this.userAnswers[this.currentQuestionIndex];
+    
+    if (savedAnswer && typeof savedAnswer === 'string' && savedAnswer.startsWith('data:image/')) {
+      const img = new Image();
+      img.onload = () => {
+        // 清除畫布
+        this.ctx!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
+        // 繪製儲存的圖片
+        this.ctx!.drawImage(img, 0, 0, this.canvas!.width, this.canvas!.height);
+      };
+      img.onerror = (error) => {
+        console.error('❌ 圖片載入失敗:', error);
+      };
+      img.src = savedAnswer;
+    } else {
+      // 如果沒有儲存的圖片，清除畫布
+      this.ctx!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
     }
   }
 
@@ -1495,6 +1690,15 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
         }
         
         return false;
+        
+      case 'draw-answer':
+        // 畫圖題使用AI評分，這裡只做基本檢查
+        // 實際評分會在後端進行
+        return userAnswer && userAnswer !== '';
+        
+      case 'coding-answer':
+        // 程式撰寫題使用AI評分，這裡只做基本檢查
+        return userAnswer && userAnswer !== '';
         
       case 'group':
         // 群組題目答案檢查
@@ -1840,50 +2044,30 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     { symbol: '\\sim', name: '相似' }
   ];
 
-  // 數學繪圖相關方法
+  // 數學繪圖相關方法 - 使用統一的繪圖邏輯
   startMathDrawing(event: MouseEvent): void {
-    if (!this.mathCanvas || !this.mathCtx) {
-      this.setupMathCanvas();
-    }
-    
-    if (this.mathCtx) {
-      this.isMathDrawing = true;
-      const rect = this.mathCanvas!.nativeElement.getBoundingClientRect();
-      this.mathCtx.beginPath();
-      this.mathCtx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
-    }
+    // 使用統一的繪圖邏輯
+    this.startDrawing(event);
   }
 
   drawMath(event: MouseEvent): void {
-    if (!this.isMathDrawing || !this.mathCtx || !this.mathCanvas) return;
-    
-    const rect = this.mathCanvas.nativeElement.getBoundingClientRect();
-    this.mathCtx.lineWidth = 3;
-    this.mathCtx.lineCap = 'round';
-    this.mathCtx.strokeStyle = '#000000';
-    
-    this.mathCtx.lineTo(event.clientX - rect.left, event.clientY - rect.top);
-    this.mathCtx.stroke();
+    // 使用統一的繪圖邏輯
+    this.draw(event);
   }
 
   stopMathDrawing(): void {
-    this.isMathDrawing = false;
-    if (this.mathCtx) {
-      this.mathCtx.beginPath();
-    }
+    // 使用統一的繪圖邏輯
+    this.stopDrawing();
   }
 
   clearMathCanvas(): void {
-    if (this.mathCtx && this.mathCanvas) {
-      this.mathCtx.clearRect(0, 0, this.mathCanvas.nativeElement.width, this.mathCanvas.nativeElement.height);
-    }
+    // 使用統一的清除邏輯
+    this.clearCanvas();
   }
 
   saveMathDrawing(): void {
-    if (this.mathCanvas) {
-      const dataURL = this.mathCanvas.nativeElement.toDataURL('image/png');
-      this.userAnswers[this.currentQuestionIndex] = dataURL;
-    }
+    // 使用統一的儲存邏輯
+    this.saveDrawing();
   }
 
   private setupMathCanvas(): void {
