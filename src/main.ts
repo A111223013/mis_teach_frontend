@@ -1,4 +1,5 @@
 import { bootstrapApplication } from '@angular/platform-browser';
+import 'zone.js';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { AppComponent } from './app/app.component';
 import { provideRouter } from '@angular/router';
@@ -50,6 +51,9 @@ import {
   cilSettings,
   cilMediaPlay
 } from '@coreui/icons';
+import { register as registerSwiperElements } from 'swiper/element/bundle';
+
+registerSwiperElements();
 
 bootstrapApplication(AppComponent, {
   providers: [
