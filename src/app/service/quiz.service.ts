@@ -32,7 +32,6 @@ export class QuizService {
       const storedData = localStorage.getItem(this.QUIZ_DATA_KEY);
       if (storedData) {
         const quizData = JSON.parse(storedData);
-        console.log('🔄 從localStorage恢復測驗數據:', quizData);
         this.currentQuizData.next(quizData);
       }
     } catch (error) {
@@ -46,7 +45,6 @@ export class QuizService {
     try {
       if (quizData) {
         localStorage.setItem(this.QUIZ_DATA_KEY, JSON.stringify(quizData));
-        console.log('💾 測驗數據已保存到localStorage');
       } else {
         this.clearQuizDataFromStorage();
       }
@@ -59,7 +57,6 @@ export class QuizService {
   private clearQuizDataFromStorage(): void {
     try {
       localStorage.removeItem(this.QUIZ_DATA_KEY);
-      console.log('🗑️ 已從localStorage清除測驗數據');
     } catch (error) {
       console.error('❌ 從localStorage清除測驗數據失敗:', error);
     }

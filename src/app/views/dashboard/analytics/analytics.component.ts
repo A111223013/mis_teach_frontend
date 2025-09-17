@@ -1,36 +1,66 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClientModule } from '@angular/common/http';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { 
-  CardModule, 
-  GridModule, 
-  ProgressModule, 
-  BadgeModule,
-  ButtonModule,
-  AlertModule,
-  SpinnerModule,
-  ModalModule
+  CardComponent, CardBodyComponent, CardHeaderComponent,
+  ProgressComponent, ProgressBarComponent,
+  BadgeComponent,
+  TableModule,
+  ModalModule, ModalComponent, ModalHeaderComponent, ModalBodyComponent, ModalFooterComponent
 } from '@coreui/angular';
-import { IconModule, IconSetService } from '@coreui/icons-angular';
-import { cilChart, cilInfo, cilBook, cilCog } from '@coreui/icons';
-import { 
-  LearningAnalyticsService, 
-  StudentMasteryData, 
-  KnowledgeGraph
-} from '../../../service/learning-analytics.service';
-import { Subscription } from 'rxjs';
-import { Network, DataSet } from 'vis-network/standalone';
+import { BaseChartDirective } from 'ng2-charts';
+import { Chart, registerables } from 'chart.js';
+import { AnalyticsService } from '../../../service/analytics.service';
+import * as d3 from 'd3';
 
-// 知識圖譜節點介面
-interface KnowledgeNode {
+// 註冊 Chart.js 的所有組件
+Chart.register(...registerables);
+
+interface LearningAnalysisData {
+  student_email: string;
+  generated_at: string;
+  overview: {
+    total_domains: number;
+    total_blocks: number;
+    total_concepts: number;
+    total_practice_count: number;
+    overall_mastery: number;
+  };
+  knowledge_hierarchy: KnowledgeDomain[];
+  learning_path: any[];
+}
+
+interface KnowledgeDomain {
   id: string;
-  label: string;
-  mastery_score: number;
-  type: 'subject' | 'domain' | 'block' | 'micro_concept';
-  color: string;
-  size: number;
-  weakness_level: 'none' | 'low' | 'medium' | 'high';
-  block_id?: string;
+  name: string;
+  type: string;
+  description: string;
+  mastery_level: number;
+  practice_count: number;
+  status: string;
+  blocks: KnowledgeBlock[];
+}
+
+interface KnowledgeBlock {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  mastery_level: number;
+  practice_count: number;
+  status: string;
+  concepts: KnowledgeConcept[];
+}
+
+interface KnowledgeConcept {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  mastery_level: number;
+  practice_count: number;
+  status: string;
+  confidence: number;
 }
 
 @Component({
@@ -38,764 +68,723 @@ interface KnowledgeNode {
   standalone: true,
   imports: [
     CommonModule,
-    HttpClientModule,
-    CardModule,
-    GridModule,
-    ProgressModule,
-    BadgeModule,
-    ButtonModule,
-    AlertModule,
-    SpinnerModule,
-    ModalModule,
-    IconModule
+    FormsModule, 
+    ReactiveFormsModule,
+    CardComponent, 
+    CardBodyComponent, 
+    CardHeaderComponent,
+    ProgressComponent, 
+    ProgressBarComponent,
+    BadgeComponent,
+    TableModule,
+    ModalModule, 
+    ModalComponent, 
+    ModalHeaderComponent, 
+    ModalBodyComponent, 
+    ModalFooterComponent,
+    BaseChartDirective
   ],
   templateUrl: './analytics.component.html',
   styleUrls: ['./analytics.component.scss']
 })
-export class AnalyticsComponent implements OnInit, OnDestroy, AfterViewInit {
-  // vis-network 容器引用
-  @ViewChild('knowledgeGraphContainer') knowledgeGraphContainer!: ElementRef<HTMLDivElement>;
+export class AnalyticsComponent implements OnInit, AfterViewInit {
+  @ViewChild('knowledgeGraphContainer', { static: false }) knowledgeGraphContainer!: ElementRef;
+  @ViewChild('progressChart', { static: false }) progressChart!: ElementRef;
 
-  // 數據
-  analyticsData: StudentMasteryData | null = null;
-  knowledgeGraph: KnowledgeGraph | null = null;
-
-  // 狀態
+  // 數據屬性
+  analysisData: LearningAnalysisData | null = null;
   loading = false;
   error: string | null = null;
-  showNodeDetail = false;
-  selectedNode: KnowledgeNode | null = null;
+  
+  // 控制屬性
+  selectedDomain = 'all';
+  focusWeaknesses = true;
+  graphViewType = 'hierarchical';
+  
+  // 展開狀態控制
+  expandedDomains: { [key: string]: boolean } = {};
+  expandedBlocks: { [key: string]: boolean } = {};
+  
+  // 視圖模式
+  viewMode: 'overview' | 'hierarchical' | 'detailed' = 'hierarchical';
 
-  // 知識圖譜數據
-  knowledgeNodes: KnowledgeNode[] = [];
+  // Modal 控制
+  showConceptModal = false;
+  showCalendarModal = false;
+  conceptAnalysisLoading = false;
+  conceptBasicInfoLoading = false;
+  conceptAnalysisData: any = null;
+  selectedConcept: any = null;
+  conceptAnalysis: any = null;
+  aiAnalysisResult: any = null;
 
-  // vis-network 實例
-  private network: Network | null = null;
+  // 表單
+  calendarForm: FormGroup;
 
-  // 訂閱管理
-  private subscriptions: Subscription[] = [];
-
-  // 預設學生郵箱
-  private studentEmail = 'student@example.com';
+  // D3 相關
+  private svg: any;
+  private width = 800;
+  private height = 600;
 
   constructor(
-    private analyticsService: LearningAnalyticsService,
-    private iconSetService: IconSetService
+    private analyticsService: AnalyticsService,
+    private fb: FormBuilder
   ) {
-    // 設置圖標
-    this.iconSetService.icons = {
-      cilChart,
-      cilInfo,
-      cilBook,
-      cilCog
-    };
+    this.calendarForm = this.fb.group({
+      title: ['學習計劃', Validators.required],
+      startTime: ['', Validators.required],
+      endTime: ['', Validators.required],
+      description: [''],
+      learningGoals: [''],
+      beforeReminder: [false],
+      breakReminder: [false],
+      completionReminder: [false]
+    });
   }
 
   ngOnInit(): void {
-    this.loadAnalyticsData();
+    this.loadLearningAnalysis();
   }
 
   ngAfterViewInit(): void {
-    // 如果數據已經載入，直接渲染
-    if (this.knowledgeGraph && this.knowledgeNodes.length > 0) {
-      // 使用 setTimeout 確保 DOM 完全準備好
-      setTimeout(() => {
-        this.renderKnowledgeGraph();
-      }, 200);
-    }
+    this.initializeCharts();
   }
 
-  ngOnDestroy(): void {
-    this.subscriptions.forEach(sub => sub.unsubscribe());
-    
-    // 銷毀 vis-network 實例
-    if (this.network) {
-      this.network.destroy();
-      this.network = null;
-    }
-  }
-
-  /**
-   * 載入學習分析數據
-   */
-  loadAnalyticsData(): void {
-    console.log('開始載入學習分析數據...');
+  loadLearningAnalysis(): void {
     this.loading = true;
     this.error = null;
 
-    // 暫時強制使用模擬數據進行測試
-    console.log('使用模擬數據進行測試...');
-    this.loadMockData();
-    this.loading = false;
-
-    // 原始API調用代碼（暫時註釋）
-    /*
-    const sub = this.analyticsService.getStudentMastery(this.studentEmail).subscribe({
+    this.analyticsService.getLearningAnalysis().subscribe({
       next: (response) => {
-        console.log('API響應成功:', response);
         if (response.success) {
-          this.analyticsData = response.data;
-          this.knowledgeGraph = response.data.knowledge_graph;
-          
-          console.log('數據載入成功:', this.analyticsData);
-          
-          // 生成知識圖譜數據
-          this.generateKnowledgeGraphData();
-          
-          // 等待DOM更新後渲染
-          setTimeout(() => {
-            this.renderKnowledgeGraph();
-            // 渲染完成後設置loading為false
-            this.loading = false;
-          }, 100);
-          
+          this.analysisData = response.data;
+          this.initializeCharts();
         } else {
-          console.error('API響應失敗:', response);
-          this.error = '數據載入失敗';
-          this.loading = false;
+          this.error = response.error || '載入學習分析失敗';
         }
+          this.loading = false;
       },
-      error: (err) => {
-        console.error('載入學習分析數據失敗:', err);
-        console.log('使用模擬數據...');
-        
-        // 使用模擬數據
-        this.loadMockData();
+      error: (error) => {
+        console.error('載入學習分析失敗:', error);
+        this.error = '無法連接到伺服器，請稍後再試';
         this.loading = false;
       }
     });
-
-    this.subscriptions.push(sub);
-    */
   }
 
-  /**
-   * 載入模擬數據
-   */
-  private loadMockData(): void {
-    console.log('載入模擬數據...');
-    
-    // 創建模擬知識圖譜數據
-    this.knowledgeGraph = {
-      nodes: [
-        {
-          id: 'subject-1',
-          label: '計算機概論',
-          type: 'subject',
-          mastery_score: 85,
-          size: 150
-        },
-        {
-          id: 'domain-1',
-          label: '基本計概',
-          type: 'domain',
-          mastery_score: 78,
-          size: 100
-        },
-        {
-          id: 'domain-2',
-          label: '數位邏輯',
-          type: 'domain',
-          mastery_score: 65,
-          size: 100
-        },
-        {
-          id: 'domain-3',
-          label: '作業系統',
-          type: 'domain',
-          mastery_score: 72,
-          size: 100
-        },
-        {
-          id: 'block-1',
-          label: '計算機基礎',
-          type: 'block',
-          mastery_score: 82,
-          size: 60,
-          block_id: 'domain-1'
-        },
-        {
-          id: 'block-2',
-          label: '邏輯閘',
-          type: 'block',
-          mastery_score: 58,
-          size: 60,
-          block_id: 'domain-2'
-        },
-        {
-          id: 'block-3',
-          label: '進程管理',
-          type: 'block',
-          mastery_score: 75,
-          size: 60,
-          block_id: 'domain-3'
-        },
-        {
-          id: 'micro-1',
-          label: '二進制',
-          type: 'micro_concept',
-          mastery_score: 88,
-          size: 30,
-          block_id: 'block-1'
-        },
-        {
-          id: 'micro-2',
-          label: 'AND閘',
-          type: 'micro_concept',
-          mastery_score: 45,
-          size: 30,
-          block_id: 'block-2'
-        },
-        {
-          id: 'micro-3',
-          label: '進程調度',
-          type: 'micro_concept',
-          mastery_score: 68,
-          size: 30,
-          block_id: 'block-3'
-        }
-      ],
-      edges: [
-        { source: 'domain-1', target: 'subject-1', type: 'belongs_to' },
-        { source: 'domain-2', target: 'subject-1', type: 'belongs_to' },
-        { source: 'domain-3', target: 'subject-1', type: 'belongs_to' },
-        { source: 'block-1', target: 'domain-1', type: 'belongs_to' },
-        { source: 'block-2', target: 'domain-2', type: 'belongs_to' },
-        { source: 'block-3', target: 'domain-3', type: 'belongs_to' },
-        { source: 'micro-1', target: 'block-1', type: 'belongs_to' },
-        { source: 'micro-2', target: 'block-2', type: 'belongs_to' },
-        { source: 'micro-3', target: 'block-3', type: 'belongs_to' }
-      ]
-    };
+  initializeCharts(): void {
+    if (!this.analysisData) return;
 
-    // 生成知識圖譜數據
-    this.generateKnowledgeGraphData();
-    
-    // 等待DOM更新後渲染
-    setTimeout(() => {
-      this.renderKnowledgeGraph();
-    }, 100);
+    // 初始化知識圖譜
+    this.initializeKnowledgeGraph();
   }
 
-  /**
-   * 生成知識圖譜數據
-   */
-  private generateKnowledgeGraphData(): void {
-    console.log('開始生成知識圖譜數據...');
-    
-    if (!this.knowledgeGraph) {
-      console.error('knowledgeGraph為空，無法生成數據');
+  initializeKnowledgeGraph(): void {
+    if (!this.knowledgeGraphContainer || !this.analysisData) return;
+
+    console.log('初始化知識圖譜，數據:', this.analysisData.knowledge_hierarchy);
+
+    // 清除之前的圖表
+    d3.select(this.knowledgeGraphContainer.nativeElement).selectAll("*").remove();
+
+    // 檢查是否有層級數據
+    if (!this.analysisData.knowledge_hierarchy || this.analysisData.knowledge_hierarchy.length === 0) {
+      this.knowledgeGraphContainer.nativeElement.innerHTML = `
+        <div class="text-center p-5">
+          <i class="cil-brain" style="font-size: 3rem; color: #6c757d;"></i>
+          <h5 class="mt-3">暫無知識圖譜數據</h5>
+          <p class="text-muted">請先完成一些練習題目以生成知識圖譜</p>
+        </div>
+      `;
       return;
     }
 
-    if (!this.knowledgeGraph.nodes || this.knowledgeGraph.nodes.length === 0) {
-      console.error('knowledgeGraph.nodes為空，無法生成數據');
-      return;
-    }
-
-    console.log('節點數量:', this.knowledgeGraph.nodes.length);
-
-    // 轉換節點數據
-    this.knowledgeNodes = this.knowledgeGraph.nodes.map((node, index) => {
-      // 檢查節點是否有掌握度數據
-      if (typeof node.mastery_score !== 'number') {
-        console.warn(`節點 ${node.id} 缺少掌握度數據:`, node.mastery_score);
-        node.mastery_score = 50; // 預設中等掌握度
-      }
-      
-      // 根據掌握度判定弱點等級
-      let weaknessLevel: 'none' | 'low' | 'medium' | 'high' = 'none';
-      if (node.mastery_score < 30) weaknessLevel = 'high';
-      else if (node.mastery_score < 45) weaknessLevel = 'medium';
-      else if (node.mastery_score < 60) weaknessLevel = 'low';
-
-      return {
-        id: node.id,
-        label: node.label,
-        mastery_score: node.mastery_score,
-        type: node.type as 'subject' | 'domain' | 'block' | 'micro_concept',
-        color: this.getColorByMastery(node.mastery_score),
-        size: (node as any).size || (node.type === 'subject' ? 150 : node.type === 'domain' ? 100 : node.type === 'block' ? 60 : 30),
-        weakness_level: weaknessLevel,
-        block_id: (node as any).block_id
-      };
-    });
-
-    console.log('生成的知識節點:', this.knowledgeNodes);
-    console.log('節點顏色和大小檢查:');
-    this.knowledgeNodes.forEach(node => {
-      console.log(`節點 ${node.id}: 掌握度=${node.mastery_score}, 顏色=${node.color}, 大小=${node.size}, 類型=${node.type}`);
-    });
-    console.log('知識圖譜數據生成完成');
-  }
-
-  /**
-   * 渲染知識圖譜
-   */
-  private renderKnowledgeGraph(): void {
-    console.log('開始渲染知識圖譜...');
-    
-    // 檢查容器是否準備好
-    if (!this.knowledgeGraphContainer?.nativeElement) {
-      console.error('知識圖譜容器未準備好，等待容器準備...');
-      // 如果容器未準備好，延遲重試
-      setTimeout(() => {
-        this.renderKnowledgeGraph();
-      }, 100);
-      return;
-    }
-
-    if (!this.knowledgeNodes || this.knowledgeNodes.length === 0) {
-      console.error('沒有知識節點數據，無法渲染知識圖譜');
-      return;
-    }
-
-    console.log('容器已準備好，開始渲染...');
-    console.log('節點數量:', this.knowledgeNodes.length);
-
-    try {
-      // 使用 vis-network 渲染
-      this.renderVisNetwork();
-    } catch (error) {
-      console.error('vis-network 渲染失敗，使用備用方法:', error);
-      this.renderSimpleGraph();
-    }
-  }
-
-  /**
-   * 使用 vis-network 渲染知識圖譜
-   */
-  private renderVisNetwork(): void {
-    console.log('使用 vis-network 渲染知識圖譜...');
-    
-    const container = this.knowledgeGraphContainer.nativeElement;
-    container.innerHTML = ''; // 清空容器
-
-    // 準備 vis-network 節點數據
-    const nodes = new DataSet([
-      ...this.knowledgeNodes.map(node => {
-        // 根據節點類型設置層級
-        let level = 0;
-        switch (node.type) {
-          case 'subject': level = 0; break;
-          case 'domain': level = 1; break;
-          case 'block': level = 2; break;
-          case 'micro_concept': level = 3; break;
-        }
-
-        return {
-          id: node.id,
-          label: node.label,
-          title: `${node.label}\n掌握度: ${node.mastery_score}%\n類型: ${this.getNodeTypeText(node.type)}`,
-          size: node.size,
-          level: level,
-          color: {
-            background: node.color,
-            border: this.getBorderColor(node.weakness_level),
-            highlight: {
-              background: node.color,
-              border: '#007bff'
-            }
-          },
-          font: {
-            size: 16,
-            color: '#ffffff',
-            face: 'Arial'
-          },
-          shape: 'circle',
-          borderWidth: node.weakness_level !== 'none' ? 4 : 2,
-          shadow: {
-            enabled: true,
-            color: 'rgba(0,0,0,0.3)',
-            size: 10,
-            x: 2,
-            y: 2
-          }
-        };
-      })
-    ]);
-
-    // 準備 vis-network 邊（連線）數據
-    const edges = new DataSet([
-      ...this.knowledgeGraph!.edges.map(edge => {
-        // 根據邊的類型設置標籤
-        let label = '';
-        switch (edge.type) {
-          case 'belongs_to':
-            label = '包含';
-            break;
-          case 'depends_on':
-            label = '依賴';
-            break;
-          default:
-            label = '關聯';
-        }
-
-        return {
-          id: `${edge.source}-${edge.target}`,
-          from: edge.source,
-          to: edge.target,
-          label: label,
-          font: {
-            size: 12,
-            color: '#666666',
-            face: 'Arial'
-          },
-          color: {
-            color: '#dee2e6',
-            highlight: '#007bff',
-            hover: '#007bff'
-          },
-          width: 2,
-          smooth: {
-            enabled: true,
-            type: 'curvedCW',
-            roundness: 0.2
-          },
-          arrows: {
-            to: {
-              enabled: true,
-              scaleFactor: 0.5
-            }
-          }
-        };
-      })
-    ]);
-
-    // 配置選項
-    const options = {
-      nodes: {
-        shape: 'circle',
-        font: {
-          size: 12,
-          face: 'Arial'
-        },
-        borderWidth: 2,
-        shadow: true
-      },
-      edges: {
-        color: '#dee2e6',
-        width: 2,
-        smooth: {
-          enabled: true,
-          type: 'curvedCW',
-          roundness: 0.2
-        }
-      },
-      physics: {
-        enabled: false
-      },
-      layout: {
-        improvedLayout: true,
-        hierarchical: {
-          enabled: true,
-          direction: 'UD',
-          sortMethod: 'directed',
-          nodeSpacing: 100,
-          levelSeparation: 150,
-          treeSpacing: 100
-        }
-      },
-      interaction: {
-        hover: true,
-        tooltipDelay: 200,
-        zoomView: true,
-        dragView: true
-      },
-
-    };
-
-    // 創建網路實例
-    this.network = new Network(container, { nodes, edges }, options);
-
-    // 添加事件監聽器
-    this.network.on('click', (params: any) => {
-      if (params.nodes.length > 0) {
-        const nodeId = params.nodes[0];
-        const clickedNode = this.knowledgeNodes.find(n => n.id === nodeId);
-        if (clickedNode) {
-          this.handleNodeClick(clickedNode);
-        }
-      }
-    });
-
-    // 添加雙擊事件（重置視圖）
-    this.network.on('doubleClick', () => {
-      this.network!.fit();
-    });
-
-    console.log('vis-network 知識圖譜渲染完成');
-  }
-
-  /**
-   * 簡單的備用渲染方法 - 實現真正的層級發散佈局
-   */
-  private renderSimpleGraph(): void {
-    const container = this.knowledgeGraphContainer.nativeElement;
-    container.innerHTML = ''; // 清空容器
-
-    // 按類型分組節點
-    const subjectNodes = this.knowledgeNodes.filter(n => n.type === 'subject');
-    const domainNodes = this.knowledgeNodes.filter(n => n.type === 'domain');
-    const blockNodes = this.knowledgeNodes.filter(n => n.type === 'block');
-    const microNodes = this.knowledgeNodes.filter(n => n.type === 'micro_concept');
-    
-    // 容器尺寸
-    const containerWidth = container.offsetWidth || 800;
-    const containerHeight = container.offsetHeight || 600;
-    const centerX = containerWidth / 2;
-    const centerY = containerHeight / 2;
-
-    // 渲染 subject 節點（中心）
-    subjectNodes.forEach((node, index) => {
-      const nodeElement = this.createNodeElement(node, centerX - node.size, centerY - node.size, true);
-      container.appendChild(nodeElement);
-    });
-
-    // 渲染 domain 節點（第一層圓圈）
-    domainNodes.forEach((node, index) => {
-      const angle = (index / domainNodes.length) * 2 * Math.PI;
-      const radius = 150;
-      const x = centerX + Math.cos(angle) * radius - node.size;
-      const y = centerY + Math.sin(angle) * radius - node.size;
-      
-      const nodeElement = this.createNodeElement(node, x, y, false);
-      container.appendChild(nodeElement);
-    });
-
-    // 渲染 block 節點（第二層圓圈）
-    blockNodes.forEach((node, index) => {
-      const angle = (index / blockNodes.length) * 2 * Math.PI;
-      const radius = 250;
-      const x = centerX + Math.cos(angle) * radius - node.size;
-      const y = centerY + Math.sin(angle) * radius - node.size;
-      
-      const nodeElement = this.createNodeElement(node, x, y, false);
-      container.appendChild(nodeElement);
-    });
-
-    // 渲染 micro_concept 節點（第三層圓圈）
-    microNodes.forEach((node, index) => {
-      const angle = (index / microNodes.length) * 2 * Math.PI;
-      const radius = 320;
-      const x = centerX + Math.cos(angle) * radius - node.size;
-      const y = centerY + Math.sin(angle) * radius - node.size;
-      
-      const nodeElement = this.createNodeElement(node, x, y, false);
-      container.appendChild(nodeElement);
-    });
-
-    console.log('層級發散知識圖譜渲染完成');
-  }
-
-  /**
-   * 創建節點元素
-   */
-  private createNodeElement(node: KnowledgeNode, x: number, y: number, isCenter: boolean): HTMLElement {
-    const nodeElement = document.createElement('div');
-    nodeElement.className = 'knowledge-node';
-    nodeElement.id = `node-${node.id}`;
-    
-    const fontSize = isCenter ? 16 : (node.type === 'domain' ? 12 : node.type === 'block' ? 10 : 8);
-    const borderWidth = isCenter ? 4 : 3;
-    const borderColor = isCenter ? '#ff8c00' : this.getBorderColor(node.weakness_level);
-    const zIndex = isCenter ? 20 : 10;
-    
-    nodeElement.style.cssText = `
-      position: absolute;
-      width: ${node.size * 2}px;
-      height: ${node.size * 2}px;
-      border-radius: 50%;
-      background-color: ${node.color};
-      border: ${borderWidth}px solid ${borderColor};
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: ${fontSize}px;
-      font-weight: bold;
-      color: white;
-      text-align: center;
-      box-shadow: ${isCenter ? '0 4px 12px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.2)'};
-      transition: all 0.3s ease;
-      z-index: ${zIndex};
-      left: ${x}px;
-      top: ${y}px;
+    // 顯示層級式知識結構
+    this.knowledgeGraphContainer.nativeElement.innerHTML = `
+      <div class="text-center p-5">
+        <i class="cil-brain" style="font-size: 3rem; color: #6c757d;"></i>
+        <h5 class="mt-3">知識結構已載入</h5>
+        <p class="text-muted">共 ${this.analysisData.knowledge_hierarchy.length} 個領域，${this.analysisData.overview.total_concepts} 個概念</p>
+        <p class="text-muted">請使用上方的層級式視圖瀏覽知識點</p>
+      </div>
     `;
+  }
+
+  initializeProgressChart(): void {
+    if (!this.progressChart || !this.analysisData) return;
+
+    // 這裡應該使用 Chart.js 或其他圖表庫
+    // 暫時顯示簡單的文本信息
+    const canvas = this.progressChart.nativeElement;
+    const ctx = canvas.getContext('2d');
     
-    // 節點標籤
-    const maxLength = isCenter ? 12 : (node.type === 'domain' ? 10 : 8);
-    nodeElement.textContent = node.label.length > maxLength ? 
-      node.label.substring(0, maxLength) + '...' : node.label;
-    nodeElement.title = node.label;
+    // 簡單的進度條
+    const progress = this.analysisData.overview.overall_mastery;
+    const width = canvas.width;
+    const height = canvas.height;
     
-    // 添加點擊事件
-    nodeElement.addEventListener('click', () => {
-      this.handleNodeClick(node);
-    });
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#e9ecef';
+    ctx.fillRect(0, 0, width, height);
     
-    // 添加懸停效果
-    nodeElement.addEventListener('mouseenter', () => {
-      nodeElement.style.transform = isCenter ? 'scale(1.15)' : 'scale(1.1)';
-      nodeElement.style.boxShadow = isCenter ? 
-        '0 8px 25px rgba(0,0,0,0.5)' : '0 6px 20px rgba(0,0,0,0.4)';
-    });
+    ctx.fillStyle = '#007bff';
+    ctx.fillRect(0, 0, width * progress, height);
     
-    nodeElement.addEventListener('mouseleave', () => {
-      nodeElement.style.transform = 'scale(1)';
-      nodeElement.style.boxShadow = isCenter ? 
-        '0 4px 12px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.2)';
-    });
-    
-    return nodeElement;
+    ctx.fillStyle = '#333';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      `學習進度: ${(this.analysisData.overview.overall_mastery * 100).toFixed(1)}%`,
+      width / 2,
+      height / 2 + 5
+    );
   }
 
-  /**
-   * 處理節點點擊事件
-   */
-  private handleNodeClick(node: KnowledgeNode): void {
-    console.log('點擊節點:', node);
-    this.selectedNode = node;
-    this.showNodeDetail = true;
+  onDomainChange(): void {
+    this.loadLearningAnalysis();
   }
 
-  /**
-   * 獲取邊框顏色
-   */
-  private getBorderColor(weaknessLevel: string): string {
-    switch (weaknessLevel) {
-      case 'high': return '#dc3545';
-      case 'medium': return '#fd7e14';
-      case 'low': return '#ffc107';
-      default: return '#fff';
-    }
+  onFocusWeaknessesChange(): void {
+    this.loadLearningAnalysis();
   }
 
-  /**
-   * 獲取弱點等級顏色
-   */
-  getWeaknessLevelColor(level: string): string {
-    switch (level) {
-      case 'high': return '#dc3545';
-      case 'medium': return '#fd7e14';
-      case 'low': return '#ffc107';
-      default: return '#28a745';
-    }
+  toggleGraphView(viewType: string): void {
+    this.graphViewType = viewType;
+    this.initializeKnowledgeGraph();
   }
 
-  /**
-   * 獲取弱點等級文字
-   */
-  getWeaknessLevelText(level: string): string {
-    switch (level) {
-      case 'high': return '高優先級';
-      case 'medium': return '中優先級';
-      case 'low': return '低優先級';
-      default: return '已掌握';
-    }
+  filterByMastery(): void {
+    // 實現按掌握度篩選
+    console.log('按掌握度篩選');
   }
 
-  /**
-   * 獲取掌握率文字
-   */
-  getMasteryText(masteryRate: number): string {
-    if (masteryRate >= 80) return '優秀';
-    if (masteryRate >= 60) return '良好';
-    if (masteryRate >= 40) return '一般';
-    return '需加強';
+  startLearning(step: any): void {
+    console.log('開始學習:', step);
+    // 實現開始學習邏輯
   }
 
-  /**
-   * 根據掌握率獲取節點顏色
-   */
-  private getColorByMastery(masteryScore: number): string {
-    if (masteryScore >= 80) return '#28a745'; // 綠色 - 優秀
-    if (masteryScore >= 60) return '#ffc107'; // 黃色 - 良好
-    return '#dc3545'; // 紅色 - 需加強
+  viewDetails(step: any): void {
+    console.log('查看詳情:', step);
+    // 實現查看詳情邏輯
   }
 
-  /**
-   * 關閉節點詳情
-   */
-  closeNodeDetail(): void {
-    this.showNodeDetail = false;
-    this.selectedNode = null;
+  exportReport(): void {
+    if (!this.analysisData) return;
+
+    // 生成報告數據
+    const reportData = {
+      student_email: this.analysisData.student_email,
+      generated_at: this.analysisData.generated_at,
+      overview: this.analysisData.overview,
+      knowledge_hierarchy: this.analysisData.knowledge_hierarchy,
+      learning_path: this.analysisData.learning_path
+    };
+
+    // 下載報告
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `learning_analysis_${this.analysisData.student_email}_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    window.URL.revokeObjectURL(url);
   }
 
-  /**
-   * 獲取掌握度圓環圖背景
-   */
-  getMasteryCircleBackground(masteryScore: number): string {
-    if (masteryScore >= 80) {
-      return 'conic-gradient(#28a745 0deg, #28a745 ' + (masteryScore * 3.6) + 'deg, #e9ecef ' + (masteryScore * 3.6) + 'deg, #e9ecef 360deg)';
-    } else if (masteryScore >= 60) {
-      return 'conic-gradient(#ffc107 0deg, #ffc107 ' + (masteryScore * 3.6) + 'deg, #e9ecef ' + (masteryScore * 3.6) + 'deg, #e9ecef 360deg)';
-    } else if (masteryScore >= 40) {
-      return 'conic-gradient(#fd7e14 0deg, #fd7e14 ' + (masteryScore * 3.6) + 'deg, #e9ecef ' + (masteryScore * 3.6) + 'deg, #e9ecef 360deg)';
-    } else {
-      return 'conic-gradient(#dc3545 0deg, #dc3545 ' + (masteryScore * 3.6) + 'deg, #e9ecef ' + (masteryScore * 3.6) + 'deg, #e9ecef 360deg)';
-    }
+
+  getTotalConcepts(domain: KnowledgeDomain): number {
+    return domain.blocks.reduce((total, block) => total + block.concepts.length, 0);
   }
 
-  /**
-   * 獲取節點類型顏色
-   */
-  getNodeTypeColor(type: string): string {
-    switch (type) {
-      case 'subject': return 'warning';
-      case 'domain': return 'primary';
-      case 'block': return 'info';
-      case 'micro_concept': return 'success';
-      default: return 'secondary';
-    }
+  getMasteryClass(masteryLevel: number): string {
+    if (masteryLevel >= 0.8) return 'mastered';
+    if (masteryLevel >= 0.4) return 'learning';
+    return 'struggling';
   }
 
-  /**
-   * 獲取節點類型文字
-   */
-  getNodeTypeText(type: string): string {
-    switch (type) {
-      case 'subject': return '主題';
-      case 'domain': return '大知識點';
-      case 'block': return '章節';
-      case 'micro_concept': return '小知識點';
-      default: return '未知';
-    }
+  getProgressBarClass(masteryLevel: number): string {
+    if (masteryLevel >= 0.8) return 'bg-success';
+    if (masteryLevel >= 0.4) return 'bg-warning';
+    return 'bg-danger';
   }
 
-  /**
-   * 獲取節點依存關係
-   */
-  getNodeDependencies(node: KnowledgeNode): Array<{type: string, name: string, mastery_score: number}> {
-    if (!this.knowledgeGraph || !this.knowledgeGraph.nodes) return [];
-    
-    const dependencies: Array<{type: string, name: string, mastery_score: number}> = [];
+  // 概念點擊處理
+  onConceptClick(concept: any): void {
+    console.log('點擊知識點:', concept);
+    this.selectedConcept = concept;
+    this.conceptAnalysisData = concept;
+    this.conceptAnalysis = concept;
+    this.showConceptModal = true;
+  }
 
-    // 查找上游依存（依賴此節點的知識點）
-    this.knowledgeGraph.nodes.forEach(n => {
-      if (n.type === 'micro_concept' && (n as any).depends_on && (n as any).depends_on.includes(node.id)) {
-        dependencies.push({
-          type: '下游依存',
-          name: n.label,
-          mastery_score: n.mastery_score
-        });
-      }
-    });
-
-    // 查找下游依存（此節點依賴的知識點）
-    if (node.type === 'micro_concept' && (node as any).depends_on) {
-      (node as any).depends_on.forEach((depId: string) => {
-        const depNode = this.knowledgeGraph!.nodes.find(n => n.id === depId);
-        if (depNode) {
-          dependencies.push({
-            type: '上游依存',
-            name: depNode.label,
-            mastery_score: depNode.mastery_score
+  // 領域展開/收縮
+  toggleDomain(domainId: string): void {
+    this.expandedDomains[domainId] = !this.expandedDomains[domainId];
+    // 如果收縮領域，也收縮其下的所有章節
+    if (!this.expandedDomains[domainId]) {
+      this.analysisData?.knowledge_hierarchy.forEach(domain => {
+        if (domain.id === domainId) {
+          domain.blocks.forEach(block => {
+            this.expandedBlocks[block.id] = false;
           });
         }
       });
     }
+  }
 
-    return dependencies;
+  // 章節展開/收縮
+  toggleBlock(blockId: string): void {
+    this.expandedBlocks[blockId] = !this.expandedBlocks[blockId];
+  }
+
+  // 獲取領域統計
+  getDomainStats(domain: any): any {
+    const totalConcepts = domain.blocks.reduce((sum: number, block: any) => sum + block.concepts.length, 0);
+    const masteredConcepts = domain.blocks.reduce((sum: number, block: any) => 
+      sum + block.concepts.filter((c: any) => c.mastery_level >= 0.8).length, 0);
+    const learningConcepts = domain.blocks.reduce((sum: number, block: any) => 
+      sum + block.concepts.filter((c: any) => c.mastery_level >= 0.4 && c.mastery_level < 0.8).length, 0);
+    const strugglingConcepts = domain.blocks.reduce((sum: number, block: any) => 
+      sum + block.concepts.filter((c: any) => c.mastery_level < 0.4).length, 0);
+    
+    return {
+      totalConcepts,
+      masteredConcepts,
+      learningConcepts,
+      strugglingConcepts,
+      masteryPercentage: totalConcepts > 0 ? (masteredConcepts / totalConcepts) * 100 : 0
+    };
+  }
+
+  // 獲取章節統計
+  getBlockStats(block: any): any {
+    const totalConcepts = block.concepts.length;
+    const masteredConcepts = block.concepts.filter((c: any) => c.mastery_level >= 0.8).length;
+    const learningConcepts = block.concepts.filter((c: any) => c.mastery_level >= 0.4 && c.mastery_level < 0.8).length;
+    const strugglingConcepts = block.concepts.filter((c: any) => c.mastery_level < 0.4).length;
+    
+    return {
+      totalConcepts,
+      masteredConcepts,
+      learningConcepts,
+      strugglingConcepts,
+      masteryPercentage: totalConcepts > 0 ? (masteredConcepts / totalConcepts) * 100 : 0
+    };
+  }
+
+  // 獲取整體統計
+  getOverallStats(): any {
+    if (!this.analysisData?.knowledge_hierarchy) {
+      return {
+        totalConcepts: 0,
+        masteredConcepts: 0,
+        learningConcepts: 0,
+        strugglingConcepts: 0,
+        overallMastery: 0
+      };
+    }
+
+    let totalConcepts = 0;
+    let masteredConcepts = 0;
+    let learningConcepts = 0;
+    let strugglingConcepts = 0;
+
+    this.analysisData.knowledge_hierarchy.forEach(domain => {
+      domain.blocks.forEach(block => {
+        block.concepts.forEach(concept => {
+          totalConcepts++;
+          if (concept.mastery_level >= 0.8) {
+            masteredConcepts++;
+          } else if (concept.mastery_level >= 0.4) {
+            learningConcepts++;
+          } else {
+            strugglingConcepts++;
+          }
+        });
+      });
+    });
+
+    return {
+      totalConcepts,
+      masteredConcepts,
+      learningConcepts,
+      strugglingConcepts,
+      overallMastery: totalConcepts > 0 ? (masteredConcepts / totalConcepts) * 100 : 0
+    };
+  }
+
+  // 獲取學習狀況摘要訊息
+  getSummaryMessage(): string {
+    const stats = this.getOverallStats();
+    const mastery = stats.overallMastery;
+    const weaknesses = stats.strugglingConcepts;
+    
+    if (mastery >= 80) {
+      return `你的整體掌握度 ${mastery.toFixed(0)}%，表現優秀！`;
+    } else if (mastery >= 60) {
+      return `你的整體掌握度 ${mastery.toFixed(0)}%，還有 ${weaknesses} 個知識點需要加強。`;
+    } else {
+      return `你的整體掌握度 ${mastery.toFixed(0)}%，建議優先加強 ${weaknesses} 個弱點知識點。`;
+    }
+  }
+
+  // 獲取學習時間
+  getStudyTime(): string {
+    // 從後端數據中獲取學習時間，如果沒有則使用默認值
+    const totalTime = 0; // 暫時使用默認值，等後端提供 total_time 字段
+    const hours = Math.floor(totalTime / 3600);
+    const minutes = Math.floor((totalTime % 3600) / 60);
+    
+    if (hours > 0) {
+      return `${hours} 小時 ${minutes} 分鐘`;
+    } else {
+      return `${minutes} 分鐘`;
+    }
+  }
+
+  // 獲取 Top 3 弱點知識點（顯示大知識點：領域或章節）
+  getTopWeaknesses(): any[] {
+    if (!this.analysisData?.knowledge_hierarchy) return [];
+    
+    const weakAreas: any[] = [];
+    
+    // 收集所有領域和章節的弱點
+    this.analysisData.knowledge_hierarchy.forEach(domain => {
+      const domainStats = this.getDomainStats(domain);
+      
+      // 如果領域整體掌握度低於 80%，加入弱點列表
+      if (domainStats.masteryPercentage < 80) {
+        weakAreas.push({
+          id: domain.id,
+          name: domain.name,
+          description: domain.description,
+          mastery_level: domainStats.masteryPercentage / 100, // 轉換為 0-1 範圍
+          practice_count: domainStats.totalConcepts, // 使用概念總數作為練習次數
+          type: 'domain',
+          domain_name: domain.name,
+          block_name: null
+        });
+      }
+      
+      // 檢查該領域下的章節
+      domain.blocks.forEach(block => {
+        const blockStats = this.getBlockStats(block);
+        
+        // 如果章節掌握度低於 80%，加入弱點列表
+        if (blockStats.masteryPercentage < 80) {
+          weakAreas.push({
+            id: block.id,
+            name: block.name,
+            description: block.description,
+            mastery_level: blockStats.masteryPercentage / 100, // 轉換為 0-1 範圍
+            practice_count: blockStats.totalConcepts, // 使用概念總數作為練習次數
+            type: 'block',
+            domain_name: domain.name,
+            block_name: block.name
+          });
+        }
+      });
+    });
+    
+    // 按掌握度排序，取最弱的 3 個大知識點
+    return weakAreas
+      .sort((a, b) => a.mastery_level - b.mastery_level)
+      .slice(0, 3);
+  }
+
+  // 獲取學習路徑（基於大知識點）
+  getLearningPath(): any[] {
+    const weaknesses = this.getTopWeaknesses();
+    
+    return [
+      {
+        title: `複習 ${weaknesses[0]?.name || '最弱領域'}`,
+        description: `先掌握 ${weaknesses[0]?.type === 'domain' ? '該領域' : '該章節'}的基礎概念，掌握度目標 80%`,
+        questions: ['Q12', 'Q15', 'Q20'],
+        completed: false,
+        current: true,
+        type: weaknesses[0]?.type || 'domain'
+      },
+      {
+        title: `練習 ${weaknesses[1]?.name || '次弱領域'}`,
+        description: `鞏固理解，建立知識連結`,
+        questions: ['Q25', 'Q30', 'Q35'],
+        completed: false,
+        current: false,
+        type: weaknesses[1]?.type || 'domain'
+      },
+      {
+        title: `挑戰 ${weaknesses[2]?.name || '第三弱領域'}`,
+        description: `綜合應用，提升熟練度`,
+        questions: ['Q40', 'Q45', 'Q50'],
+        completed: false,
+        current: false,
+        type: weaknesses[2]?.type || 'domain'
+      }
+    ];
+  }
+
+  // 開始練習
+  startPractice(step: any): void {
+    console.log('開始練習:', step);
+    // 這裡可以導航到練習頁面或打開練習 Modal
+    alert(`開始練習 ${step.title}，推薦題目：${step.questions.join(', ')}`);
+  }
+
+  // 獲取錯題數量
+  getWrongAnswerCount(concept: any): number {
+    if (!concept.practice_count || !concept.mastery_level) {
+      return 0;
+    }
+    const correctCount = Math.round(concept.mastery_level * concept.practice_count);
+    return concept.practice_count - correctCount;
+  }
+
+  // 獲取學習階段
+  getLearningStage(): string {
+    const stats = this.getOverallStats();
+    const mastery = stats.overallMastery;
+    
+    if (mastery >= 80) return '進階提升';
+    if (mastery >= 60) return '鞏固加強';
+    if (mastery >= 40) return '基礎補強';
+    return '基礎補強';
+  }
+
+  // 獲取進度條變體
+  getProgressVariant(value: number): string {
+    if (value >= 80) return 'success';
+    if (value >= 60) return 'warning';
+    return 'danger';
+  }
+
+  // 獲取掌握度徽章顏色
+  getMasteryBadgeColor(masteryLevel: number): string {
+    if (masteryLevel >= 0.8) return 'success';
+    if (masteryLevel >= 0.4) return 'warning';
+    return 'danger';
+  }
+
+  // 獲取弱點圖表數據
+  getWeaknessChartData(): any {
+    const weaknesses = this.getTopWeaknesses();
+    
+    return {
+      labels: weaknesses.map(w => w.name),
+      datasets: [{
+        label: '掌握度 (%)',
+        data: weaknesses.map(w => w.mastery_level * 100),
+        backgroundColor: weaknesses.map(w => {
+          const level = w.mastery_level * 100;
+          if (level >= 75) return '#28a745';
+          if (level >= 50) return '#ffc107';
+          return '#dc3545';
+        }),
+        borderColor: weaknesses.map(w => {
+          const level = w.mastery_level * 100;
+          if (level >= 75) return '#1e7e34';
+          if (level >= 50) return '#e0a800';
+          return '#bd2130';
+        }),
+        borderWidth: 1
+      }]
+    };
+  }
+
+  // 圖表選項
+  chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        type: 'category'
+      },
+      y: {
+        type: 'linear',
+        beginAtZero: true,
+        max: 100,
+        ticks: {
+          callback: function(value: any) {
+            return value + '%';
+          }
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        display: false
+      }
+    }
+  };
+
+  // 獲取推薦題目
+  getRecommendedQuestions(): any[] {
+    const weaknesses = this.getTopWeaknesses();
+    
+    return [
+      {
+        category: '基礎練習',
+        questions: ['Q12', 'Q15', 'Q20', 'Q25']
+      },
+      {
+        category: '進階挑戰',
+        questions: ['Q30', 'Q35', 'Q40', 'Q45']
+      },
+      {
+        category: '綜合應用',
+        questions: ['Q50', 'Q55', 'Q60']
+      }
+    ];
+  }
+
+  // 打開概念詳情 Modal
+  openConceptDetailModal(concept: any): void {
+    this.selectedConcept = concept;
+    this.conceptAnalysis = concept;
+    this.showConceptModal = true;
+    this.conceptBasicInfoLoading = false;
+  }
+
+  // 關閉概念詳情 Modal
+  closeConceptModal(): void {
+    this.showConceptModal = false;
+    this.selectedConcept = null;
+    this.conceptAnalysis = null;
+    this.aiAnalysisResult = null;
+  }
+
+  // 關閉行事曆 Modal
+  closeCalendarModal(): void {
+    this.showCalendarModal = false;
+  }
+
+  // 觸發 AI 分析
+  triggerAIAnalysis(): void {
+    if (!this.selectedConcept) return;
+    
+    this.conceptAnalysisLoading = true;
+    
+    // 模擬 AI 分析
+    setTimeout(() => {
+      this.aiAnalysisResult = {
+        mastery_analysis: `根據您的練習記錄，${this.selectedConcept.name} 的掌握度為 ${(this.selectedConcept.mastery_level * 100).toFixed(1)}%。建議重點加強基礎概念的理解。`,
+        weakness_diagnosis: `主要弱點在於概念應用和綜合分析能力。建議多做相關練習題目。`,
+        learning_suggestions: `1. 先複習基礎理論\n2. 多做練習題\n3. 尋求老師指導\n4. 與同學討論`,
+        recommended_resources: `推薦教材：相關章節、線上課程、練習題庫`
+      };
+      this.conceptAnalysisLoading = false;
+    }, 2000);
+  }
+
+  // 其他方法...
+  getErrorRateClass(errorRate: number): string {
+    if (errorRate >= 0.5) return 'text-danger';
+    if (errorRate >= 0.2) return 'text-warning';
+    return 'text-success';
+  }
+
+  // 獲取練習題數進度條寬度
+  getPracticeProgressWidth(): number {
+    if (!this.analysisData?.overview?.total_practice_count) {
+      return 0;
+    }
+    const practiceCount = this.analysisData.overview.total_practice_count;
+    return Math.min((practiceCount / 100) * 100, 100);
+  }
+
+  // 打開加入學習計劃 Modal
+  openAddToCalendarModal(): void {
+    // 設置預設時間（明天上午9點開始）
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    
+    const endTime = new Date(tomorrow);
+    endTime.setHours(11, 0, 0, 0);
+
+    this.calendarForm.patchValue({
+      startTime: tomorrow.toISOString().slice(0, 16),
+      endTime: endTime.toISOString().slice(0, 16)
+    });
+
+    this.showCalendarModal = true;
+  }
+
+  // 加入學習計劃
+  addToCalendar(): void {
+    if (this.calendarForm.invalid) return;
+
+    const formData = this.calendarForm.value;
+    const calendarData = {
+      title: formData.title,
+      start_time: formData.startTime,
+      end_time: formData.endTime,
+      description: formData.description,
+      learning_goals: formData.learningGoals,
+      reminder: {
+        enabled: formData.completionReminder,
+        before: formData.beforeReminder,
+        break: formData.breakReminder,
+        completion: formData.completionReminder
+      }
+    };
+    
+    this.analyticsService.addToCalendar(calendarData).subscribe({
+      next: (response) => {
+        if (response.success) {
+          alert('學習計劃已加入行事曆！');
+          // 關閉 Modal
+          this.showCalendarModal = false;
+        } else {
+          alert('加入學習計劃失敗: ' + response.error);
+        }
+      },
+      error: (error) => {
+        console.error('加入學習計劃失敗:', error);
+        alert('加入學習計劃失敗，請稍後再試');
+        }
+      });
+    }
+
+  // 保存到行事曆（參考 dashboard 實現）
+  saveToCalendar(): void {
+    if (this.calendarForm.invalid) {
+      alert('請填寫所有必填欄位');
+      return;
+    }
+
+    const formData = this.calendarForm.value;
+    
+    // 構建行事曆數據
+    const calendarEvent = {
+      title: formData.title,
+      start: new Date(formData.startTime),
+      end: new Date(formData.endTime),
+      description: formData.description,
+      learning_goals: formData.learningGoals,
+      reminders: {
+        before: formData.beforeReminder,
+        break: formData.breakReminder,
+        completion: formData.completionReminder
+      },
+      concept_name: this.selectedConcept?.name || '學習計劃',
+      type: 'learning_plan'
+    };
+
+    // 這裡可以調用你的行事曆服務
+    console.log('保存到行事曆:', calendarEvent);
+    
+    // 模擬保存成功
+    alert('學習計劃已保存到行事曆！');
+    this.showCalendarModal = false;
+    
+    // 重置表單
+    this.calendarForm.reset({
+      title: '學習計劃',
+      description: '',
+      learningGoals: '',
+      beforeReminder: false,
+      breakReminder: false,
+      completionReminder: false
+    });
   }
 }
