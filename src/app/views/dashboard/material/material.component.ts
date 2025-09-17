@@ -66,15 +66,16 @@ export class MaterialComponent {
       if (!this.domain) return;
 
       this.materialService.getBlocks().subscribe(allBlocks => {
-        this.blocks = allBlocks.map((b: any) => ({
-          ...b,
-          expanded: true, // 預設展開
-          mcs: []          // 預設 microConcepts
-        }));
+        this.blocks = allBlocks
+          .filter((b: any) => b.domain_id === this.domain._id)  // ✅ 過濾出該 domain 的 blocks
+          .map((b: any) => ({
+            ...b,
+            expanded: true,
+            mcs: []
+          }));
 
         this.materialService.getMicroConcepts().subscribe(allMCs => {
           this.microConcepts = allMCs;
-
           this.blocks.forEach(b => {
             b.mcs = this.microConcepts.filter(mc => mc.block_id === b._id);
           });

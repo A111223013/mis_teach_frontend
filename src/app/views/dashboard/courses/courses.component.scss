@@ -1,25 +1,91 @@
-.card-container {
+// ✅ 移除舊的 .card-container / c-card 樣式
+// ✅ 改成針對 Swiper Web Component
+
+.card-wrapper {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem; // 稍微加大間距
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 40px; // ✅ 預留空間給 pagination
 }
 
-c-card {
-  flex: 1 1 260px; // 增加最小寬度
-  min-width: 260px;
-  padding: 2rem; // 增加內距
-  border: 1px solid #ccc;
-  border-radius: 12px;
-  transition: box-shadow 0.3s ease;
-  font-size: 1rem; // 增加卡片內文字大小
+.courses-swiper {
+  width: 100%;
+  height: 100%;
+  padding: 40px 0;
+
+  // Swiper container 基本樣式
+  swiper-container {
+    width: 100%;
+    height: 100%;
+  }
+
+  swiper-slide {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.3s ease;
+  }
+
+  .course-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+
+    .image-container {
+      width: 300px;
+      height: 200px;
+      overflow: hidden;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease;
+      }
+
+      &:hover img {
+        transform: scale(1.05);
+      }
+    }
+
+    .text-container {
+      margin-top: 12px;
+      text-align: center;
+      max-width: 280px;
+
+      h3 {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      p {
+        font-size: 0.9rem;
+        color: #555;
+      }
+    }
+  }
 }
 
-c-card:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+// ✅ Swiper Navigation & Pagination 樣式微調
+::ng-deep .swiper-button-next,
+::ng-deep .swiper-button-prev {
+  color: #333; // 箭頭顏色
+  &:hover {
+    color: #000;
+  }
 }
 
-.card-content {
-  font-size: 1rem; // 讓知識點文字更大
-  font-weight: bold;
-  text-align: center;
+
+::ng-deep .swiper-pagination-bullet {
+  background: #999;
+  opacity: 0.7;
+}
+
+::ng-deep .swiper-pagination-bullet-active {
+  background: #333;
+  opacity: 1;
 }
