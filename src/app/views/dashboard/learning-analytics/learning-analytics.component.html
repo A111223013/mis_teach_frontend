@@ -1,0 +1,624 @@
+<!-- 學習成效分析頁面 - 單頁Dashboard -->
+<div class="learning-analytics-container">
+  <!-- 頁面標題 -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div>
+        <h2 class="mb-1">
+          <i class="cil-chart-line me-2"></i>學習成效分析
+        </h2>
+        <p class="text-muted mb-0">AI教練為您分析學習狀況，提供個人化建議</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 模組一：總覽 (Overview) ========== -->
+  <div id="summary">
+    <!-- AI教練總結卡片 -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <c-card class="ai-coach-summary">
+          <c-card-body>
+            <div class="d-flex align-items-start">
+              <div class="ai-avatar me-3">
+                <i class="cil-robot display-4 text-primary"></i>
+              </div>
+              <div class="flex-grow-1">
+                <h5 class="mb-2">
+                  <i class="cil-lightbulb me-2"></i>AI教練總結
+                </h5>
+                <div *ngIf="isLoadingAI; else aiContent">
+                  <div class="skeleton-text mb-2">
+                    <div class="skeleton-line"></div>
+                    <div class="skeleton-line short"></div>
+                  </div>
+                </div>
+                <ng-template #aiContent>
+                  <p class="mb-2" *ngIf="overview?.ai_summary?.content; else noDataMessage">
+                    {{ overview.ai_summary.content }}
+                  </p>
+                  <ng-template #noDataMessage>
+                    <p class="mb-2 text-muted">
+                      <i class="cil-info me-1"></i>AI正在分析您的學習數據，請稍候...
+                    </p>
+                  </ng-template>
+                </ng-template>
+                <div class="d-flex align-items-center text-muted">
+                  <small>
+                    <i class="cil-shield-alt me-1"></i>信心度: 高
+                    <span class="mx-2">&#124;</span>
+                    <i class="cil-clock me-1"></i>最後更新: {{ getCurrentTime() }}
+                  </small>
+                </div>
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+
+    <!-- 核心指標卡片區 -->
+    <div class="row mb-4">
+      <div class="col-md-3 col-sm-6 mb-3" *ngFor="let card of metricCards">
+        <c-card class="metric-card h-100">
+          <c-card-body class="text-center">
+            <div class="metric-icon mb-2">
+              <i [class]="card.icon + ' text-' + card.color" style="font-size: 2rem;"></i>
+            </div>
+            <h4 class="metric-value" [ngClass]="'text-' + card.color">{{ card.value }}</h4>
+            <h6 class="metric-title">{{ card.title }}</h6>
+            <p class="metric-description text-muted small">{{ card.description }}</p>
+            <div class="metric-trend">
+              <small [class]="'text-' + card.color">
+                <i [class]="card.trend.includes('+') ? 'cil-trending-up' : 'cil-trending-down'"></i>
+                {{ card.trend }}
+              </small>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+
+    <!-- 趨勢分析區域 -->
+    <div id="trend" class="row mb-4">
+      <div class="col-lg-8 mb-4">
+        <c-card>
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-trending-up me-2"></i>學習趨勢分析
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <div class="trend-controls mb-3">
+              <div class="btn-group" role="group">
+                <button 
+                  type="button" 
+                  class="btn btn-sm"
+                  [class.btn-primary]="selectedTrendPeriod === 7"
+                  [class.btn-outline-primary]="selectedTrendPeriod !== 7"
+                  (click)="changeTrendPeriod(7)">
+                  7天
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-sm"
+                  [class.btn-primary]="selectedTrendPeriod === 30"
+                  [class.btn-outline-primary]="selectedTrendPeriod !== 30"
+                  (click)="changeTrendPeriod(30)">
+                  30天
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-sm"
+                  [class.btn-primary]="selectedTrendPeriod === 90"
+                  [class.btn-outline-primary]="selectedTrendPeriod !== 90"
+                  (click)="changeTrendPeriod(90)">
+                  90天
+                </button>
+              </div>
+            </div>
+            <div class="chart-container" *ngIf="trendData.length > 0; else noTrendData">
+              <canvas #trendLineChart></canvas>
+            </div>
+            <ng-template #noTrendData>
+              <div class="no-data-placeholder text-center py-5">
+                <i class="cil-chart-line display-4 text-muted mb-3"></i>
+                <h6 class="text-muted">暫無趨勢數據</h6>
+                <p class="text-muted small">完成更多練習後將顯示學習趨勢</p>
+              </div>
+            </ng-template>
+          </c-card-body>
+        </c-card>
+      </div>
+      <div class="col-lg-4 mb-4">
+        <c-card>
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-people me-2"></i>同儕比較
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <div class="ranking-display text-center mb-3">
+              <div class="ranking-number display-4 text-primary">{{ overview?.class_ranking || 5 }}</div>
+              <div class="ranking-label text-muted">全班排名</div>
+            </div>
+            <div class="comparison-stats">
+              <div class="stat-item d-flex justify-content-between mb-2">
+                <span>掌握度</span>
+                <span [ngClass]="getComparisonClass(overview?.overall_mastery, peerData?.class_average)">
+                  {{ (overview?.overall_mastery * 100) | number:'1.0-1' }}%
+                  <i [class]="getComparisonIcon(overview?.overall_mastery, peerData?.class_average)"></i>
+                </span>
+              </div>
+              <div class="stat-item d-flex justify-content-between mb-2">
+                <span>班平均</span>
+                <span class="text-muted">{{ (peerData?.class_average * 100) | number:'1.0-1' }}%</span>
+              </div>
+              <div class="stat-item d-flex justify-content-between mb-2">
+                <span>百分位數</span>
+                <span class="text-info">{{ peerData?.percentile || 0 }}%</span>
+              </div>
+              <div class="stat-item d-flex justify-content-between">
+                <span>進步幅度</span>
+                <span [ngClass]="getProgressClass(peerData?.improvement)">
+                  {{ peerData?.improvement > 0 ? '+' : '' }}{{ peerData?.improvement | number:'1.1-1' }}%
+                </span>
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+
+    <!-- 知識點變化分析 -->
+    <div class="row mb-4">
+      <div class="col-md-6 mb-4">
+        <c-card>
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-check-circle me-2 text-success"></i>最近進步的知識點
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <div class="improvement-section">
+              <div *ngIf="improvementItems.length === 0" class="text-muted text-center py-3">
+                <i class="cil-info me-2"></i>載入中...
+              </div>
+              <div class="improvement-item p-3 border rounded mb-3" *ngFor="let item of improvementItems">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h6 class="mb-0">{{ item.name }}</h6>
+                  <span class="badge bg-success">+{{ item.improvement }}%</span>
+                </div>
+                <div class="progress mb-2" style="height: 6px;">
+                  <div 
+                    class="progress-bar bg-success" 
+                    [style.width.%]="item.mastery * 100">
+                  </div>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="text-muted small">掌握度: {{ (item.mastery * 100) | number:'1.0-1' }}%</span>
+                  <div class="improvement-actions">
+                    <button class="btn btn-sm btn-outline-success me-1" (click)="onStartPractice(item)">
+                      <i class="cil-play me-1"></i>複習
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" (click)="onAIDiagnosis(item)">
+                      <i class="cil-magnifying-glass me-1"></i>診斷
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+      <div class="col-md-6 mb-4">
+        <c-card>
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-warning me-2 text-danger"></i>需要關注的知識點
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <div class="attention-section">
+              <div *ngIf="attentionItems.length === 0" class="text-muted text-center py-3">
+                <i class="cil-info me-2"></i>載入中...
+              </div>
+              <div class="attention-item p-3 border rounded mb-3" *ngFor="let item of attentionItems">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h6 class="mb-0">{{ item.name }}</h6>
+                  <span class="badge bg-danger">{{ item.decline }}%</span>
+                </div>
+                <div class="progress mb-2" style="height: 6px;">
+                  <div 
+                    class="progress-bar bg-danger" 
+                    [style.width.%]="item.mastery * 100">
+                  </div>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span class="text-muted small">掌握度: {{ (item.mastery * 100) | number:'1.0-1' }}%</span>
+                  <div class="attention-actions">
+                    <button class="btn btn-sm btn-outline-danger me-1" (click)="onStartPractice(item)">
+                      <i class="cil-play me-1"></i>立即複習
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning" (click)="onAIDiagnosis(item)">
+                      <i class="cil-magnifying-glass me-1"></i>AI診斷
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 模組二：AI診斷與建議 (AI Diagnosis & Suggestions) ========== -->
+  <div id="knowledge">
+    <!-- 知識點層級分析 -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <c-card>
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-magnifying-glass me-2"></i>知識點層級分析
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <!-- 弱點分析 -->
+            <div class="weakness-analysis mb-4">
+              <h6 class="mb-3">
+                <i class="cil-warning me-2 text-danger"></i>需要關注的知識點
+              </h6>
+              <div class="knowledge-tree">
+                <div 
+                  class="knowledge-node" 
+                  *ngFor="let weakness of topWeakPoints; let i = index">
+                  <div class="node-header" (click)="toggleKnowledgeNode(weakness)">
+                    <div class="d-flex align-items-center">
+                      <i [class]="weakness.expanded ? 'cil-chevron-bottom' : 'cil-chevron-right'" class="me-2"></i>
+                      <div class="flex-grow-1">
+                        <h6 class="mb-1">{{ weakness.name }}</h6>
+                        <div class="d-flex align-items-center">
+                          <div class="progress me-2" style="width: 100px; height: 8px;">
+                            <div 
+                              class="progress-bar" 
+                              [class]="'bg-' + getMasteryColor(weakness.mastery)"
+                              [style.width.%]="weakness.mastery * 100">
+                            </div>
+                          </div>
+                          <span class="text-muted small">{{ (weakness.mastery * 100) | number:'1.0-1' }}%</span>
+                          <span class="badge bg-danger ms-2">{{ weakness.wrong_count }} 錯誤</span>
+                        </div>
+                      </div>
+                      <div class="node-actions">
+                        <button class="btn btn-sm btn-outline-primary me-1" (click)="onStartPractice(weakness)">
+                          <i class="cil-play me-1"></i>立即複習
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" (click)="onAIDiagnosis(weakness)">
+                          <i class="cil-magnifying-glass me-1"></i>AI診斷
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- 子概念展開 -->
+                  <div class="node-content" *ngIf="weakness.expanded">
+                    <div class="sub-concepts">
+                      <h6 class="mb-2">子概念掌握度</h6>
+                      <div class="row">
+                        <div class="col-md-6" *ngFor="let sub of weakness.sub_concepts">
+                          <div class="sub-concept-item d-flex justify-content-between align-items-center p-2 border rounded mb-2">
+                            <span>{{ sub.name }}</span>
+                            <div class="d-flex align-items-center">
+                              <div class="progress me-2" style="width: 80px; height: 6px;">
+                                <div 
+                                  class="progress-bar" 
+                                  [class]="'bg-' + getMasteryColor(sub.mastery)"
+                                  [style.width.%]="sub.mastery * 100">
+                                </div>
+                              </div>
+                              <span class="small text-muted">{{ (sub.mastery * 100) | number:'1.0-1' }}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- 錯誤類型分析 -->
+                    <div class="error-analysis mt-3">
+                      <h6 class="mb-2">錯誤類型分析</h6>
+                      <div class="row">
+                        <div class="col-md-4" *ngFor="let error of weakness.error_types">
+                          <div class="error-type-item text-center p-2 border rounded">
+                            <div class="error-type-name">{{ error.type }}</div>
+                            <div class="error-type-count text-danger">{{ error.count }} 次</div>
+                            <div class="error-type-percentage text-muted small">{{ error.percentage }}%</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+
+
+    <!-- 互動式知識圖譜 -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <c-card>
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-share me-2"></i>知識點關聯圖譜
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <div class="graph-container" #knowledgeGraphContainer></div>
+            <div class="graph-legend mt-3">
+              <div class="row">
+                <div class="col-md-6">
+                  <h6>節點說明</h6>
+                  <div class="legend-item d-flex align-items-center mb-2">
+                    <div class="legend-color bg-success me-2" style="width: 20px; height: 20px; border-radius: 50%;"></div>
+                    <span>掌握度高 (≥80%)</span>
+                  </div>
+                  <div class="legend-item d-flex align-items-center mb-2">
+                    <div class="legend-color bg-warning me-2" style="width: 20px; height: 20px; border-radius: 50%;"></div>
+                    <span>掌握度中等 (50-79%)</span>
+                  </div>
+                  <div class="legend-item d-flex align-items-center">
+                    <div class="legend-color bg-danger me-2" style="width: 20px; height: 20px; border-radius: 50%;"></div>
+                    <span>掌握度低 (<50%)</span>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <h6>連線說明</h6>
+                  <div class="legend-item d-flex align-items-center mb-2">
+                    <div class="legend-line bg-primary me-2" style="width: 30px; height: 2px;"></div>
+                    <span>跨領域關聯</span>
+                  </div>
+                  <div class="legend-item d-flex align-items-center">
+                    <div class="legend-line bg-secondary me-2" style="width: 30px; height: 2px;"></div>
+                    <span>子概念關係</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+  </div>
+
+  <!-- 進度追蹤條 -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <c-card>
+        <c-card-header>
+          <h5 class="mb-0">
+            <i class="cil-chart me-2"></i>學習進度追蹤
+          </h5>
+        </c-card-header>
+        <c-card-body>
+          <div class="progress-tracking">
+            <div class="progress-item mb-3" *ngFor="let progress of progressTracking">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="progress-title">{{ progress.title }}</span>
+                <span class="progress-percentage">{{ progress.percentage }}%</span>
+              </div>
+              <div class="progress mb-2" style="height: 8px;">
+                <div 
+                  class="progress-bar" 
+                  [class]="'bg-' + getProgressColor(progress.percentage)"
+                  [style.width.%]="progress.percentage">
+                </div>
+              </div>
+              <div class="progress-details d-flex justify-content-between text-muted small">
+                <span>已完成: {{ progress.completed }}/{{ progress.total }}</span>
+                <span>剩餘: {{ progress.remaining }} 題</span>
+              </div>
+            </div>
+          </div>
+        </c-card-body>
+      </c-card>
+    </div>
+  </div>
+
+  <!-- 弱點雷達圖 -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <c-card>
+        <c-card-header>
+          <h5 class="mb-0">
+            <i class="cil-radar me-2"></i>能力分布雷達圖
+          </h5>
+        </c-card-header>
+        <c-card-body>
+          <div class="chart-container">
+            <canvas #radarChart></canvas>
+          </div>
+        </c-card-body>
+      </c-card>
+    </div>
+  </div>
+</div>
+
+<!-- AI診斷Modal -->
+<c-modal 
+  [visible]="aiDiagnosisModalVisible"
+  (visibleChange)="aiDiagnosisModalVisible = $event"
+  size="lg">
+  <c-modal-header>
+    <h5 class="modal-title">
+      <i class="cil-magnifying-glass me-2"></i>AI深度診斷
+    </h5>
+  </c-modal-header>
+  <c-modal-body>
+    <div *ngIf="aiDiagnosis">
+      <!-- 診斷概覽 -->
+      <div class="diagnosis-overview mb-4">
+        <div class="row">
+          <div class="col-md-8">
+            <h6>{{ aiDiagnosis.diagnosis }}</h6>
+            <p class="text-muted">{{ aiDiagnosis.root_cause }}</p>
+          </div>
+          <div class="col-md-4">
+            <div class="confidence-score text-center">
+              <div class="confidence-circle">
+                <div class="confidence-value">{{ (aiDiagnosis.confidence * 100) | number:'1.0-0' }}%</div>
+                <div class="confidence-label">AI信心度</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 詳細分析 -->
+      <div class="diagnosis-details">
+        <h6 class="mb-3">詳細分析</h6>
+        <div class="row">
+          <div class="col-md-6">
+            <h6>學習路徑建議</h6>
+            <ul class="list-unstyled">
+              <li *ngFor="let step of aiDiagnosis.learning_path" class="mb-2">
+                <i class="cil-check-circle text-success me-2"></i>{{ step }}
+              </li>
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <h6>推薦練習題目</h6>
+            <div class="practice-questions">
+              <div class="practice-question-card p-2 border rounded mb-2" 
+                   *ngFor="let question of aiDiagnosis.practice_questions">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="question-title">{{ question.title }}</div>
+                    <div class="question-meta text-muted small">
+                      難度: {{ question.difficulty }} | 預估時間: {{ question.estimated_time }}分鐘
+                    </div>
+                  </div>
+                  <div class="question-actions">
+                    <button class="btn btn-sm btn-outline-primary me-1"
+                            [class.btn-success]="question.completed"
+                            [class.btn-outline-primary]="!question.completed"
+                            (click)="question.completed = !question.completed">
+                      <i [class]="question.completed ? 'cil-check' : 'cil-play'"></i>
+                      {{ question.completed ? '已完成' : '開始練習' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </c-modal-body>
+  <c-modal-footer>
+    <button type="button" class="btn btn-secondary" (click)="closeAIDiagnosisModal()">
+      關閉
+    </button>
+  </c-modal-footer>
+</c-modal>
+
+<!-- 練習Modal -->
+<c-modal 
+  [visible]="practiceModalVisible"
+  (visibleChange)="practiceModalVisible = $event"
+  size="lg">
+  <c-modal-header>
+    <h5 class="modal-title">
+      <i class="cil-play me-2"></i>開始練習
+    </h5>
+  </c-modal-header>
+  <c-modal-body>
+    <div *ngIf="selectedMicro">
+      <h6>{{ selectedMicro.name }}</h6>
+      <p class="text-muted">掌握度: {{ (selectedMicro.mastery * 100) | number:'1.0-1' }}%</p>
+      <p class="text-muted">題目數量: {{ selectedMicro.attempts }}</p>
+      
+      <div class="practice-options">
+        <h6>練習選項</h6>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="practice-option p-3 border rounded mb-3">
+              <h6>快速練習</h6>
+              <p class="text-muted">5題隨機練習</p>
+              <button class="btn btn-primary" (click)="startPractice()">
+                開始快速練習
+              </button>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="practice-option p-3 border rounded mb-3">
+              <h6>完整練習</h6>
+              <p class="text-muted">完整練習 ({{ selectedMicro.attempts }}題)</p>
+              <button class="btn btn-outline-primary" (click)="startPractice()">
+                開始完整練習
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </c-modal-body>
+  <c-modal-footer>
+    <button type="button" class="btn btn-secondary" (click)="closePracticeModal()">
+      取消
+    </button>
+    <button type="button" class="btn btn-primary" (click)="startPractice()">
+      開始練習
+    </button>
+  </c-modal-footer>
+</c-modal>
+
+<!-- 學習路徑Modal -->
+<c-modal 
+  [visible]="learningPathModalVisible"        
+  (visibleChange)="learningPathModalVisible = $event"
+  size="lg">
+  <c-modal-header>
+    <h5 class="modal-title">
+      <i class="cil-route me-2"></i>學習路徑建議
+    </h5>
+  </c-modal-header>
+  <c-modal-body>
+    <div *ngIf="selectedWeakPoint">
+      <h6>{{ selectedWeakPoint.name }}</h6>
+      <p class="text-muted">當前掌握度: {{ (selectedWeakPoint.mastery * 100) | number:'1.0-1' }}%</p>
+      
+      <div class="learning-path">
+        <h6>建議學習順序</h6>
+        <ol>
+          <li *ngFor="let step of selectedWeakPoint.learning_path" class="mb-2">
+            {{ step }}
+          </li>
+        </ol>
+      </div>
+      
+      <div class="learning-resources">
+        <h6>推薦資源</h6>
+        <ul class="list-unstyled">
+          <li *ngFor="let resource of selectedWeakPoint.resources" class="mb-2">
+            <a [href]="resource.url" target="_blank" class="text-decoration-none">
+              <i class="cil-external-link me-1"></i>{{ resource.title }}
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </c-modal-body>
+  <c-modal-footer>
+    <button type="button" class="btn btn-secondary" (click)="closeLearningPathModal()">
+      關閉
+    </button>
+    <button type="button" class="btn btn-primary" (click)="addToLearningPlan(selectedWeakPoint)">
+      加入學習計劃
+    </button>
+  </c-modal-footer>
+</c-modal>

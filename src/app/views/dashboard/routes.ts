@@ -68,8 +68,8 @@ export const routes: Routes = [
         }
     },
     {
-        path: 'analytics',
-        loadComponent: () => import('./analytics/analytics.component').then(m => m.AnalyticsComponent),
+        path: 'learning-analytics',
+        loadComponent: () => import('./learning-analytics/learning-analytics.component').then(m => m.LearningAnalyticsComponent),
         data: {
           title: '學習分析'
         }
@@ -109,9 +109,4 @@ export const routes: Routes = [
           title: '科技趨勢'
         }
     },
-    {
-        path: 'analytics',
-        redirectTo: 'overview',
-        pathMatch: 'full'
-    }
 ];
