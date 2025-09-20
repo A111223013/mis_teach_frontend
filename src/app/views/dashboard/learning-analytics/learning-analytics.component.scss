@@ -313,6 +313,114 @@
   width: 100%;
 }
 
+// 小區塊雷達圖樣式
+.radar-chart-small {
+  .chart-container {
+    height: 250px; // 降低高度適合小區塊
+  }
+  
+  .card-header {
+    padding: 0.75rem 1rem; // 減少header padding
+    h5 {
+      font-size: 1rem; // 減小標題字體
+      margin-bottom: 0;
+    }
+  }
+  
+  .card-body {
+    padding: 1rem; // 減少body padding
+  }
+}
+
+// 學習統計樣式
+.learning-stats {
+  .stats-overview {
+    .stat-card {
+      transition: all 0.3s ease;
+      background: #f8f9fa;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      
+      .stat-icon {
+        opacity: 0.8;
+      }
+      
+      .stat-value {
+        font-weight: 700;
+        color: #333;
+      }
+      
+      .stat-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+  }
+  
+  .domain-mastery {
+    .domain-item {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f0f0f0;
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      .domain-name {
+        font-weight: 500;
+        color: #333;
+      }
+      
+      .domain-progress {
+        .progress {
+          border-radius: 4px;
+          background-color: #e9ecef;
+        }
+      }
+    }
+  }
+  
+  .activity-indicator {
+    .activity-bar {
+      height: 12px;
+      background-color: #e9ecef;
+      border-radius: 6px;
+      overflow: hidden;
+      
+      .activity-fill {
+        height: 100%;
+        border-radius: 6px;
+        transition: width 0.5s ease;
+        position: relative;
+        
+        &::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+          animation: shimmer 2s infinite;
+        }
+      }
+    }
+    
+    .activity-text {
+      font-weight: 500;
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 // Modal樣式
 .modal-body {
   .diagnosis-overview {
