@@ -86,12 +86,16 @@ export interface ImprovementData {
   name: string;
   improvement: number;
   mastery: number;
+  priority: 'urgent' | 'maintain' | 'enhance';
+  ai_strategy?: string;
 }
 
 export interface AttentionData {
   name: string;
   decline: number;
   mastery: number;
+  priority: 'urgent' | 'maintain' | 'enhance';
+  ai_strategy?: string;
 }
 
 export interface AISuggestion {
@@ -344,13 +348,43 @@ export class LearningAnalyticsService {
         }
       ],
       recent_improvements: [
-        { name: '陣列操作', improvement: 15, mastery: 85 },
-        { name: '迴圈控制', improvement: 12, mastery: 78 },
-        { name: '條件判斷', improvement: 8, mastery: 92 }
+        { 
+          name: '陣列操作', 
+          improvement: 15, 
+          mastery: 85, 
+          priority: 'maintain',
+          ai_strategy: '保持當前練習節奏，每週2-3次複習即可維持水準'
+        },
+        { 
+          name: '迴圈控制', 
+          improvement: 12, 
+          mastery: 78, 
+          priority: 'enhance',
+          ai_strategy: '可嘗試更複雜的巢狀迴圈練習，提升程式設計能力'
+        },
+        { 
+          name: '條件判斷', 
+          improvement: 8, 
+          mastery: 92, 
+          priority: 'maintain',
+          ai_strategy: '已達高水準，建議偶爾複習保持手感'
+        }
       ],
       needs_attention: [
-        { name: '遞迴概念', decline: 5, mastery: 45 },
-        { name: '複雜度分析', decline: 3, mastery: 38 }
+        { 
+          name: '遞迴概念', 
+          decline: 5, 
+          mastery: 45, 
+          priority: 'urgent',
+          ai_strategy: '立即進行基礎遞迴練習，從簡單的階乘開始建立概念'
+        },
+        { 
+          name: '複雜度分析', 
+          decline: 3, 
+          mastery: 38, 
+          priority: 'urgent',
+          ai_strategy: '優先學習時間複雜度分析，這是演算法的核心基礎'
+        }
       ],
       ai_suggestions: [
         {

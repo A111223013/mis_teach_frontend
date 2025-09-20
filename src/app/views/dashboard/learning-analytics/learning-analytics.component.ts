@@ -1,8 +1,18 @@
 import { Component, ElementRef, ViewChild, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Chart, registerables } from 'chart.js';
 import { Subscription, BehaviorSubject, of } from 'rxjs';
 import { LearningAnalyticsService, OverviewData, AIDiagnosis, DomainData, MicroConceptData, WeakPoint, SubConcept, ErrorType, PracticeQuestion, ErrorAnalysis, KnowledgeRelation } from '../../../service/learning-analytics.service';
+
+// CoreUI 組件導入
+import { CardComponent } from '@coreui/angular';
+import { CardBodyComponent } from '@coreui/angular';
+import { CardHeaderComponent } from '@coreui/angular';
+import { ModalComponent } from '@coreui/angular';
+import { ModalHeaderComponent } from '@coreui/angular';
+import { ModalBodyComponent } from '@coreui/angular';
+import { ModalFooterComponent } from '@coreui/angular';
 
 // 本地接口定義
 export interface KnowledgePointItem {
@@ -43,8 +53,6 @@ export interface ProgressItem {
   total: number;
   remaining: number;
 }
-import { CardComponent, CardBodyComponent, CardHeaderComponent, ModalComponent, ModalHeaderComponent, ModalBodyComponent, ModalFooterComponent } from '@coreui/angular';
-import { FormsModule } from '@angular/forms';
 import cytoscape from 'cytoscape';
 
 // 圖表節點和邊的接口
@@ -77,14 +85,14 @@ Chart.register(...registerables);
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     CardComponent,
     CardBodyComponent,
     CardHeaderComponent,
     ModalComponent,
     ModalHeaderComponent,
     ModalBodyComponent,
-    ModalFooterComponent,
-    FormsModule
+    ModalFooterComponent
   ],
   templateUrl: './learning-analytics.component.html',
   styleUrls: ['./learning-analytics.component.scss']
@@ -123,6 +131,9 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
   
   // 趨勢圖相關屬性
   selectedTrendPeriod: number = 30;
+  
+  // 知識診斷Tab狀態
+  activeKnowledgeTab: 'hierarchy' | 'network' = 'hierarchy';
   
   // 圖表實例
   overviewPieChartInstance: Chart | null = null;
@@ -666,16 +677,6 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
     this.openKnowledgeGraphModal();
   }
 
-  // 執行建議
-  executeSuggestion(suggestion: any): void {
-    console.log('執行建議:', suggestion);
-    // 根據建議類型執行相應操作
-    if (suggestion.action === 'practice') {
-      this.startPractice();
-    } else if (suggestion.action === 'learn') {
-      this.viewLearningPath(suggestion);
-    }
-  }
 
   // 切換知識節點
   toggleKnowledgeNode(item: any): void {
@@ -1412,6 +1413,170 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     return `${month}/${day} ${hours}:${minutes}`;
+  }
+
+  // 獲取優先級標籤
+  getPriorityLabel(priority: 'urgent' | 'maintain' | 'enhance'): string {
+    switch (priority) {
+      case 'urgent': return '🔥急迫';
+      case 'maintain': return '✅維持';
+      case 'enhance': return '💡可提升';
+      default: return '';
+    }
+  }
+
+  // 獲取優先級樣式類
+  getPriorityClass(priority: 'urgent' | 'maintain' | 'enhance'): string {
+    switch (priority) {
+      case 'urgent': return 'badge bg-danger';
+      case 'maintain': return 'badge bg-success';
+      case 'enhance': return 'badge bg-warning';
+      default: return 'badge bg-secondary';
+    }
+  }
+
+  // AI診斷並複習 - 統一的入口點
+  openAIDiagnosisAndPractice(item: any): void {
+    console.log('開始AI診斷並複習流程:', item);
+    
+    // 先進行AI診斷
+    this.openKnowledgePointAIDiagnosisModal(item);
+    
+    // 診斷完成後自動進入練習模式
+    // 這個邏輯會在AI診斷Modal的"開始練習"按鈕中實現
+  }
+
+  // 從診斷結果開始練習
+  startPracticeFromDiagnosis(): void {
+    console.log('從AI診斷結果開始練習');
+    
+    // 關閉診斷Modal
+    this.aiDiagnosisModalVisible = false;
+    
+    // 根據AI診斷結果生成練習內容
+    if (this.aiDiagnosis) {
+      // 創建基於診斷結果的練習項目
+      const practiceItem: MicroConceptData = {
+        micro_id: 'ai-diagnosis-practice',
+        name: '基於AI診斷的練習',
+        mastery: 0.5, // 根據診斷結果調整
+        attempts: this.aiDiagnosis.practice_questions.length,
+        correct: Math.floor(this.aiDiagnosis.practice_questions.length * 0.6), // 假設60%正確率
+        wrong_count: Math.floor(this.aiDiagnosis.practice_questions.length * 0.4),
+        difficulty: 'medium',
+        confidence: this.aiDiagnosis.confidence
+      };
+      
+      // 設置選中的微概念並打開練習Modal
+      this.selectedMicro = practiceItem;
+      this.practiceModalVisible = true;
+      
+      console.log('練習Modal已打開，基於AI診斷結果:', practiceItem);
+    }
+  }
+
+  // 切換知識診斷Tab
+  switchKnowledgeTab(tab: 'hierarchy' | 'network'): void {
+    this.activeKnowledgeTab = tab;
+    console.log('切換到知識診斷Tab:', tab);
+    
+    // 如果切換到關聯圖譜，確保圖譜已初始化
+    if (tab === 'network') {
+      setTimeout(() => {
+        this.initializeKnowledgeGraph();
+      }, 100);
+    }
+  }
+
+  // 開始快速練習（5題基礎）
+  startQuickPractice(): void {
+    console.log('開始快速練習');
+    this.closeAIDiagnosisModal();
+    
+    if (this.aiDiagnosis) {
+      // 選擇前5題作為快速練習
+      const quickQuestions = this.aiDiagnosis.practice_questions.slice(0, 5);
+      this.startPracticeWithQuestions(quickQuestions, '快速練習');
+    }
+  }
+
+  // 開始完整練習（全部題目）
+  startFullPractice(): void {
+    console.log('開始完整練習');
+    this.closeAIDiagnosisModal();
+    
+    if (this.aiDiagnosis) {
+      // 使用所有題目
+      this.startPracticeWithQuestions(this.aiDiagnosis.practice_questions, '完整練習');
+    }
+  }
+
+  // 根據題目列表開始練習
+  private startPracticeWithQuestions(questions: any[], practiceType: string): void {
+    if (this.aiDiagnosis) {
+      // 創建基於診斷結果的練習項目
+      const practiceItem: MicroConceptData = {
+        micro_id: `ai-diagnosis-${practiceType.toLowerCase()}`,
+        name: `基於AI診斷的${practiceType}`,
+        mastery: 0.5,
+        attempts: questions.length,
+        correct: Math.floor(questions.length * 0.6),
+        wrong_count: Math.floor(questions.length * 0.4),
+        difficulty: 'medium',
+        confidence: this.aiDiagnosis.confidence
+      };
+      
+      // 設置選中的微概念並打開練習Modal
+      this.selectedMicro = practiceItem;
+      this.practiceModalVisible = true;
+      
+      console.log(`${practiceType}Modal已打開，基於AI診斷結果:`, practiceItem);
+    }
+  }
+
+  // 獲取建議圖標
+  getSuggestionIcon(type: string): string {
+    switch (type) {
+      case 'practice': return 'cil-play';
+      case 'path': return 'cil-route';
+      case 'review': return 'cil-magnifying-glass';
+      default: return 'cil-lightbulb';
+    }
+  }
+
+  // 獲取建議顏色
+  getSuggestionColor(priority: string): string {
+    switch (priority) {
+      case 'high': return 'danger';
+      case 'medium': return 'warning';
+      case 'low': return 'info';
+      default: return 'primary';
+    }
+  }
+
+  // 獲取學習活躍度百分比
+  getActivityPercentage(): number {
+    if (!this.overview?.recent_activity) return 0;
+    // 假設最大活躍度為20，可以根據實際需求調整
+    return Math.min((this.overview.recent_activity / 20) * 100, 100);
+  }
+
+  // 獲取學習活躍度樣式類
+  getActivityClass(): string {
+    const percentage = this.getActivityPercentage();
+    if (percentage >= 80) return 'bg-success';
+    if (percentage >= 60) return 'bg-warning';
+    if (percentage >= 40) return 'bg-info';
+    return 'bg-danger';
+  }
+
+  // 獲取學習活躍度文字描述
+  getActivityText(): string {
+    const percentage = this.getActivityPercentage();
+    if (percentage >= 80) return '非常活躍 🔥';
+    if (percentage >= 60) return '活躍 📈';
+    if (percentage >= 40) return '一般 📊';
+    return '需要加強 💪';
   }
 
   // 初始化任務清單
