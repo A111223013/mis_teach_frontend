@@ -212,7 +212,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.quizService.getCurrentQuizData().subscribe({
       next: (quizData) => {
         clearTimeout(timeoutId); // 清除超時計時器
-        
+        console.log('quizData', quizData);
         if (quizData && quizData.questions && quizData.questions.length > 0) {
           // 使用已存储的数据
           
