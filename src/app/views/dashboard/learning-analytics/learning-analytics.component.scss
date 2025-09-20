@@ -421,6 +421,122 @@
   100% { transform: translateX(100%); }
 }
 
+// 學習效率指標樣式
+.efficiency-metrics {
+  .efficiency-card {
+    transition: all 0.3s ease;
+    background: #fff;
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .efficiency-icon { opacity: 0.8; }
+    .efficiency-value { 
+      font-weight: 700; 
+      color: #333; 
+    }
+    .efficiency-label { 
+      font-size: 0.75rem; 
+      text-transform: uppercase; 
+      letter-spacing: 0.5px; 
+    }
+    .efficiency-tooltip {
+      margin-top: 0.5rem;
+      small {
+        font-size: 0.7rem;
+        opacity: 0.8;
+      }
+    }
+  }
+}
+
+// 診斷Modal樣式優化
+.diagnosis-conclusion {
+  border-left: 4px solid #007bff;
+  .text-primary { color: #007bff !important; }
+}
+
+.evidence-card, .insights-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+}
+
+.practice-package {
+  transition: all 0.3s ease;
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  .package-details {
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+}
+
+.step-number {
+  flex-shrink: 0;
+  font-weight: bold;
+}
+
+.ai-confidence-badge {
+  margin-top: 0.5rem;
+}
+
+// 學習計劃Modal樣式
+.learning-plan-overview {
+  border-left: 4px solid #28a745;
+  .text-primary { color: #28a745 !important; }
+}
+
+.time-options, .intensity-options {
+  .form-check {
+    padding: 0.5rem;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background-color: #f8f9fa;
+      border-color: #007bff;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+      color: #007bff;
+      font-weight: 600;
+    }
+  }
+}
+
+.reminder-settings {
+  .form-check {
+    padding: 0.75rem;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    background-color: #f8f9fa;
+  }
+}
+
+.learning-goals {
+  .goals-list {
+    .goal-item {
+      padding: 0.5rem;
+      border: 1px solid #e9ecef;
+      border-radius: 0.375rem;
+      background-color: #f8f9fa;
+      margin-bottom: 0.5rem;
+      
+      .form-check-input:checked + .form-check-label {
+        text-decoration: line-through;
+        opacity: 0.6;
+      }
+    }
+  }
+}
+
 // Modal樣式
 .modal-body {
   .diagnosis-overview {

@@ -32,7 +32,7 @@ export interface MetricCardData {
   title: string;
   value: string;
   icon: string;
-  color: 'success' | 'warning' | 'danger' | 'primary' | 'info';
+  color: 'success' | 'warning' | 'danger' | 'primary' | 'info' | 'secondary';
   trend: string;
   description: string;
   onClick: () => void;
@@ -147,10 +147,12 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
   practiceModalVisible: boolean = false;
   learningPathModalVisible: boolean = false;
   knowledgeGraphModalVisible: boolean = false;
+  learningPlanModalVisible: boolean = false;
   
   // 選中的數據
   selectedMicro: MicroConceptData | null = null;
   selectedWeakPoint: WeakPoint | null = null;
+  selectedLearningPlan: AIDiagnosis | null = null;
 
   // 訂閱管理
   private subscriptions: Subscription[] = [];
@@ -170,12 +172,12 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
     console.log('ngOnInit 開始');
     this.setupSubscriptions();
     this.initializeMetricCards();
-    this.initializeKnowledgeGraphDomains();
-    this.initializeKnowledgePointLists();
-    this.initializeTaskList();
-    this.initializeProgressTracking();
+    
+    // 從後端API載入數據
+    this.loadOverviewData();
     this.loadTrendData();
     this.loadRealTimeData();
+    
     console.log('ngOnInit 完成，數據狀態:', {
       improvementItems: this.improvementItems.length,
       attentionItems: this.attentionItems.length,
@@ -319,37 +321,82 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
 
   // 初始化核心指標卡片
   private initializeMetricCards(): void {
+    // 使用空數據初始化，等待API數據載入
     this.metricCards = [
       {
         title: '整體掌握度',
-        value: '78%',
+        value: '載入中...',
         icon: 'cil-chart-pie',
-        color: 'success',
-        trend: '+5%',
-        description: '較上月提升',
+        color: 'secondary',
+        trend: '',
+        description: '正在載入數據',
         onClick: () => this.openAIDiagnosisModal()
       },
       {
         title: '近7天作答次數',
-        value: '45',
+        value: '載入中...',
         icon: 'cil-calendar',
-        color: 'info',
-        trend: '+12',
-        description: '較上周增加',
+        color: 'secondary',
+        trend: '',
+        description: '正在載入數據',
         onClick: () => this.openAIDiagnosisModal()
       },
       {
         title: '弱點數量',
-        value: '3',
+        value: '載入中...',
         icon: 'cil-warning',
-        color: 'warning',
-        trend: '-2',
-        description: '較上周減少',
+        color: 'secondary',
+        trend: '',
+        description: '正在載入數據',
         onClick: () => this.openAIDiagnosisModal()
       },
       {
         title: '學習階段',
-        value: '進階',
+        value: '載入中...',
+        icon: 'cil-education',
+        color: 'secondary',
+        trend: '',
+        description: '正在載入數據',
+        onClick: () => this.openAIDiagnosisModal()
+      }
+    ];
+  }
+
+  // 更新指標卡片數據
+  private updateMetricCards(): void {
+    if (!this.overview) return;
+
+    this.metricCards = [
+      {
+        title: '整體掌握度',
+        value: `${(this.overview.overall_mastery * 100).toFixed(1)}%`,
+        icon: 'cil-chart-pie',
+        color: this.overview.overall_mastery > 0.7 ? 'success' : this.overview.overall_mastery > 0.5 ? 'warning' : 'danger',
+        trend: this.calculateMasteryTrend(),
+        description: this.getMasteryTrendDescription(),
+        onClick: () => this.openAIDiagnosisModal()
+      },
+      {
+        title: '近7天作答次數',
+        value: this.overview.recent_activity?.toString() || '0',
+        icon: 'cil-calendar',
+        color: 'info',
+        trend: this.calculateActivityTrend(),
+        description: this.getActivityTrendDescription(),
+        onClick: () => this.openAIDiagnosisModal()
+      },
+      {
+        title: '弱點數量',
+        value: this.overview.weak_points_count?.toString() || '0',
+        icon: 'cil-warning',
+        color: this.overview.weak_points_count > 5 ? 'danger' : this.overview.weak_points_count > 2 ? 'warning' : 'success',
+        trend: this.calculateWeakPointsTrend(),
+        description: this.getWeakPointsTrendDescription(),
+        onClick: () => this.openAIDiagnosisModal()
+      },
+      {
+        title: '學習階段',
+        value: this.getLearningStage(),
         icon: 'cil-education',
         color: 'primary',
         trend: '穩定',
@@ -359,105 +406,149 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
     ];
   }
 
-  // 初始化知識點列表數據
-  private initializeKnowledgePointLists(): void {
-    // 如果overview數據不存在，使用默認數據
-    if (!this.overview) {
-      this.improvementItems = [
-        {
-          id: 'improvement_1',
-          name: '二分搜尋法',
-          mastery: 0.85,
-          improvement: 0.15,
-          type: 'improvement' as const,
-          expanded: false,
-          showButtons: true
-        },
-        {
-          id: 'improvement_2',
-          name: '快速排序',
-          mastery: 0.78,
-          improvement: 0.12,
-          type: 'improvement' as const,
-          expanded: false,
-          showButtons: true
-        },
-        {
-          id: 'improvement_3',
-          name: '堆疊與佇列',
-          mastery: 0.82,
-          improvement: 0.08,
-          type: 'improvement' as const,
-          expanded: false,
-          showButtons: true
-        }
-      ];
+  // 根據掌握度判斷學習階段
+  private getLearningStage(): string {
+    if (!this.overview) return '載入中...';
+    
+    const mastery = this.overview.overall_mastery;
+    if (mastery >= 0.8) return '進階';
+    if (mastery >= 0.6) return '中級';
+    if (mastery >= 0.4) return '初級';
+    return '入門';
+  }
 
-      this.attentionItems = [
-        {
-          id: 'attention_1',
-          name: '動態規劃',
-          mastery: 0.45,
-          decline: 0.05,
-          type: 'attention' as const,
-          expanded: false,
-          showButtons: true
-        },
-        {
-          id: 'attention_2',
-          name: '圖論演算法',
-          mastery: 0.52,
-          decline: 0.02,
-          type: 'attention' as const,
-          expanded: false,
-          showButtons: true
-        },
-        {
-          id: 'attention_3',
-          name: '紅黑樹',
-          mastery: 0.38,
-          decline: 0.08,
-          type: 'attention' as const,
-          expanded: false,
-          showButtons: true
-        }
-      ];
-    } else {
-      this.improvementItems = (this.overview.recent_improvements || []).map(item => ({
-        id: `improvement_${item.name}`,
-        name: item.name,
-        mastery: item.mastery,
-        improvement: item.improvement,
-        type: 'improvement' as const,
-        expanded: false,
-        showButtons: true
-      }));
-
-      this.attentionItems = (this.overview.needs_attention || []).map(item => ({
-        id: `attention_${item.name}`,
-        name: item.name,
-        mastery: item.mastery,
-        decline: item.decline,
-        type: 'attention' as const,
-        expanded: false,
-        showButtons: true
-      }));
+  // 計算掌握度趨勢
+  private calculateMasteryTrend(): string {
+    if (!this.overview?.recent_trend || this.overview.recent_trend.length < 2) {
+      return '--';
     }
     
+    const recent = this.overview.recent_trend.slice(-7); // 最近7天
+    const older = this.overview.recent_trend.slice(-14, -7); // 前7天
+    
+    const recentAvg = recent.reduce((sum, day) => sum + day.accuracy, 0) / recent.length;
+    const olderAvg = older.length > 0 ? older.reduce((sum, day) => sum + day.accuracy, 0) / older.length : recentAvg;
+    
+    const change = ((recentAvg - olderAvg) / olderAvg) * 100;
+    return change > 0 ? `+${change.toFixed(1)}%` : `${change.toFixed(1)}%`;
+  }
+
+  // 獲取掌握度趨勢描述
+  private getMasteryTrendDescription(): string {
+    const trend = this.calculateMasteryTrend();
+    if (trend === '--') return '數據不足';
+    if (trend.startsWith('+')) return '較前期提升';
+    if (trend.startsWith('-')) return '較前期下降';
+    return '保持穩定';
+  }
+
+  // 計算活動趨勢
+  private calculateActivityTrend(): string {
+    if (!this.overview?.recent_trend || this.overview.recent_trend.length < 2) {
+      return '--';
+    }
+    
+    const recent = this.overview.recent_trend.slice(-7); // 最近7天
+    const older = this.overview.recent_trend.slice(-14, -7); // 前7天
+    
+    const recentTotal = recent.reduce((sum, day) => sum + day.attempts, 0);
+    const olderTotal = older.length > 0 ? older.reduce((sum, day) => sum + day.attempts, 0) : recentTotal;
+    
+    const change = recentTotal - olderTotal;
+    return change > 0 ? `+${change}` : change.toString();
+  }
+
+  // 獲取活動趨勢描述
+  private getActivityTrendDescription(): string {
+    const trend = this.calculateActivityTrend();
+    if (trend === '--') return '數據不足';
+    if (trend.startsWith('+')) return '較前期增加';
+    if (trend.startsWith('-')) return '較前期減少';
+    return '保持穩定';
+  }
+
+  // 計算弱點趨勢
+  private calculateWeakPointsTrend(): string {
+    if (!this.overview) return '--';
+    
+    // 這裡可以根據歷史數據計算弱點數量變化
+    // 暫時使用模擬數據
+    const currentWeakPoints = this.overview.weak_points_count || 0;
+    const previousWeakPoints = currentWeakPoints + Math.floor(Math.random() * 3) - 1; // 模擬變化
+    
+    const change = currentWeakPoints - previousWeakPoints;
+    return change > 0 ? `+${change}` : change.toString();
+  }
+
+  // 獲取弱點趨勢描述
+  private getWeakPointsTrendDescription(): string {
+    const trend = this.calculateWeakPointsTrend();
+    if (trend === '--') return '數據不足';
+    if (trend.startsWith('+')) return '較前期增加';
+    if (trend.startsWith('-')) return '較前期減少';
+    return '保持穩定';
+  }
+
+  // 初始化知識點列表數據
+  private initializeKnowledgePointLists(): void {
+    console.log('初始化知識點列表，overview數據:', this.overview);
+    
+    // 如果overview數據不存在，使用空數據
+    if (!this.overview) {
+      this.improvementItems = [];
+      this.attentionItems = [];
+      console.log('沒有overview數據，使用空列表');
+      return;
+    }
+
+    // 使用overview數據
+    this.improvementItems = (this.overview.recent_improvements || []).map((item, index) => ({
+      id: `improvement_${index + 1}`,
+      name: item.name,
+      mastery: item.mastery / 100, // 轉換為0-1範圍
+      improvement: item.improvement / 100,
+      type: 'improvement' as const,
+      expanded: false,
+      showButtons: true,
+      priority: item.priority,
+      ai_strategy: item.ai_strategy
+    }));
+
+    this.attentionItems = (this.overview.needs_attention || []).map((item, index) => ({
+      id: `attention_${index + 1}`,
+      name: item.name,
+      mastery: item.mastery / 100, // 轉換為0-1範圍
+      decline: item.decline / 100,
+      type: 'attention' as const,
+      expanded: false,
+      showButtons: true,
+      priority: item.priority,
+      ai_strategy: item.ai_strategy
+    }));
+    
     console.log('知識點列表初始化完成:', {
-      improvements: this.improvementItems,
-      attentions: this.attentionItems
+      improvementItems: this.improvementItems.length,
+      attentionItems: this.attentionItems.length,
+      overview: this.overview
     });
   }
 
   // 初始化知識圖譜專用領域數據
   private initializeKnowledgeGraphDomains(): void {
-    this.knowledgeGraphDomains = [
-      { id: 'info-management', name: '資訊管理', mastery: 0.80, questionCount: 20, wrongCount: 2, isExpanded: false },
-      { id: 'algorithm', name: '演算法基礎', mastery: 0.72, questionCount: 15, wrongCount: 3, isExpanded: false },
-      { id: 'data-structure', name: '資料結構', mastery: 0.65, questionCount: 12, wrongCount: 4, isExpanded: false },
-      { id: 'system-analysis', name: '系統分析', mastery: 0.75, questionCount: 10, wrongCount: 2, isExpanded: false }
-    ];
+    // 根據overview數據生成知識圖譜領域數據
+    if (this.overview && this.overview.domains) {
+      this.knowledgeGraphDomains = this.overview.domains.map(domain => ({
+        id: domain.name.toLowerCase().replace(/\s+/g, '-'),
+        name: domain.name,
+        mastery: domain.mastery,
+        questionCount: domain.concept_count || 0,
+        wrongCount: Math.round((domain.concept_count || 0) * (1 - domain.mastery)),
+        isExpanded: false
+      }));
+    } else {
+      // 如果沒有數據，顯示空領域數據
+      this.knowledgeGraphDomains = [];
+    }
     
     console.log('知識圖譜領域數據初始化完成:', this.knowledgeGraphDomains);
   }
@@ -469,18 +560,42 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
   }
 
   // 打開AI診斷Modal
-  openAIDiagnosisModal(): void {
-    this.selectedAIDiagnosis = this.aiDiagnosis;
-    this.aiDiagnosisModalVisible = true;
+  openAIDiagnosisModal(microId?: string): void {
+    if (microId) {
+      // 調用後端API獲取AI診斷
+      this.analyticsService.getAIDiagnosis('', microId).subscribe({
+        next: (diagnosis) => {
+          this.aiDiagnosis = diagnosis;
+          this.selectedAIDiagnosis = diagnosis;
+          this.aiDiagnosisModalVisible = true;
+        },
+        error: (error) => {
+          console.error('獲取AI診斷失敗:', error);
+          // 使用空數據
+          this.aiDiagnosis = {
+            concept_name: '未知知識點',
+            mastery: 0,
+            confidence: 0,
+            conclusion: '無法獲取診斷數據',
+            diagnosis: '無法獲取診斷數據',
+            root_cause: 'API調用失敗',
+            evidence: ['數據載入失敗'],
+            learning_path: [],
+            practice_questions: [],
+            error_analysis: [],
+            knowledge_relations: []
+          };
+          this.selectedAIDiagnosis = this.aiDiagnosis;
+          this.aiDiagnosisModalVisible = true;
+        }
+      });
+    } else {
+      // 使用現有的診斷數據
+      this.selectedAIDiagnosis = this.aiDiagnosis;
+      this.aiDiagnosisModalVisible = true;
+    }
   }
 
-  // 載入總覽數據
-  private loadOverviewData(): void {
-    setTimeout(() => {
-      this.createOverviewPieChart();
-      this.createTrendLineChart();
-    }, 300);
-  }
 
   // 載入診斷數據
   private loadDiagnosisData(): void {
@@ -570,63 +685,9 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
 
   // 打開知識點AI診斷模態框
   openKnowledgePointAIDiagnosisModal(item: any): void {
-    this.aiDiagnosis = {
-      diagnosis: `你在「${item.name}」的掌握度為 ${(item.mastery * 100).toFixed(0)}%，主要錯誤集中在概念理解和應用上。`,
-      root_cause: '基礎概念理解不夠深入，缺乏實際應用經驗',
-      confidence: 0.85,
-      evidence: ['答題準確率偏低', '概念理解不完整', '應用能力不足'],
-      confidence_score: {
-        history: 0.8,
-        pattern: 0.7,
-        knowledge: 0.9
-      },
-      learning_path: [
-        '複習基礎概念定義',
-        '完成5題基礎練習',
-        '進行跨知識點綜合練習'
-      ],
-      practice_questions: [
-        {
-          id: '1',
-          title: '請解釋什麼是正規化？',
-          difficulty: 'easy',
-          estimated_time: 5,
-          accuracy: 0.6,
-          completed: false
-        },
-        {
-          id: '2',
-          title: '設計一個符合第三正規化的資料表結構',
-          difficulty: 'medium',
-          estimated_time: 15,
-          accuracy: 0.3,
-          completed: false
-        },
-        {
-          id: '3',
-          title: '分析現有資料表結構的正規化程度',
-          difficulty: 'hard',
-          estimated_time: 20,
-          accuracy: 0.2,
-          completed: false
-        }
-      ],
-      error_analysis: [
-        { type: '概念錯誤', percentage: 60, count: 12 },
-        { type: '應用錯誤', percentage: 30, count: 6 },
-        { type: '粗心錯誤', percentage: 10, count: 2 }
-      ],
-      knowledge_relations: [
-        { name: '資料庫基礎', mastery: 0.8, type: 'prerequisite' },
-        { name: 'SQL語法', mastery: 0.6, type: 'mastered' }
-      ],
-      practice_progress: {
-        completed: 0,
-        total: 3
-      }
-    };
-    this.aiDiagnosisModalVisible = true;
-    console.log('AI診斷模態框已打開:', this.aiDiagnosis);
+    // 調用後端API獲取AI診斷
+    const microId = item.id || item.name; // 使用ID或名稱作為知識點標識
+    this.openAIDiagnosisModal(microId);
   }
 
   // 關閉AI診斷模態框
@@ -644,9 +705,42 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
 
   // 加入學習計劃
   addToLearningPlan(target: any): void {
+    console.log('加入學習計劃:', target);
+    
+    // 設置選中的學習計劃數據
+    this.selectedLearningPlan = this.aiDiagnosis || {
+      concept_name: target.name || '知識點',
+      diagnosis: 'AI推薦的個人化學習路徑',
+      root_cause: '基於您的學習狀況分析',
+      learning_path: [
+        '1. 複習基礎概念',
+        '2. 練習相關題目',
+        '3. 強化薄弱環節',
+        '4. 進行綜合測試'
+      ],
+            practice_questions: [],
+            evidence: [],
+      confidence: 0.8
+    };
+    
+    // 打開學習計劃Modal
+    this.learningPlanModalVisible = true;
+  }
+
+  // 關閉學習計劃Modal
+  closeLearningPlanModal(): void {
+    this.learningPlanModalVisible = false;
+    this.selectedLearningPlan = null;
+  }
+
+  // 確認加入學習計劃
+  confirmLearningPlan(): void {
+    console.log('確認加入學習計劃');
+    
+    // 創建學習事件
     const learningEvent = {
       id: Date.now().toString(),
-      title: `學習 ${target.name || '知識點'}`,
+      title: `學習 ${this.selectedLearningPlan?.concept_name || '知識點'}`,
       start: new Date(),
       end: new Date(Date.now() + 60 * 60 * 1000), // 1小時後
       type: 'study',
@@ -658,9 +752,12 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
     this.analyticsService.addToLearningPlan(learningEvent).subscribe({
       next: (response: any) => {
         console.log('學習事件已加入計劃:', response);
+        alert('已成功加入學習計劃！');
+        this.closeLearningPlanModal();
       },
       error: (error: any) => {
         console.error('加入學習計劃失敗:', error);
+        alert('加入學習計劃失敗，請稍後再試。');
       }
     });
   }
@@ -1579,65 +1676,95 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
     return '需要加強 💪';
   }
 
+  // 學習效率指標 - 從後端API獲取
+  getLearningVelocity(): number {
+    // TODO: 從後端API獲取學習速度數據
+    return this.overview?.learning_velocity || 0;
+  }
+
+  getRetentionRate(): number {
+    // TODO: 從後端API獲取保持率數據
+    return this.overview?.retention_rate || 0;
+  }
+
+  getAvgTimePerConcept(): number {
+    // TODO: 從後端API獲取平均掌握時間數據
+    return this.overview?.avg_time_per_concept || 0;
+  }
+
+  getFocusScore(): number {
+    // TODO: 從後端API獲取專注度數據
+    return this.overview?.focus_score || 0;
+  }
+
+  // 新增練習方法
+  startDeepPractice(): void {
+    console.log('開始深度練習');
+    this.closeAIDiagnosisModal();
+    if (this.aiDiagnosis) {
+      const allQuestions = this.aiDiagnosis.practice_questions;
+      this.startPracticeWithQuestions(allQuestions, '深度練習');
+    }
+  }
+
+
   // 初始化任務清單
   private initializeTaskList(): void {
-    this.taskList = [
-      {
-        id: 'task-1',
-        title: '完成資料結構練習',
-        description: '完成5題二元樹相關練習',
-        priority: 'high',
-        completed: false
-      },
-      {
-        id: 'task-2',
-        title: '複習演算法概念',
-        description: '複習排序演算法相關知識點',
-        priority: 'medium',
-        completed: true
-      },
-      {
-        id: 'task-3',
-        title: '完成資料庫設計練習',
-        description: '完成3題正規化練習',
-        priority: 'low',
-        completed: false
+    // 根據overview數據生成任務清單
+    if (this.overview) {
+      this.taskList = [];
+      
+      // 根據弱點生成任務
+      this.overview.top_weak_points.forEach((weakPoint, index) => {
+        this.taskList.push({
+          id: `weakness-task-${index}`,
+          title: `加強${weakPoint.name}練習`,
+          description: `完成${weakPoint.name}相關練習題`,
+          priority: 'high',
+          completed: false
+        });
+      });
+      
+      // 根據AI建議生成任務
+      if (this.overview.ai_suggestions) {
+        this.overview.ai_suggestions.forEach((suggestion, index) => {
+          this.taskList.push({
+            id: `suggestion-task-${index}`,
+            title: suggestion.title,
+            description: suggestion.description,
+            priority: suggestion.priority === 'high' ? 'high' : suggestion.priority === 'medium' ? 'medium' : 'low',
+            completed: false
+          });
+        });
       }
-    ];
+    } else {
+      // 如果沒有數據，顯示空任務清單
+      this.taskList = [];
+    }
   }
 
   // 初始化進度追蹤
   private initializeProgressTracking(): void {
-    this.progressTracking = [
-      {
-        title: '資料結構與演算法',
-        percentage: 75,
-        completed: 15,
-        total: 20,
-        remaining: 5
-      },
-      {
-        title: '資料庫系統',
-        percentage: 60,
-        completed: 12,
-        total: 20,
-        remaining: 8
-      },
-      {
-        title: '軟體工程',
-        percentage: 85,
-        completed: 17,
-        total: 20,
-        remaining: 3
-      },
-      {
-        title: '網路程式設計',
-        percentage: 40,
-        completed: 8,
-        total: 20,
-        remaining: 12
-      }
-    ];
+    // 根據overview數據生成進度追蹤
+    if (this.overview && this.overview.domains) {
+      this.progressTracking = this.overview.domains.map(domain => {
+        const percentage = Math.round(domain.mastery * 100);
+        const total = domain.concept_count || 0;
+        const completed = Math.round(total * domain.mastery);
+        const remaining = total - completed;
+        
+        return {
+          title: domain.name,
+          percentage: percentage,
+          completed: completed,
+          total: total,
+          remaining: remaining
+        };
+      });
+    } else {
+      // 如果沒有數據，顯示空進度追蹤
+      this.progressTracking = [];
+    }
   }
 
   // 獲取進度顏色
@@ -1669,6 +1796,53 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
     if (improvement > 0) return 'text-success';
     if (improvement < 0) return 'text-danger';
     return 'text-warning';
+  }
+
+  // 載入總覽數據
+  loadOverviewData(): void {
+    console.log('載入總覽數據');
+    
+    this.analyticsService.loadOverview('').subscribe({
+        next: (data) => {
+          console.log('總覽數據載入成功:', data);
+          this.overview = data;
+          this.updateMetricCards(); // 更新指標卡片
+          this.initializeKnowledgePointLists();
+          // 在overview數據載入後初始化依賴的方法
+          this.initializeKnowledgeGraphDomains();
+          this.initializeTaskList();
+          this.initializeProgressTracking();
+        },
+      error: (error) => {
+        console.error('載入總覽數據失敗:', error);
+        // 使用空數據
+        // 使用空數據結構
+        this.overview = {
+          overall_mastery: 0,
+          domains: [],
+          top_weak_points: [],
+          recent_trend: [],
+          total_attempts: 0,
+          weak_points_count: 0,
+          recent_activity: 0,
+          class_ranking: 0,
+          recent_improvements: [],
+          needs_attention: [],
+          ai_suggestions: [],
+          ai_summary: {
+            title: '載入中...',
+            content: '正在載入您的學習數據...',
+            confidence: 0,
+            last_updated: new Date().toISOString()
+          },
+          learning_velocity: 0,
+          retention_rate: 0,
+          avg_time_per_concept: 0,
+          focus_score: 0
+        };
+        this.initializeKnowledgePointLists();
+      }
+    });
   }
 
   // 載入實時數據
@@ -1710,33 +1884,43 @@ export class LearningAnalyticsComponent implements OnInit, OnDestroy, AfterViewI
 
   // 載入同儕比較數據
   private loadPeerComparisonData(): void {
-    this.peerData = {
-      class_average: 0.72,
-      percentile: 75,
-      improvement: 5.2,
-      distribution: [10, 20, 30, 25, 15] // 各分數段人數分布
-    };
+    // 調用後端API獲取同儕比較數據
+    this.analyticsService.getPeerComparison('').subscribe({
+      next: (data) => {
+        this.peerData = data;
+        console.log('同儕比較數據載入成功:', data);
+      },
+      error: (error) => {
+        console.error('載入同儕比較數據失敗:', error);
+        // 使用空數據
+        this.peerData = {
+          class_average: 0,
+          percentile: 0,
+          improvement: 0,
+          distribution: []
+        };
+      }
+    });
   }
 
   // 載入趨勢數據
   private loadTrendData(): void {
-    const days = this.selectedTrendPeriod;
-    this.trendData = [];
-    
-    console.log('載入趨勢數據，天數:', days);
-    
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      
-      this.trendData.push({
-        date: date.toISOString().split('T')[0],
-        mastery: 0.6 + Math.random() * 0.3, // 模擬數據
-        attempts: Math.floor(Math.random() * 10) + 1
-      });
-    }
-    
-    console.log('趨勢數據載入完成:', this.trendData);
+    // 調用後端API獲取趨勢數據
+    this.analyticsService.getTrends('').subscribe({
+      next: (data) => {
+        this.trendData = data;
+        console.log('趨勢數據載入成功:', data);
+        // 重新創建趨勢圖表
+        setTimeout(() => {
+          this.createTrendLineChart();
+        }, 100);
+      },
+      error: (error) => {
+        console.error('載入趨勢數據失敗:', error);
+        // 使用空數據
+        this.trendData = [];
+      }
+    });
   }
 
   // 創建雷達圖
