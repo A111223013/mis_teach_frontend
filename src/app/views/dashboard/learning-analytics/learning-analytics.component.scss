@@ -884,3 +884,25 @@
 .text-warning {
   color: #ffc107 !important;
 }
+
+// 學習統計樣式
+.learning-stats {
+  .stat-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f0f0;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    .stat-label {
+      font-weight: 500;
+      color: #6c757d;
+    }
+    
+    .stat-value {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+  }
+}

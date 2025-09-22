@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { CardModule, ButtonModule, FormModule, SpinnerModule, BadgeModule, DropdownModule } from '@coreui/angular';
@@ -47,12 +47,16 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   constructor(
     private aiChatService: AiChatService,
     private quizService: QuizService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
     // 初始化聊天
     this.initializeChat();
+    
+    // 處理URL參數
+    this.handleUrlParams();
   }
 
   ngOnDestroy(): void {
@@ -64,6 +68,36 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.scrollToBottom();
       this.shouldScrollToBottom = false;
     }
+  }
+
+  /**
+   * 處理URL參數
+   */
+  private handleUrlParams(): void {
+    this.route.queryParams.subscribe(params => {
+      const question = params['question'];
+      const concept = params['concept'];
+      const domain = params['domain'];
+      const action = params['action'];
+      const detail = params['detail'];
+      const estMin = params['estMin'];
+      
+      if (question) {
+        console.log('收到URL參數問題:', question);
+        console.log('概念:', concept, '領域:', domain, '行動:', action);
+        
+        // 自動填入問題到輸入框
+        this.currentMessage = question;
+        
+        // 如果是教學模式，自動發送問題
+        if (action === 'teaching') {
+          // 延遲一點時間讓界面完全載入
+          setTimeout(() => {
+            this.sendMessage();
+          }, 1000);
+        }
+      }
+    });
   }
 
   /**

@@ -97,6 +97,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   questionPauseTimes: { [key: number]: number } = {};   // 每題暫停時間戳（毫秒）
   questionIsActive: { [key: number]: boolean } = {};    // 每題是否正在作答中
   
+  // 測驗時間記錄
+  startTime: number = 0;      // 測驗開始時間戳（毫秒）
+  elapsedTime: number = 0;    // 已用時間（秒）
+  
   // 路由參數 (為了與舊模板兼容)
   quizType: 'knowledge' | 'pastexam' = 'knowledge';
   topic: string = '';
@@ -163,6 +167,122 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     });
   }
 
+  loadQuizFromBackend(templateId: string, timeoutId: any): void {
+    // 從後端載入測驗數據
+    this.quizService.getQuiz(templateId).subscribe({
+      next: (response) => {
+        clearTimeout(timeoutId); // 清除超時計時器
+        if (response.success && response.data) {
+          const quizData = response.data;
+          // 設置測驗信息
+          this.quizTitle = this.generateQuizTitle('knowledge', '', '', '', 'AI生成測驗');
+          this.questions = quizData.questions;
+          this.timeLimit = quizData.time_limit || 60;
+          this.totalQuestions = this.questions.length;
+          
+          // 初始化答題狀態
+          this.answers = new Array(this.totalQuestions).fill(null);
+          this.markedQuestions = {};
+          
+          // 設置計時器
+          this.initializeTimer();
+          
+          // 載入第一題
+          this.currentQuestionIndex = 0;
+          this.loadCurrentQuestion();
+
+          this.isLoading = false;
+          
+          // 強制觸發變更檢測
+          this.cdr.detectChanges();
+          
+        } else {
+          console.error('❌ 測驗數據格式錯誤:', response);
+          this.isLoading = false;
+          this.error = '測驗數據載入失敗，請重新生成測驗';
+          this.router.navigate(['/dashboard/quiz-center']);
+        }
+      },
+      error: (error: any) => {
+        clearTimeout(timeoutId); // 清除超時計時器
+        console.error('❌ 載入測驗失敗:', error);
+        this.isLoading = false;
+        this.error = '載入測驗失敗，請重新生成測驗';
+        this.router.navigate(['/dashboard/quiz-center']);
+      }
+    });
+  }
+
+  loadAIGeneratedQuiz(): void {
+    // 設置載入狀態
+    this.isLoading = true;
+    this.error = '';
+    
+    // 從路由參數獲取基本信息
+    const concept = this.route.snapshot.queryParamMap.get('concept');
+    const domain = this.route.snapshot.queryParamMap.get('domain');
+    const difficulty = this.route.snapshot.queryParamMap.get('difficulty');
+    const templateId = this.route.snapshot.queryParamMap.get('template_id');
+    
+    // 設置 templateId
+    if (templateId) {
+      this.templateId = templateId;
+    } else {
+      this.templateId = this.quizId;
+    }
+    
+    // 設置超時機制
+    const timeoutId = setTimeout(() => {
+      if (this.isLoading) {
+        this.isLoading = false;
+        this.error = '載入AI測驗超時，請重新開始測驗';
+        this.router.navigate(['/dashboard/quiz-center']);
+      }
+    }, 15000); // 15秒超時，AI測驗可能需要更長時間
+    
+    // 直接從後端API載入測驗數據
+    this.quizService.getQuiz(this.quizId).subscribe({
+      next: (quizData: any) => {
+        clearTimeout(timeoutId);
+        
+        if (quizData && quizData.questions && quizData.questions.length > 0) {
+          // 設置測驗信息
+          this.quizTitle = quizData.title || `${concept} - ${difficulty}難度練習`;
+          this.questions = quizData.questions;
+          this.timeLimit = quizData.time_limit || 60;
+          this.totalQuestions = this.questions.length;
+          
+          // 初始化答題狀態
+          this.answers = new Array(this.totalQuestions).fill(null);
+          this.markedQuestions = {};
+          
+          // 設置計時器
+          this.initializeTimer();
+          
+          // 載入第一題
+          this.currentQuestionIndex = 0;
+          this.loadCurrentQuestion();
+          this.isLoading = false;
+          
+          // 強制觸發變更檢測
+          this.cdr.detectChanges();
+          
+        } else {
+          this.isLoading = false;
+          this.error = 'AI測驗數據格式錯誤，請重新生成測驗';
+          this.router.navigate(['/dashboard/quiz-center']);
+        }
+      },
+      error: (error: any) => {
+        clearTimeout(timeoutId);
+        console.error('❌ 載入AI測驗失敗:', error);
+        this.isLoading = false;
+        this.error = '載入AI測驗失敗，請重新生成測驗';
+        this.router.navigate(['/dashboard/quiz-center']);
+      }
+    });
+  }
+
   ngOnDestroy(): void {
     if (this.timerSubscription) {
       this.timerSubscription.unsubscribe();
@@ -170,8 +290,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.stopProgressAnimation(); // 確保在組件銷毀時停止動畫
     this.disconnectProgressTracking(); // 確保在組件銷毀時斷開進度追蹤
     
-    // 注意：不要在組件銷毀時清除測驗數據，因為用戶可能只是刷新頁面
-    // 測驗數據應該在測驗完成後才清除
+    // 保存當前測驗狀態到sessionStorage，以便刷新頁面後復原
+    this.saveQuizToSession();
   }
 
   loadQuiz(): void {
@@ -208,11 +328,43 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       }
     }, 10000); // 10秒超時
     
-    // 从服务中获取已存储的测验数据
+    // 檢查是否有template_id查詢參數，如果有則直接從後端載入
+    if (templateId) {
+      // 有template_id參數，直接從後端載入測驗
+      this.loadQuizFromBackend(templateId, timeoutId);
+      return;
+    }
+    
+    // 嘗試從sessionStorage復原測驗狀態
+    const restoredQuiz = this.restoreQuizFromSession();
+    if (restoredQuiz) {
+      // 成功復原測驗狀態
+      this.quizTitle = restoredQuiz.quizTitle;
+      this.questions = restoredQuiz.questions;
+      this.timeLimit = restoredQuiz.timeLimit;
+      this.totalQuestions = restoredQuiz.totalQuestions;
+      this.answers = restoredQuiz.answers;
+      this.markedQuestions = restoredQuiz.markedQuestions;
+      this.currentQuestionIndex = restoredQuiz.currentQuestionIndex;
+      this.startTime = restoredQuiz.startTime;
+      this.elapsedTime = restoredQuiz.elapsedTime;
+      
+      // 設置計時器
+      this.initializeTimer();
+      
+      // 載入當前題目
+      this.loadCurrentQuestion();
+      this.isLoading = false;
+      
+      // 強制觸發變更檢測，確保UI更新
+      this.cdr.detectChanges();
+      return;
+    }
+    
+    // 如果無法從session復原，嘗試從服務獲取已存儲的測驗數據
     this.quizService.getCurrentQuizData().subscribe({
       next: (quizData) => {
         clearTimeout(timeoutId); // 清除超時計時器
-        console.log('quizData', quizData);
         if (quizData && quizData.questions && quizData.questions.length > 0) {
           // 使用已存储的数据
           
@@ -232,14 +384,19 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
           // 載入第一題
           this.currentQuestionIndex = 0;
           this.loadCurrentQuestion();
-          
-          console.log('✅ 测验加载完成，题目数量:', this.totalQuestions);
           this.isLoading = false;
           
           // 強制觸發變更檢測，確保UI更新
           this.cdr.detectChanges();
           
         } else {
+          // 檢查是否為AI生成的測驗，如果是則直接從後端載入
+          const aiGenerated = this.route.snapshot.queryParamMap.get('ai_generated');
+          if (aiGenerated === 'true') {
+            this.loadAIGeneratedQuiz();
+            return;
+          }
+          
           // 檢查是否已經完成測驗，如果是則不顯示錯誤提示
           const quizResultDataStr = sessionStorage.getItem('quiz_result_data');
           if (quizResultDataStr) {
@@ -270,6 +427,124 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     });
   }
 
+  // 保存測驗狀態到sessionStorage
+  private saveQuizToSession(): void {
+    if (this.questions && this.questions.length > 0) {
+      const sessionData = {
+        session_id: this.generateSessionId(),
+        template_id: this.templateId,
+        quiz_id: this.quizId,
+        quizTitle: this.quizTitle,
+        questions: this.questions,
+        timeLimit: this.timeLimit,
+        totalQuestions: this.totalQuestions,
+        answers: this.answers,
+        markedQuestions: this.markedQuestions,
+        currentQuestionIndex: this.currentQuestionIndex,
+        startTime: this.startTime,
+        elapsedTime: this.elapsedTime,
+        timestamp: Date.now()
+      };
+      
+      try {
+        sessionStorage.setItem('quiz_session_data', JSON.stringify(sessionData));
+      } catch (error) {
+        console.error('❌ 保存測驗狀態到sessionStorage失敗:', error);
+      }
+    }
+  }
+
+  // 從sessionStorage復原測驗狀態
+  private restoreQuizFromSession(): any {
+    try {
+      const sessionDataStr = sessionStorage.getItem('quiz_session_data');
+      if (!sessionDataStr) {
+        return null;
+      }
+
+      const sessionData = JSON.parse(sessionDataStr);
+      
+      // 驗證session數據的完整性
+      if (!this.validateSessionData(sessionData)) {
+        console.warn('⚠️ Session數據驗證失敗，清除無效數據');
+        this.clearQuizSession();
+        return null;
+      }
+
+      // 檢查session是否過期（24小時）
+      const now = Date.now();
+      const sessionAge = now - sessionData.timestamp;
+      const maxAge = 24 * 60 * 60 * 1000; // 24小時
+      
+      if (sessionAge > maxAge) {
+        console.warn('⚠️ Session已過期，清除數據');
+        this.clearQuizSession();
+        return null;
+      }
+
+      // 檢查template_id和quiz_id是否匹配當前路由
+      const currentTemplateId = this.route.snapshot.queryParamMap.get('template_id') || this.quizId;
+      if (sessionData.template_id !== currentTemplateId && sessionData.quiz_id !== this.quizId) {
+        console.warn('⚠️ Session ID不匹配，清除數據');
+        this.clearQuizSession();
+        return null;
+      }
+
+      console.log('✅ 成功從session復原測驗狀態');
+      return sessionData;
+      
+    } catch (error) {
+      console.error('❌ 從sessionStorage復原測驗狀態失敗:', error);
+      this.clearQuizSession();
+      return null;
+    }
+  }
+
+  // 驗證session數據的完整性
+  private validateSessionData(sessionData: any): boolean {
+    const requiredFields = [
+      'session_id', 'template_id', 'quiz_id', 'quizTitle', 
+      'questions', 'timeLimit', 'totalQuestions', 'answers', 
+      'markedQuestions', 'currentQuestionIndex', 'startTime', 
+      'elapsedTime', 'timestamp'
+    ];
+    
+    for (const field of requiredFields) {
+      if (sessionData[field] === undefined || sessionData[field] === null) {
+        console.warn(`⚠️ Session數據缺少必要欄位: ${field}`);
+        return false;
+      }
+    }
+
+    // 檢查questions是否為陣列且不為空
+    if (!Array.isArray(sessionData.questions) || sessionData.questions.length === 0) {
+      console.warn('⚠️ Session數據中questions格式錯誤');
+      return false;
+    }
+
+    // 檢查answers是否為陣列且長度正確
+    if (!Array.isArray(sessionData.answers) || sessionData.answers.length !== sessionData.totalQuestions) {
+      console.warn('⚠️ Session數據中answers格式錯誤');
+      return false;
+    }
+
+    return true;
+  }
+
+  // 清除測驗session數據
+  private clearQuizSession(): void {
+    try {
+      sessionStorage.removeItem('quiz_session_data');
+    } catch (error) {
+      console.error('❌ 清除測驗session數據失敗:', error);
+    }
+  }
+
+  // 生成session ID
+  private generateSessionId(): string {
+    return `quiz_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
   // 生成测验标题
   private generateQuizTitle(type: string | null, school: string | null, year: string | null, department: string | null, topic: string | null): string {
     if (type === 'pastexam' && school && year && department) {
@@ -282,10 +557,16 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   initializeTimer(): void {
+    // 設置測驗開始時間
+    if (this.startTime === 0) {
+      this.startTime = Date.now();
+    }
+    
     if (this.timeLimit > 0) {
       this.timer = this.timeLimit * 60; // 轉換為秒
       this.timerSubscription = interval(1000).subscribe(() => {
         this.timer--;
+        this.elapsedTime = Math.floor((Date.now() - this.startTime) / 1000);
         if (this.timer <= 0) {
           this.submitQuiz();
         }
@@ -439,12 +720,16 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   nextQuestion(): void {
     if (this.currentQuestionIndex < this.questions.length - 1) {
       this.goToQuestion(this.currentQuestionIndex + 1);
+      // 保存當前狀態到session
+      this.saveQuizToSession();
     }
   }
 
   previousQuestion(): void {
     if (this.currentQuestionIndex > 0) {
       this.goToQuestion(this.currentQuestionIndex - 1);
+      // 保存當前狀態到session
+      this.saveQuizToSession();
     }
   }
 
@@ -476,7 +761,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   selectSingleChoice(option: string): void {
     if (!this.currentQuestion) return;
     this.userAnswers[this.currentQuestionIndex] = option;
-  
+    
+    // 保存當前狀態到session
+    this.saveQuizToSession();
   }
 
   isSingleChoiceSelected(option: string): boolean {
@@ -500,6 +787,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
     
     this.userAnswers[this.currentQuestionIndex] = [...answers];
+    
+    // 保存當前狀態到session
+    this.saveQuizToSession();
   }
 
   isMultipleChoiceSelected(option: string): boolean {
@@ -511,6 +801,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   selectTrueFalse(value: boolean): void {
     if (!this.currentQuestion) return;
     this.userAnswers[this.currentQuestionIndex] = value;
+    
+    // 保存當前狀態到session
+    this.saveQuizToSession();
   }
 
   isTrueFalseSelected(value: boolean): boolean {
@@ -521,6 +814,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   updateTextAnswer(value: string): void {
     if (!this.currentQuestion) return;
     this.userAnswers[this.currentQuestionIndex] = value;
+    
+    // 保存當前狀態到session
+    this.saveQuizToSession();
   }
 
   getTextAnswer(): string {
@@ -532,6 +828,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   updateCodingAnswer(value: string): void {
     if (!this.currentQuestion) return;
     this.userAnswers[this.currentQuestionIndex] = value;
+    
+    // 保存當前狀態到session
+    this.saveQuizToSession();
   }
 
   getCodingAnswer(): string {
@@ -549,6 +848,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     
     answers[index] = value;
     this.userAnswers[this.currentQuestionIndex] = [...answers];
+    
+    // 保存當前狀態到session
+    this.saveQuizToSession();
   }
 
   getChoiceAnswer(index: number): string {
@@ -560,6 +862,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   updateDrawAnswer(value: string): void {
     if (!this.currentQuestion) return;
     this.userAnswers[this.currentQuestionIndex] = value;
+    
+    // 保存當前狀態到session
+    this.saveQuizToSession();
   }
 
   getDrawAnswer(): string {
@@ -590,6 +895,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   updateCustomAnswer(value: any): void {
     if (!this.currentQuestion) return;
     this.userAnswers[this.currentQuestionIndex] = value;
+    
+    // 保存當前狀態到session
+    this.saveQuizToSession();
   }
 
   // 群組題目處理
@@ -611,6 +919,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     
     answers[subQuestionIndex] = value;
     this.userAnswers[this.currentQuestionIndex] = [...answers];
+    
+    // 保存當前狀態到session
+    this.saveQuizToSession();
   }
 
   getSubQuestionTypeDisplayName(answerType: string): string {
@@ -803,6 +1114,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 提交測驗
   submitQuiz(): void {
     console.debug('[submitQuiz] 進入 submitQuiz 方法');
+    
+    // 清除session數據，因為測驗即將完成
+    this.clearQuizSession();
     
     // 記錄當前題目的完成時間
     this.recordQuestionEndTime(this.currentQuestionIndex);
@@ -1211,7 +1525,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
           // 如果沒有完成，嘗試重新連接
           this.fallbackToPolling();
         } else {
-          console.log('🔄 SSE連接異常，嘗試回退到輪詢方式');
           this.progressMessage = '進度追蹤連接失敗，請稍後...';
           this.fallbackToPolling();
         }
@@ -2082,6 +2395,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 數學公式編輯器相關方法
   updateMathFormula(): void {
     this.userAnswers[this.currentQuestionIndex] = this.mathFormulaAnswer;
+    
+    // 保存當前狀態到session
+    this.saveQuizToSession();
   }
 
   getMathFormulaAnswer(): string {

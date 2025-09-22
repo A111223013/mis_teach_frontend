@@ -103,7 +103,7 @@ export class QuizService {
   // 獲取測驗詳情（保留作为备选方案）
   getQuiz(quizId: string): Observable<any> {
     return this.authService.authenticatedRequest((headers) =>
-      this.http.post(`${environment.apiBaseUrl}/quiz/get-quiz`, { quiz_id: quizId }, { headers })
+      this.http.get(`${environment.apiBaseUrl}/quiz/get-quiz/${quizId}`, { headers })
     ).pipe(catchError(this.handleError));
   }
 
