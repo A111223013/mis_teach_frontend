@@ -35,6 +35,7 @@ export class MaterialViewComponent implements AfterViewChecked {
   
   // 螢光筆相關屬性
   highlighterMode: boolean = false;
+  sidebarVisible: boolean = false;
   selectedColor: string = '#ffff00'; // 預設黃色
   highlightColors = [
     { name: '黃色', value: '#ffff00' },
@@ -231,14 +232,25 @@ export class MaterialViewComponent implements AfterViewChecked {
   // 生成題目功能
   generateQuiz(): void {
     console.log('生成題目關於:', this.selectedText);
-    
-    // 將選中的文字發送到網站助手
+    if (!this.selectedText || this.selectedText.trim().length < 2) {
+      this.showNotification('請先選擇要生成題目的文字');
+      return;
+    }
     this.messageBridgeService.sendQuizGeneration(this.selectedText);
-    
-    // 顯示提示訊息
     this.showNotification('已將選中文字發送到網站助手，請查看生成的題目');
-    
     this.hideButtons();
+  }
+
+  // 從工具列觸發生成題目
+  generateQuizFromToolbar(): void {
+    const selection = window.getSelection();
+    const selected = selection?.toString().trim() || this.selectedText;
+    if (!selected || selected.length < 2) {
+      this.showNotification('請先選擇要生成題目的文字');
+      return;
+    }
+    this.selectedText = selected;
+    this.generateQuiz();
   }
 
 
@@ -300,6 +312,11 @@ export class MaterialViewComponent implements AfterViewChecked {
       document.body.style.cursor = 'default';
       this.showNotification('螢光筆模式已關閉');
     }
+  }
+
+  // 抽屜側欄開關
+  toggleSidebar(): void {
+    this.sidebarVisible = !this.sidebarVisible;
   }
 
   // 選擇顏色

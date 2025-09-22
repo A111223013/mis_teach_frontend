@@ -27,7 +27,7 @@ html {
   position: fixed;
   top: 82px;
   left: 0;
-  width: 300px;
+  width: clamp(220px, 20vw, 300px);
   height: 100vh;
   background-color: #f8f9fa;
   border-right: 1px solid #dee2e6;
@@ -40,7 +40,7 @@ html {
 }
 
 .content-wrapper {
-  margin-left: 300px;
+  margin-left: clamp(220px, 20vw, 300px);
   transition: margin-left 0.3s ease;
 }
 
@@ -53,7 +53,7 @@ html {
 .back-btn {
   position: fixed;
   top: 82px;
-  left: 300px;
+  left: clamp(220px, 20vw, 300px);
   z-index: 1100;
 }
 
@@ -162,9 +162,9 @@ html {
 .highlighter-sidebar {
   position: fixed;
   top: 50%;
-  right: 20px;
+  right: min(20px, 2vw);
   transform: translateY(-50%) translateX(100%);
-  width: 60px;
+  width: clamp(48px, 4vw, 60px);
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-radius: 30px;
@@ -178,7 +178,7 @@ html {
   }
   
   .sidebar-content {
-    padding: 15px 8px;
+    padding: clamp(10px, 1.2vw, 15px) 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -188,26 +188,26 @@ html {
       .color-palette {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: clamp(6px, 0.8vw, 8px);
+        // 移除多餘佔位圓點（只保留前 6 顏色）
+        .color-btn:nth-child(n+7) { display: none; }
         
         .color-btn {
-          width: 24px;
-          height: 24px;
+          width: clamp(18px, 2.2vw, 24px);
+          height: clamp(18px, 2.2vw, 24px);
           border: 2px solid transparent;
           border-radius: 50%;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: box-shadow 0.2s ease, border-color 0.2s ease;
           position: relative;
           
           &:hover {
-            transform: scale(1.2);
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           }
           
           &.active {
             border-color: #333;
             box-shadow: 0 0 0 2px rgba(51, 51, 51, 0.3);
-            transform: scale(1.3);
           }
           
           &::after {
@@ -235,11 +235,11 @@ html {
     .action-section {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: clamp(6px, 0.8vw, 8px);
       
       .action-btn {
-        width: 44px;
-        height: 44px;
+        width: clamp(36px, 4.4vw, 44px);
+        height: clamp(36px, 4.4vw, 44px);
         border: none;
         border-radius: 50%;
         background: rgba(108, 117, 125, 0.1);
@@ -249,7 +249,7 @@ html {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 16px;
+        font-size: clamp(14px, 1.8vw, 16px);
         
         &:hover {
           background: rgba(108, 117, 125, 0.2);
@@ -267,7 +267,41 @@ html {
           font-size: 18px;
         }
       }
+      // 安全防呆：若有未知佔位按鈕，隱藏第5顆之後
+      .action-btn:nth-child(n+5) { display: none; }
     }
+  }
+}
+
+// 右側抽屜開關按鈕
+.sidebar-toggle-btn {
+  position: fixed;
+  top: 50%;
+  right: min(20px, 2vw);
+  transform: translateY(-50%);
+  width: clamp(28px, 3.2vw, 34px);
+  height: clamp(28px, 3.2vw, 34px);
+  border-radius: 50%;
+  border: none;
+  background: #f2d5e5;
+  color: #6c757d;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1001;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    background: #e7c3d9;
+    color: #333;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.2);
+  }
+
+  &.expanded {
+    transform: translateY(-50%) rotate(180deg);
   }
 }
 
@@ -322,7 +356,7 @@ html {
 @media (max-width: 768px) {
   .highlighter-sidebar {
     right: 10px;
-    width: 50px;
+    width: clamp(42px, 12vw, 50px);
     
     .sidebar-content {
       padding: 12px 6px;
@@ -341,8 +375,8 @@ html {
         gap: 6px;
         
         .action-btn {
-          width: 38px;
-          height: 38px;
+          width: clamp(32px, 9vw, 38px);
+          height: clamp(32px, 9vw, 38px);
           
           i {
             font-size: 16px;
