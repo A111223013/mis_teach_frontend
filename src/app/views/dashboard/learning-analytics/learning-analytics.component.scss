@@ -906,3 +906,185 @@
     }
   }
 }
+
+// 深度分析區域樣式
+.mastery-summary {
+  .summary-card {
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .summary-title {
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .summary-value {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    
+    .summary-concept {
+      color: #6c757d;
+      font-weight: 500;
+    }
+  }
+}
+
+.review-reminder {
+  .reminder-item {
+    padding: 0.25rem 0;
+    border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    strong {
+      color: #856404;
+    }
+  }
+}
+
+// 學習路徑樣式
+.learning-path {
+  .learning-path-visual {
+    .path-container {
+      padding: 1rem 0;
+      background: #f8f9fa;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .path-node {
+      min-width: 120px;
+      padding: 0.5rem;
+      
+      .node-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+        
+        &.completed {
+          background: #28a745;
+          color: white;
+        }
+        
+        &.current {
+          background: #ffc107;
+          color: #212529;
+        }
+        
+        &.pending {
+          background: #6c757d;
+          color: white;
+        }
+      }
+      
+      .node-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.25rem;
+      }
+      
+      .node-readiness {
+        font-size: 0.8rem;
+        color: #6c757d;
+      }
+    }
+    
+    .path-connector {
+      .connector-line {
+        width: 40px;
+        height: 2px;
+        background: #dee2e6;
+        position: relative;
+        
+        &::after {
+          content: '';
+          position: absolute;
+          right: -5px;
+          top: -3px;
+          width: 0;
+          height: 0;
+          border-left: 8px solid #dee2e6;
+          border-top: 4px solid transparent;
+          border-bottom: 4px solid transparent;
+        }
+      }
+    }
+  }
+  
+  .learning-path-details {
+    .path-step {
+      .card {
+        border: 1px solid #e9ecef;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        &.completed {
+          border-left: 4px solid #28a745;
+          background: #f8fff9;
+        }
+        
+        &.current {
+          border-left: 4px solid #ffc107;
+          background: #fffdf5;
+        }
+      }
+      
+      .step-number {
+        .badge {
+          font-size: 0.9rem;
+          padding: 0.5rem 0.75rem;
+        }
+      }
+      
+      .step-content {
+        .step-title {
+          color: #333;
+          margin-bottom: 0.25rem;
+        }
+        
+        .step-description {
+          color: #6c757d;
+          font-size: 0.9rem;
+        }
+        
+        .step-meta {
+          .badge {
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+          }
+        }
+      }
+      
+      .step-actions {
+        .btn {
+          font-size: 0.85rem;
+          padding: 0.375rem 0.75rem;
+          
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+  }
+}

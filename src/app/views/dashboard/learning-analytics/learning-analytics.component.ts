@@ -18,6 +18,7 @@ import {
 
 // 服務導入
 import { LearningAnalyticsService, AIDiagnosisData } from '../../../service/learning-analytics.service';
+import { OverviewService, CreateEventRequest } from '../../../service/overview.service';
 // 暫時註釋掉不存在的模型
 // import { AIDiagnosis } from '../../../models/ai-diagnosis.model';
 // import { PracticeQuestion } from '../../../models/practice-question.model';
@@ -53,6 +54,10 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   analyticsData: LearningAnalyticsData | null = null;
   overview: any = null;
   isLoading = false;
+  
+  // 趨勢圖表相關
+  selectedTrendDomain: string = 'all';
+  availableTrendDomains: string[] = [];
 
   // 模態框相關
   aiDiagnosisModalVisible = false;
@@ -65,6 +70,17 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   learningPathModalVisible = false;
   practiceModalVisible = false;
   aiDiagnosis: any = null;
+  
+  // 行事曆modal相關
+  calendarModalVisible = false;
+  selectedLearningStep: any = null;
+  calendarEvent = {
+    title: '',
+    content: '',
+    eventDate: '',
+    notifyEnabled: false,
+    notifyTime: new Date()
+  };
   practiceQuestions: any[] = [];
   
   selectedWeakPoint: any = null;
@@ -85,15 +101,26 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   // 指標卡片數據
   metricCards: any[] = [];
   
+  // 深度分析相關屬性
+  masterySummary: any[] = [];
+  difficultyAnalysisData: any = null;
+  selectedMajorConcept: string = 'all';  // 選中的大知識點
+  availableMajorConcepts: string[] = [];  // 可用的大知識點列表
+  
+  // AI教練分析
+  aiCoachAnalysis: any = null;
+  
 
   // 圖表相關
   @ViewChild('radarChart', { static: false }) radarChart?: ElementRef<HTMLCanvasElement>;
   @ViewChild('trendLineChart', { static: false }) trendLineChart?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('integratedAnalysisChart', { static: false }) integratedAnalysisChart?: ElementRef<HTMLCanvasElement>;
 
   private dataSubscription?: Subscription;
 
   constructor(
     private learningAnalyticsService: LearningAnalyticsService,
+    private overviewService: OverviewService,
     private router: Router
   ) {
     Chart.register(...registerables);
@@ -169,9 +196,15 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     this.overview = this.analyticsData.overview;
     this.trendData = this.analyticsData.trends || [];
     
+    // 處理AI教練分析
+    this.aiCoachAnalysis = (this.analyticsData as any).ai_coach_analysis || null;
+
 
     // 初始化其他數據
     this.initializeOtherData();
+    
+    // 初始化趨勢圖表知識點選項
+    this.initializeTrendDomains();
   }
 
   // 初始化其他數據
@@ -189,15 +222,12 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     // 初始化指標卡片數據
     this.initializeMetricCards();
     
-    // 初始化雷達圖
-    if (this.radarData) {
-      setTimeout(() => this.initRadarChart(), 100);
-    }
-    
-    // 初始化趨勢圖表
-    if (this.trendData && this.trendData.length > 0) {
-      setTimeout(() => this.initTrendChart(), 100);
-    }
+    // 初始化所有圖表
+    setTimeout(() => {
+      this.initRadarChart();
+      this.initTrendChart();
+      this.initIntegratedAnalysisChart();
+    }, 100);
   }
   
   // 初始化指標卡片
@@ -214,15 +244,15 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       {
         title: '記憶保持率',
         value: this.getRetentionRate().toFixed(1) + '%',
-        description: '學習內容的記憶保持程度',
+        description: '知識記憶保持率',
         icon: 'cil-memory',
         color: 'success',
         trend: this.calculateTrend('retention_rate')
       },
       {
         title: '平均學習時間',
-        value: this.getAvgTimePerConcept().toFixed(0) + ' 分鐘',
-        description: '掌握每個概念所需的平均時間',
+        value: this.getAvgTimePerConcept().toFixed(1) + ' 分鐘',
+        description: '答對題目的平均答題時間',
         icon: 'cil-clock',
         color: 'info',
         trend: this.calculateTrend('avg_time_per_concept', true) // 時間越少越好，所以反轉
@@ -273,23 +303,56 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   // 趨勢分析相關方法
   changeTrendPeriod(days: number): void {
     this.selectedTrendPeriod = days;
-    console.log('切換趨勢分析期間:', days);
-    // 重新載入數據以生成新的趨勢數據
-    this.loadAllData();
+    // 不重新載入數據，只更新圖表顯示
+    this.updateTrendChart();
   }
+  
+  // 切換趨勢知識點
+  onTrendDomainChange(): void {
+    this.updateTrendChart();
+  }
+  
+  // 更新趨勢圖表（不重新載入數據）
+  private updateTrendChart(): void {
+    if (this.trendLineChart) {
+      this.initTrendChart();
+    }
+  }
+  
+  // 初始化趨勢圖表知識點選項
+  private initializeTrendDomains(): void {
+    if (this.overview && this.overview.domains) {
+      // 檢查domain對象的結構
+      const domainNames = this.overview.domains
+        .filter((domain: any) => domain && domain.name) // 過濾掉無效的domain
+        .map((domain: any) => domain.name);
+      
+      this.availableTrendDomains = ['all', ...domainNames];
+    }
+  }
+  
+  // 根據概念ID獲取對應的領域名稱
+  private getConceptDomain(conceptId: string): string {
+    if (!this.overview || !this.overview.domains) return '';
+    
+    for (const domain of this.overview.domains) {
+      if (domain.concepts && domain.concepts.some((concept: any) => concept.id === conceptId)) {
+        return domain.name;
+      }
+    }
+    return '';
+  }
+  
 
   // 初始化趨勢圖表
   private initTrendChart(): void {
-    console.log('初始化趨勢圖表，trendData:', this.trendData);
     
     if (!this.trendLineChart || !this.trendData || this.trendData.length === 0) {
-      console.log('趨勢圖表初始化失敗：缺少trendLineChart或trendData');
       return;
     }
 
     const ctx = this.trendLineChart.nativeElement.getContext('2d');
     if (!ctx) {
-      console.log('趨勢圖表初始化失敗：無法獲取canvas context');
       return;
     }
 
@@ -300,9 +363,38 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
     // 準備數據
     const labels = this.trendData.map(item => item.date);
-    const masteryData = this.trendData.map(item => item.mastery * 100);
-    const questionsData = this.trendData.map(item => item.questions);
-
+    
+    // 根據選擇的知識點篩選數據
+    let filteredTrendData = this.trendData;
+    if (this.selectedTrendDomain && this.selectedTrendDomain !== 'all') {
+      // 使用後端提供的領域趨勢數據
+      const domainTrends = (this.analyticsData as any).domain_trends;
+      if (domainTrends && domainTrends[this.selectedTrendDomain]) {
+        filteredTrendData = domainTrends[this.selectedTrendDomain];
+      } else {
+        // 如果沒有該領域的數據，創建空數據
+        filteredTrendData = this.trendData.map(item => ({
+          ...item,
+          accuracy: 0,
+          questions: 0,
+          forgetting_data: []
+        }));
+      }
+    }
+    
+    const accuracyData = filteredTrendData.map(item => item.accuracy * 100);
+    const questionsData = filteredTrendData.map(item => item.questions);
+    
+    // 準備遺忘曲線數據
+    const forgettingData = filteredTrendData.map(item => {
+      if (item.forgetting_data && item.forgetting_data.length > 0) {
+        // 計算平均遺忘率
+        const avgForgetting = item.forgetting_data.reduce((sum: number, concept: any) => 
+          sum + concept.forgetting_rate, 0) / item.forgetting_data.length;
+        return avgForgetting * 100;
+      }
+      return 0;
+    });
     // 創建新圖表
     (this.trendLineChart.nativeElement as any).chart = new Chart(ctx, {
       type: 'line',
@@ -310,20 +402,29 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
         labels: labels,
         datasets: [
           {
-            label: '掌握度 (%)',
-            data: masteryData,
+            label: this.selectedTrendDomain === 'all' ? '答題準確率 (%)' : `${this.selectedTrendDomain} - 答題準確率 (%)`,
+            data: accuracyData,
             borderColor: 'rgb(75, 192, 192)',
             backgroundColor: 'rgba(75, 192, 192, 0.2)',
             tension: 0.1,
             yAxisID: 'y'
           },
           {
-            label: '答題數量',
+            label: this.selectedTrendDomain === 'all' ? '答題數量' : `${this.selectedTrendDomain} - 答題數量`,
             data: questionsData,
             borderColor: 'rgb(255, 99, 132)',
             backgroundColor: 'rgba(255, 99, 132, 0.2)',
             tension: 0.1,
             yAxisID: 'y1'
+          },
+          {
+            label: this.selectedTrendDomain === 'all' ? '知識遺忘率 (%)' : `${this.selectedTrendDomain} - 知識遺忘率 (%)`,
+            data: forgettingData,
+            borderColor: 'rgb(255, 159, 64)',
+            backgroundColor: 'rgba(255, 159, 64, 0.2)',
+            tension: 0.1,
+            yAxisID: 'y',
+            borderDash: [5, 5]
           }
         ]
       },
@@ -361,6 +462,8 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
               display: true,
               text: '答題數量'
             },
+            min: 0,
+            max: Math.max(...questionsData) > 0 ? Math.max(...questionsData) * 1.2 : 10,
             grid: {
               drawOnChartArea: false,
             },
@@ -463,9 +566,6 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 為小知識點進行AI診斷 - 先顯示詳細數據
   openMicroConceptAIDiagnosis(concept: any, domainName: string): void {
-    console.log('AI診斷 - concept對象:', concept);
-    console.log('AI診斷 - domainName:', domainName);
-    
     // 檢查concept.id是否存在
     if (!concept.id) {
       console.error('concept.id為空或undefined:', concept);
@@ -484,31 +584,14 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     this.aiDiagnosisModalVisible = true;
   }
 
-  // 練習相關方法
-  startQuickPractice(): void {
-    console.log('開始快速練習');
-    this.openPracticeModal();
-  }
-
-  startFullPractice(): void {
-    console.log('開始完整練習');
-    this.openPracticeModal();
-  }
-
-  startDeepPractice(): void {
-    console.log('開始深度練習');
-    this.openPracticeModal();
-  }
 
 
   // 學習計劃相關方法
   addToLearningPlan(item: any): void {
-    console.log('添加到學習計劃:', item);
     this.closeAIDiagnosisModal();
   }
 
   confirmLearningPlan(): void {
-    console.log('確認學習計劃');
     this.closeLearningPlanModal();
   }
 
@@ -519,92 +602,67 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     this.learningPlanModalVisible = false;
   }
 
-  // 初始化模擬數據
-  private initializeMockData(): void {
-    this.topWeakPoints = [
-      {
-        id: '1',
-        name: '資料結構',
-        mastery: 0.3,
-        priority: 'high',
-        isExpanded: false,
-        subConcepts: [
-          { name: '二元樹', mastery: 0.2 },
-          { name: '圖論', mastery: 0.4 }
-        ]
-      },
-      {
-        id: '2',
-        name: '演算法',
-        mastery: 0.5,
-        priority: 'medium',
-        isExpanded: false,
-        subConcepts: [
-          { name: '排序演算法', mastery: 0.6 },
-          { name: '搜尋演算法', mastery: 0.4 }
-        ]
-      }
-    ];
-
-    this.improvementItems = [
-      {
-        id: '1',
-        name: '資料結構基礎',
-        mastery: 0.3,
-        priority: 'high',
-        attempts: 15,
-        wrongCount: 8
-      },
-      {
-        id: '2',
-        name: '演算法設計',
-        mastery: 0.5,
-        priority: 'medium',
-        attempts: 12,
-        wrongCount: 5
-      }
-    ];
-
-    this.attentionItems = [
-      {
-        id: '1',
-        name: '時間複雜度分析',
-        mastery: 0.2,
-        priority: 'high',
-        attempts: 8,
-        wrongCount: 6
-      }
-    ];
-
-    this.progressTracking = [
-      {
-        name: '資料結構',
-        percentage: 30,
-        target: 80,
-        trend: 'up'
-      },
-      {
-        name: '演算法',
-        percentage: 50,
-        target: 70,
-        trend: 'stable'
-      }
-    ];
-  }
 
 
   // AI 診斷模態框
   openAIDiagnosisModal(conceptId: string, conceptName: string, domainName?: string) {
-    this.isDiagnosisLoading = true;
     this.aiDiagnosisModalVisible = true;
     this.currentAIDiagnosis = null;
+    this.showAILearningPath = true;  // 默認顯示學習路徑
     
-    // 調用 AI 診斷服務
+    // 檢查session storage中是否有快取的AI診斷結果
+    const cacheKey = `ai_diagnosis_${conceptId}`;
+    console.log('檢查session快取，鍵值:', cacheKey);
+    const cachedData = sessionStorage.getItem(cacheKey);
+    console.log('快取數據:', cachedData);
+    
+    if (cachedData) {
+      try {
+        const parsedData = JSON.parse(cachedData);
+        const cacheTime = parsedData.timestamp;
+        const now = Date.now();
+        const timeDiff = now - cacheTime;
+        const minutesDiff = timeDiff / (1000 * 60);
+        
+        console.log('快取時間:', new Date(cacheTime));
+        console.log('當前時間:', new Date(now));
+        console.log('時間差(分鐘):', minutesDiff);
+        
+        // 檢查快取是否在30分鐘內
+        if (timeDiff < 30 * 60 * 1000) {
+          console.log('使用快取數據，不調用API');
+          this.currentAIDiagnosis = parsedData.data;
+          return; // 使用快取數據，不調用API
+        } else {
+          console.log('快取已過期，清除快取');
+          // 快取過期，清除
+          sessionStorage.removeItem(cacheKey);
+        }
+      } catch (e) {
+        console.error('解析快取數據失敗:', e);
+        sessionStorage.removeItem(cacheKey);
+      }
+    } else {
+      console.log('沒有找到快取數據');
+    }
+    
+    // 如果沒有快取或已過期，調用AI診斷服務
+    this.isDiagnosisLoading = true;
     this.learningAnalyticsService.getAIDiagnosis(conceptId, conceptName, domainName || '未知領域').subscribe({
       next: (diagnosis) => {
         this.isDiagnosisLoading = false;
         if (diagnosis) {
           this.currentAIDiagnosis = diagnosis;
+          
+          // 儲存到session storage，30分鐘有效期
+          const cacheKey = `ai_diagnosis_${conceptId}`;
+          const cacheData = {
+            timestamp: Date.now(),
+            data: diagnosis
+          };
+          sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
+          console.log('AI診斷結果已儲存到session storage，鍵值:', cacheKey);
+          console.log('儲存時間:', new Date(cacheData.timestamp));
         }
       },
       error: (error) => {
@@ -659,9 +717,6 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   }
 
   startAITeaching(action: any) {
-    // 跳轉到AI導師頁面進行基礎教學
-    console.log('開始AI基礎教學:', action);
-    
     // 檢查action參數是否有效
     if (!action) {
       console.error('startAITeaching: action參數為空');
@@ -688,9 +743,6 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   }
 
   startAIPractice(action: any) {
-    // 調用AI並行出題API生成練習題
-    console.log('開始AI並行出題練習:', action);
-    
     // 檢查action參數是否有效
     if (!action) {
       console.error('startAIPractice: action參數為空');
@@ -763,9 +815,6 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   }
 
   startMaterialViewing(action: any) {
-    // 跳轉到課程頁面觀看教材
-    console.log('開始教材觀看:', action);
-    
     // 檢查action參數是否有效
     if (!action) {
       console.error('startMaterialViewing: action參數為空');
@@ -790,9 +839,6 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   }
 
   startPractice(action: any) {
-    // 跳轉到練習頁面
-    console.log('開始練習:', action);
-    
     // 檢查action參數是否有效
     if (!action) {
       console.error('startPractice: action參數為空');
@@ -822,33 +868,130 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   }
 
   
-  addToCalendar(action: any) {
-    // 添加到行事曆
-    console.log('添加到行事曆:', action);
-    
-    // 檢查action參數是否有效
-    if (!action) {
-      console.error('addToCalendar: action參數為空');
-      alert('無法獲取行動信息，請重新選擇');
+  addToCalendar(step: any) {
+    if (!step) {
+      console.error('addToCalendar: step參數為空');
+      alert('無法獲取學習步驟信息，請重新選擇');
       return;
     }
     
-    // 創建行事曆事件
-    const calendarEvent = {
-      title: action.action || '學習任務',
-      description: action.detail || 'AI建議的學習任務',
-      duration: action.est_min || 20,
-      concept: this.currentConceptData?.name || '未知概念',
-      domain: this.currentConceptData?.domainName || '未知領域',
-      type: 'ai_suggestion',
-      priority: 'medium',
-      scheduledTime: new Date(Date.now() + 30 * 60 * 1000) // 30分鐘後
+    // 保存選中的學習步驟
+    this.selectedLearningStep = step;
+    
+    // 預填行事曆事件信息
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    this.calendarEvent = {
+      title: step.step_info,
+      content: step.step_info,
+      eventDate: tomorrow.toISOString().split('T')[0], // 明天日期
+      notifyEnabled: true,
+      notifyTime: new Date(Date.now() + 30 * 60 * 1000) // 30分鐘後
     };
     
-    // 這裡可以調用行事曆服務
-    // this.calendarService.addEvent(calendarEvent);
-    
-    alert(`已添加到行事曆：\n\n標題：${calendarEvent.title}\n描述：${calendarEvent.description}\n預計時間：${calendarEvent.duration}分鐘\n概念：${calendarEvent.concept}\n領域：${calendarEvent.domain}\n\n將在30分鐘後提醒您開始學習！`);
+    // 打開行事曆modal
+    this.calendarModalVisible = true;
+  }
+  
+  // 確認加入行事曆
+  confirmAddToCalendar() {
+    // 驗證表單
+    if (!this.validateCalendarForm()) {
+      return;
+    }
+
+    const eventData = {
+      title: this.calendarEvent.title.trim(),
+      content: this.calendarEvent.content.trim(),
+      start: this.calendarEvent.eventDate + 'T00:00:00', // 本地時間格式
+      notifyEnabled: this.calendarEvent.notifyEnabled,
+      notifyTime: this.calendarEvent.notifyEnabled ? this.formatLocalDateTime(this.calendarEvent.notifyTime) : null
+    };
+
+    // 新增事件
+    this.overviewService.createCalendarEvent(eventData).subscribe({
+      next: (response: any) => {
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        
+        // 關閉modal
+        this.calendarModalVisible = false;
+        this.selectedLearningStep = null;
+        this.resetCalendarForm();
+      },
+      error: (error: any) => {
+        console.error('新增事件失敗:', error);
+      }
+    });
+  }
+  
+  // 取消加入行事曆
+  cancelAddToCalendar() {
+    this.calendarModalVisible = false;
+    this.selectedLearningStep = null;
+    this.resetCalendarForm();
+  }
+  
+  // 處理事件日期變更
+  updateEventDate(dateString: string) {
+    this.calendarEvent.eventDate = dateString as any;
+  }
+
+  // 處理通知時間變更
+  updateNotifyTime(timeString: string) {
+    const eventDate = new Date(this.calendarEvent.eventDate + 'T00:00:00');
+    this.calendarEvent.notifyTime = new Date(
+      eventDate.getFullYear(),
+      eventDate.getMonth(),
+      eventDate.getDate(),
+      parseInt(timeString.split(':')[0]),
+      parseInt(timeString.split(':')[1])
+    );
+  }
+
+  // 格式化本地時間為字符串，避免時區轉換
+  formatLocalDateTime(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  }
+
+  // 驗證行事曆表單
+  validateCalendarForm(): boolean {
+    if (!this.calendarEvent.title || this.calendarEvent.title.trim() === '') {
+      alert('請輸入事件標題');
+      return false;
+    }
+    if (!this.calendarEvent.content || this.calendarEvent.content.trim() === '') {
+      alert('請輸入事件內容');
+      return false;
+    }
+    if (!this.calendarEvent.eventDate) {
+      alert('請選擇事件日期');
+      return false;
+    }
+    if (this.calendarEvent.notifyEnabled && !this.calendarEvent.notifyTime) {
+      alert('請選擇通知時間');
+      return false;
+    }
+    return true;
+  }
+
+  // 重置行事曆表單
+  resetCalendarForm() {
+    this.calendarEvent = {
+      title: '',
+      content: '',
+      eventDate: '',
+      notifyEnabled: false,
+      notifyTime: new Date()
+    };
   }
 
   // 獲取AI學習路徑
@@ -858,12 +1001,42 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       return;
     }
     
-    console.log('發送AI診斷請求:', {
-      conceptId: this.currentConceptData.id,
-      conceptName: this.currentConceptData.name,
-      domainName: this.currentConceptData.domainName
-    });
+    // 如果已經有AI診斷結果且正在顯示學習路徑，直接返回
+    if (this.currentAIDiagnosis && this.showAILearningPath) {
+      return;
+    }
     
+    // 檢查session storage中是否有快取的AI診斷結果
+    const cacheKey = `ai_diagnosis_${this.currentConceptData.id}`;
+    const cachedData = sessionStorage.getItem(cacheKey);
+    if (cachedData) {
+      try {
+        const parsedData = JSON.parse(cachedData);
+        const cacheTime = parsedData.timestamp;
+        const now = Date.now();
+        
+        // 檢查快取是否在30分鐘內
+        if (now - cacheTime < 30 * 60 * 1000) {
+          this.currentAIDiagnosis = parsedData.data;
+          this.showAILearningPath = true;
+          return;
+        } else {
+          // 快取過期，清除
+          sessionStorage.removeItem(cacheKey);
+        }
+      } catch (e) {
+        console.error('解析快取數據失敗:', e);
+        sessionStorage.removeItem(cacheKey);
+      }
+    }
+    
+    // 如果已經有AI診斷結果，直接顯示學習路徑
+    if (this.currentAIDiagnosis) {
+      this.showAILearningPath = true;
+      return;
+    }
+    
+    // 如果沒有診斷結果，先獲取診斷
     this.isDiagnosisLoading = true;
     this.showAILearningPath = true;
     
@@ -877,6 +1050,14 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
         this.isDiagnosisLoading = false;
         if (diagnosis) {
           this.currentAIDiagnosis = diagnosis;
+          
+          // 儲存到session storage，30分鐘有效期
+          const cacheKey = `ai_diagnosis_${this.currentConceptData.id}`;
+          const cacheData = {
+            timestamp: Date.now(),
+            data: diagnosis
+          };
+          sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
         }
       },
       error: (error) => {
@@ -915,9 +1096,6 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 初始化雷達圖
   private initRadarChart(): void {
-    console.log('初始化雷達圖，radarData:', this.radarData);
-    console.log('radarData.labels:', this.radarData?.labels);
-    console.log('radarData.data:', this.radarData?.data);
     
     if (!this.radarChart || !this.radarData) {
       console.log('雷達圖初始化失敗：缺少radarChart或radarData');
@@ -978,4 +1156,355 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       }
     });
   }
+
+  // 初始化整合分析圖表
+  private initIntegratedAnalysisChart(): void {
+    if (!this.integratedAnalysisChart) {
+      console.log('整合圖表初始化失敗：缺少integratedAnalysisChart');
+      return;
+    }
+
+    const ctx = this.integratedAnalysisChart.nativeElement.getContext('2d');
+    if (!ctx) {
+      console.log('整合圖表初始化失敗：無法獲取canvas context');
+      return;
+    }
+
+    // 銷毀現有圖表
+    if ((this.integratedAnalysisChart.nativeElement as any).chart) {
+      (this.integratedAnalysisChart.nativeElement as any).chart.destroy();
+    }
+
+  // 使用init-data中的數據，而不是單獨調用API
+  this.useInitDataForAnalysis();
+}
+
+  // 使用init-data中的數據進行分析
+  private useInitDataForAnalysis(): void {
+    
+    if (!this.analyticsData || !this.analyticsData.overview || !this.analyticsData.overview.domains) {
+      console.log('沒有可用的init-data，使用fallback數據');
+      return;
+    }
+
+    // 從init-data中提取領域數據
+    const domains = this.analyticsData.overview.domains;
+
+  // 轉換為深度分析所需的格式
+  this.difficultyAnalysisData = {
+    domain_difficulty_analysis: domains.map((domain: any) => ({
+      domain_id: domain.id,
+      domain_name: domain.name,
+      overall_mastery: domain.mastery || 0,
+      difficulty_breakdown: domain.difficulty_breakdown || { '簡單': 0, '中等': 0, '困難': 0 },
+      difficulty_analysis: domain.difficulty_analysis || {
+        easy_mastery: 0,
+        medium_mastery: 0,
+        hard_mastery: 0,
+        bottleneck_level: 'none',
+        recommended_difficulty: '簡單'
+      },
+      forgetting_analysis: domain.forgetting_analysis || {
+        base_mastery: 0,
+        current_mastery: 0,
+        days_since_practice: 0,
+        review_urgency: 'low',
+        forgetting_factor: 1.0
+      }
+    }))
+  };
+
+  // 初始化可用的大知識點列表
+  this.initializeAvailableMajorConcepts();
+  
+  // 更新圖表
+  this.updateIntegratedChart();
+}
+
+// 載入難度分析數據
+  private loadDifficultyAnalysisData(): void {
+    this.learningAnalyticsService.getDifficultyAnalysis().subscribe({
+      next: (data) => {
+        this.difficultyAnalysisData = data;
+        
+        // 初始化可用的大知識點列表
+        this.initializeAvailableMajorConcepts();
+        
+        // 更新圖表
+        this.updateIntegratedChart();
+      },
+      error: (error) => {
+        console.error('載入難度分析數據失敗:', error);
+      }
+    });
+  }
+
+  // 初始化可用的大知識點列表
+  private initializeAvailableMajorConcepts(): void {
+    if (this.difficultyAnalysisData && this.difficultyAnalysisData.domain_difficulty_analysis) {
+      this.availableMajorConcepts = ['all', ...this.difficultyAnalysisData.domain_difficulty_analysis.map((domain: any) => domain.domain_name)];
+    } else {
+      this.availableMajorConcepts = ['all'];
+    }
+  }
+
+  // 更新整合圖表
+  private updateIntegratedChart(): void {
+    if (!this.integratedAnalysisChart || !this.difficultyAnalysisData) {
+      return;
+    }
+
+    const ctx = this.integratedAnalysisChart.nativeElement.getContext('2d');
+    if (!ctx) return;
+
+    // 銷毀現有圖表
+    if ((this.integratedAnalysisChart.nativeElement as any).chart) {
+      (this.integratedAnalysisChart.nativeElement as any).chart.destroy();
+    }
+
+    // 根據選中的大知識點獲取數據
+    let chartData;
+    if (this.selectedMajorConcept === 'all') {
+      // 顯示所有大知識點的數據
+      chartData = this.prepareAllConceptsData();
+    } else {
+      // 顯示特定大知識點的數據
+      chartData = this.prepareSpecificConceptData(this.selectedMajorConcept);
+    }
+
+    // 創建新圖表
+    (this.integratedAnalysisChart.nativeElement as any).chart = new Chart(ctx, {
+      type: 'bar',
+      data: chartData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 1,
+            ticks: {
+              callback: function(value: any) {
+                return (value * 100).toFixed(0) + '%';
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context: any) {
+                const value = context.parsed.y;
+                return `${context.dataset.label}: ${(value * 100).toFixed(1)}%`;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // 更新摘要
+    this.updateMasterySummary();
+  }
+
+  // 準備所有概念的數據
+  private prepareAllConceptsData(): any {
+    if (!this.difficultyAnalysisData || !this.difficultyAnalysisData.domain_difficulty_analysis) {
+      return this.getEmptyChartData();
+    }
+
+    const domains = this.difficultyAnalysisData.domain_difficulty_analysis;
+    const labels = domains.map((domain: any) => domain.domain_name);
+    
+    return {
+      labels: labels,
+      datasets: [
+        {
+          label: '簡單掌握度',
+          data: domains.map((domain: any) => domain.difficulty_breakdown['簡單'] || 0),
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 2
+        },
+        {
+          label: '中等掌握度',
+          data: domains.map((domain: any) => domain.difficulty_breakdown['中等'] || 0),
+          backgroundColor: 'rgba(255, 206, 86, 0.6)',
+          borderColor: 'rgba(255, 206, 86, 1)',
+          borderWidth: 2
+        },
+        {
+          label: '困難掌握度',
+          data: domains.map((domain: any) => domain.difficulty_breakdown['困難'] || 0),
+          backgroundColor: 'rgba(255, 99, 132, 0.6)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 2
+        }
+      ]
+    };
+  }
+
+  // 準備特定概念的數據
+  private prepareSpecificConceptData(conceptName: string): any {
+    if (!this.difficultyAnalysisData || !this.difficultyAnalysisData.domain_difficulty_analysis) {
+      return this.getEmptyChartData();
+    }
+
+    const domain = this.difficultyAnalysisData.domain_difficulty_analysis.find((d: any) => d.domain_name === conceptName);
+    if (!domain) {
+      return this.getEmptyChartData();
+    }
+
+    return {
+      labels: [conceptName],
+      datasets: [
+        {
+          label: '簡單掌握度',
+          data: [domain.difficulty_breakdown['簡單'] || 0],
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 2
+        },
+        {
+          label: '中等掌握度',
+          data: [domain.difficulty_breakdown['中等'] || 0],
+          backgroundColor: 'rgba(255, 206, 86, 0.6)',
+          borderColor: 'rgba(255, 206, 86, 1)',
+          borderWidth: 2
+        },
+        {
+          label: '困難掌握度',
+          data: [domain.difficulty_breakdown['困難'] || 0],
+          backgroundColor: 'rgba(255, 99, 132, 0.6)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 2
+        }
+      ]
+    };
+  }
+
+  // 獲取空圖表數據
+  private getEmptyChartData(): any {
+    return {
+      labels: ['暫無數據'],
+      datasets: [
+        {
+          label: '簡單掌握度',
+          data: [0],
+          backgroundColor: 'rgba(200, 200, 200, 0.6)',
+          borderColor: 'rgba(200, 200, 200, 1)',
+          borderWidth: 2
+        },
+        {
+          label: '中等掌握度',
+          data: [0],
+          backgroundColor: 'rgba(200, 200, 200, 0.6)',
+          borderColor: 'rgba(200, 200, 200, 1)',
+          borderWidth: 2
+        },
+        {
+          label: '困難掌握度',
+          data: [0],
+          backgroundColor: 'rgba(200, 200, 200, 0.6)',
+          borderColor: 'rgba(200, 200, 200, 1)',
+          borderWidth: 2
+        }
+      ]
+    };
+  }
+
+  // 大知識點選擇變更
+  onMajorConceptChange(): void {
+    this.updateIntegratedChart();
+  }
+
+  // 更新掌握度摘要
+  private updateMasterySummary(): void {
+    if (!this.difficultyAnalysisData || !this.difficultyAnalysisData.domain_difficulty_analysis) {
+      return;
+    }
+
+    const domains = this.difficultyAnalysisData.domain_difficulty_analysis;
+    
+    // 找出困難掌握率最低的
+    let lowestHard = { domain: '無', value: 1 };
+    let lowestEasy = { domain: '無', value: 1 };
+    let highestMedium = { domain: '無', value: 0 };
+
+    domains.forEach((domain: any) => {
+      const hard = domain.difficulty_breakdown['困難'] || 0;
+      const easy = domain.difficulty_breakdown['簡單'] || 0;
+      const medium = domain.difficulty_breakdown['中等'] || 0;
+
+      if (hard < lowestHard.value) {
+        lowestHard = { domain: domain.domain_name, value: hard };
+      }
+      if (easy < lowestEasy.value) {
+        lowestEasy = { domain: domain.domain_name, value: easy };
+      }
+      if (medium > highestMedium.value) {
+        highestMedium = { domain: domain.domain_name, value: medium };
+      }
+    });
+
+    this.masterySummary = [
+      {
+        title: '困難掌握率最低',
+        value: (lowestHard.value * 100).toFixed(0) + '%',
+        concept: lowestHard.domain,
+        color: 'danger'
+      },
+      {
+        title: '簡單掌握率最低',
+        value: (lowestEasy.value * 100).toFixed(0) + '%',
+        concept: lowestEasy.domain,
+        color: 'warning'
+      },
+      {
+        title: '中等掌握率最高',
+        value: (highestMedium.value * 100).toFixed(0) + '%',
+        concept: highestMedium.domain,
+        color: 'success'
+      }
+    ];
+  }
+
+
+
+  // 更新圖表數據（當選擇特定知識點時）
+  updateChartsForConcept(conceptData: any): void {
+    // 更新整合圖表
+    if (this.integratedAnalysisChart && (this.integratedAnalysisChart.nativeElement as any).chart) {
+      const chart = (this.integratedAnalysisChart.nativeElement as any).chart;
+      // 這裡可以根據conceptData更新圖表數據
+      // chart.data.datasets[0].data = [conceptData.easy_mastery, conceptData.medium_mastery, conceptData.hard_mastery];
+      // chart.update();
+    }
+  }
+
+  // 開始學習路徑中的某個步驟
+  startLearning(step: any): void {
+    if (step.readiness < 0.6) {
+      alert('此步驟尚未準備好，請先完成前置步驟');
+      return;
+    }
+    
+    // 根據步驟類型執行不同的學習動作
+    if (step.concept_name) {
+      // 跳轉到相關的學習頁面
+      this.router.navigate(['/dashboard/learning-analytics'], {
+        queryParams: {
+          action: 'learn',
+          concept: step.concept_name,
+          step: step.reason,
+          difficulty: step.estimated_difficulty
+        }
+      });
+    }
+  }
+
 }

@@ -60,7 +60,25 @@ export interface AIDiagnosisData {
   }[];
   evidence: string[];
   confidence: 'high' | 'medium' | 'low';
+  learning_path: LearningPathItem[];  // 新增學習路徑
+  difficulty_breakdown?: { [key: string]: number };  // 難度掌握度分析
+  forgetting_analysis?: {  // 遺忘分析
+    base_mastery: number;
+    current_mastery: number;
+    days_since_practice: number;
+    review_urgency: 'high' | 'medium' | 'low';
+    forgetting_curve_data: number[];
+  };
   full_text: string;
+}
+
+export interface LearningPathItem {
+  concept_id: string;
+  concept_name: string;
+  readiness: number;
+  reason: string;
+  estimated_difficulty: string;
+  priority: 'high' | 'medium' | 'low';
 }
 
 export interface WeakPoint {
@@ -226,6 +244,23 @@ export class LearningAnalyticsService {
         return of(null);
       })
     );
+  }
+
+  // 獲取難度分析數據
+  getDifficultyAnalysis(): Observable<any> {
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    });
+
+    return this.http.post<any>(`${this.baseUrl}/difficulty-analysis`, {}, { headers })
+      .pipe(
+        map((response: any) => response.data || {}),
+        catchError((error: any) => {
+          console.error('獲取難度分析失敗:', error);
+          return of({});
+        })
+      );
   }
 
 
