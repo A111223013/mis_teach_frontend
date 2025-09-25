@@ -169,14 +169,15 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   loadQuizFromBackend(templateId: string, timeoutId: any): void {
     // 從後端載入測驗數據
+    console.log('🔍 調試：loadQuizFromBackend 使用 templateId:', templateId);
     this.quizService.getQuiz(templateId).subscribe({
       next: (response) => {
         clearTimeout(timeoutId); // 清除超時計時器
         if (response.success && response.data) {
           const quizData = response.data;
           // 設置測驗信息
-          this.quizTitle = this.generateQuizTitle('knowledge', '', '', '', 'AI生成測驗');
-          this.questions = quizData.questions;
+          this.quizTitle = quizData.title || quizData.quiz_info?.title || '測驗';
+          this.questions = quizData.questions || [];
           this.timeLimit = quizData.time_limit || 60;
           this.totalQuestions = this.questions.length;
           
@@ -315,8 +316,18 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     // 设置 templateId
     if (templateId) {
       this.templateId = templateId;
+      console.log('🔍 調試：使用查詢參數中的 templateId:', templateId);
     } else {
-      this.templateId = this.quizId;
+      // 如果沒有 template_id 查詢參數，嘗試從 sessionStorage 獲取
+      const sessionData = this.restoreQuizFromSession();
+      if (sessionData && sessionData.template_id) {
+        this.templateId = sessionData.template_id;
+        console.log('🔍 調試：從 session 獲取 templateId:', sessionData.template_id);
+      } else {
+        // 最後的備選方案：使用 quizId（但這可能不正確）
+        this.templateId = this.quizId;
+        console.log('⚠️ 警告：使用 quizId 作為 templateId，這可能不正確:', this.quizId);
+      }
     }
     
     // 設置超時機制
