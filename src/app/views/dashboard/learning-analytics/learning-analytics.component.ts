@@ -131,6 +131,7 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     this.handleQueryParams();
   }
 
+
   handleQueryParams() {
     // 檢查URL查詢參數，處理AI建議的行動
     const urlParams = new URLSearchParams(window.location.search);
@@ -196,16 +197,17 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     this.overview = this.analyticsData.overview;
     this.trendData = this.analyticsData.trends || [];
     
-    // 處理AI教練分析
+    // 處理AI教練分析（後端已處理Redis快取）
     this.aiCoachAnalysis = (this.analyticsData as any).ai_coach_analysis || null;
-
-
+    console.log('🔍 調試：使用後端AI教練分析數據:', this.aiCoachAnalysis);
+    
     // 初始化其他數據
     this.initializeOtherData();
     
     // 初始化趨勢圖表知識點選項
     this.initializeTrendDomains();
   }
+
 
   // 初始化其他數據
   private initializeOtherData() {
@@ -271,10 +273,10 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   // 計算趨勢百分比
   private calculateTrend(metric: string, reverse: boolean = false): string {
     const current = this.overview?.[metric] || 0;
-    const previous = this.overview?.[`previous_${metric}`] || current * 0.9; // 模擬前一期數據
+    const previous = this.overview?.[`previous_${metric}`] || 0;
     
     if (current === 0 && previous === 0) return '0%';
-    
+
     const change = ((current - previous) / previous) * 100;
     const adjustedChange = reverse ? -change : change;
     
@@ -297,6 +299,14 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   getFocusScore(): number {
     return this.overview?.focus_score || 0;
+  }
+
+  getAccuracyRate(): number {
+    return (this.overview?.accuracy_rate || 0) * 100;
+  }
+
+  getErrorRate(): number {
+    return (this.overview?.error_rate || 0) * 100;
   }
 
 
@@ -610,59 +620,13 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     this.currentAIDiagnosis = null;
     this.showAILearningPath = true;  // 默認顯示學習路徑
     
-    // 檢查session storage中是否有快取的AI診斷結果
-    const cacheKey = `ai_diagnosis_${conceptId}`;
-    console.log('檢查session快取，鍵值:', cacheKey);
-    const cachedData = sessionStorage.getItem(cacheKey);
-    console.log('快取數據:', cachedData);
-    
-    if (cachedData) {
-      try {
-        const parsedData = JSON.parse(cachedData);
-        const cacheTime = parsedData.timestamp;
-        const now = Date.now();
-        const timeDiff = now - cacheTime;
-        const minutesDiff = timeDiff / (1000 * 60);
-        
-        console.log('快取時間:', new Date(cacheTime));
-        console.log('當前時間:', new Date(now));
-        console.log('時間差(分鐘):', minutesDiff);
-        
-        // 檢查快取是否在30分鐘內
-        if (timeDiff < 30 * 60 * 1000) {
-          console.log('使用快取數據，不調用API');
-          this.currentAIDiagnosis = parsedData.data;
-          return; // 使用快取數據，不調用API
-        } else {
-          console.log('快取已過期，清除快取');
-          // 快取過期，清除
-          sessionStorage.removeItem(cacheKey);
-        }
-      } catch (e) {
-        console.error('解析快取數據失敗:', e);
-        sessionStorage.removeItem(cacheKey);
-      }
-    } else {
-      console.log('沒有找到快取數據');
-    }
-    
-    // 如果沒有快取或已過期，調用AI診斷服務
+    // 直接調用AI診斷服務（後端已處理Redis快取）
     this.isDiagnosisLoading = true;
     this.learningAnalyticsService.getAIDiagnosis(conceptId, conceptName, domainName || '未知領域').subscribe({
       next: (diagnosis) => {
         this.isDiagnosisLoading = false;
         if (diagnosis) {
           this.currentAIDiagnosis = diagnosis;
-          
-          // 儲存到session storage，30分鐘有效期
-          const cacheKey = `ai_diagnosis_${conceptId}`;
-          const cacheData = {
-            timestamp: Date.now(),
-            data: diagnosis
-          };
-          sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
-          console.log('AI診斷結果已儲存到session storage，鍵值:', cacheKey);
-          console.log('儲存時間:', new Date(cacheData.timestamp));
         }
       },
       error: (error) => {
@@ -1006,30 +970,6 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       return;
     }
     
-    // 檢查session storage中是否有快取的AI診斷結果
-    const cacheKey = `ai_diagnosis_${this.currentConceptData.id}`;
-    const cachedData = sessionStorage.getItem(cacheKey);
-    if (cachedData) {
-      try {
-        const parsedData = JSON.parse(cachedData);
-        const cacheTime = parsedData.timestamp;
-        const now = Date.now();
-        
-        // 檢查快取是否在30分鐘內
-        if (now - cacheTime < 30 * 60 * 1000) {
-          this.currentAIDiagnosis = parsedData.data;
-          this.showAILearningPath = true;
-          return;
-        } else {
-          // 快取過期，清除
-          sessionStorage.removeItem(cacheKey);
-        }
-      } catch (e) {
-        console.error('解析快取數據失敗:', e);
-        sessionStorage.removeItem(cacheKey);
-      }
-    }
-    
     // 如果已經有AI診斷結果，直接顯示學習路徑
     if (this.currentAIDiagnosis) {
       this.showAILearningPath = true;
@@ -1050,14 +990,6 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
         this.isDiagnosisLoading = false;
         if (diagnosis) {
           this.currentAIDiagnosis = diagnosis;
-          
-          // 儲存到session storage，30分鐘有效期
-          const cacheKey = `ai_diagnosis_${this.currentConceptData.id}`;
-          const cacheData = {
-            timestamp: Date.now(),
-            data: diagnosis
-          };
-          sessionStorage.setItem(cacheKey, JSON.stringify(cacheData));
         }
       },
       error: (error) => {

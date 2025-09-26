@@ -2,6 +2,22 @@
   height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
+  background-color: #fff;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* 移除 Bootstrap 默認的間距和邊框 */
+.exam-page-layout .row {
+  margin: 0;
+  --bs-gutter-x: 0;
+}
+
+.exam-page-layout .col-md-3,
+.exam-page-layout .col-lg-2,
+.exam-page-layout .col-md-9,
+.exam-page-layout .col-lg-10 {
+  padding: 0;
 }
 
 .question-nav-panel {
@@ -9,9 +25,11 @@
   padding: 15px;
   height: 100%;
   overflow-y: auto;
-  border-right: 1px solid #eee;
+  border-right: 1px solid #e9ecef;
   flex-shrink: 0;
   min-width: 200px;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* 主要內容區域 */
@@ -21,6 +39,9 @@
   padding: 0;
   display: flex;
   flex-direction: column;
+  background-color: #fff;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .exam-info {
@@ -34,8 +55,9 @@
 .question-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 15px;
+  justify-content: flex-start;
 }
 
 .question-nav-btn {
@@ -117,6 +139,10 @@
   overflow-y: auto;
   flex: 1;
   min-height: 0; /* 確保flex子元素可以縮小 */
+  background-color: #fff;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
 }
 
 .exam-header {
@@ -1308,6 +1334,21 @@ img[src=""]:after {
     border-right: none;
     border-bottom: 1px solid #eee;
     overflow-y: auto;
+  }
+  
+  .question-grid {
+    gap: 4px;
+    justify-content: center;
+  }
+  
+  .question-nav-btn {
+    width: 35px;
+    height: 35px;
+    font-size: 12px;
+  }
+  
+  .legend {
+    display: none; /* 在小螢幕上隱藏圖例以節省空間 */
   }
   
   .col-md-9.col-lg-10 {

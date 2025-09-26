@@ -74,6 +74,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   showQuestionDetailModal = false;
   showUserAnswerDetailModal = false;
   showCorrectAnswerDetailModal = false;
+  currentQuestionAnswerAnalysis: string | null = null;
 
   // 筆記功能
   notes: Note[] = [];
@@ -677,6 +678,32 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   
   showCorrectAnswerModal(): void {
     this.showCorrectAnswerDetailModal = true;
+    this.generateAnswerAnalysis();
+  }
+
+  async generateAnswerAnalysis() {
+    if (!this.currentQuestion) return;
+
+    try {
+      this.currentQuestionAnswerAnalysis = null; // 重置分析內容
+      
+      const analysisMessage = `請分析這道題目：${this.currentQuestion.question_text}\n\n正確答案：${this.currentQuestion.correct_answer}\n\n請提供詳細的答案分析，包括：\n1. 題目考察的知識點\n2. 解題思路和步驟\n3. 相關概念說明\n4. 常見錯誤和注意事項`;
+
+      const response = await this.aiTutoringService.sendTutoringMessage(
+        analysisMessage, 
+        this.sessionId, 
+        this.currentQuestion
+      ).toPromise();
+      
+      if (response?.success && response.response) {
+        this.currentQuestionAnswerAnalysis = response.response;
+      } else {
+        this.currentQuestionAnswerAnalysis = '無法生成答案分析，請重試。';
+      }
+    } catch (error) {
+      console.error('生成答案分析失敗:', error);
+      this.currentQuestionAnswerAnalysis = '生成答案分析時發生錯誤，請重試。';
+    }
   }
 
   saveNote(): void {

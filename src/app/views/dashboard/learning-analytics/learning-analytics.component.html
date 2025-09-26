@@ -1,5 +1,15 @@
 <!-- 學習成效分析頁面 - 單頁Dashboard -->
-<div class="learning-analytics-container">
+<div class="learning-analytics-container" [class.loading]="isLoading">
+  <!-- Loading 覆蓋層 -->
+  <div *ngIf="isLoading" class="loading-overlay">
+    <div class="loading-content">
+      <div class="spinner-border text-primary mb-3" role="status">
+        <span class="visually-hidden">載入中...</span>
+      </div>
+      <h5 class="text-primary">正在分析您的學習數據...</h5>
+      <p class="text-muted">AI教練正在為您準備個人化分析報告</p>
+    </div>
+  </div>
   <!-- 頁面標題 -->
   <div class="row mb-4">
     <div class="col-12">
@@ -69,8 +79,8 @@
 
     <!-- 核心指標卡片區 -->
     <div class="row mb-4">
-      <div class="col-md-3 col-sm-6 mb-3" *ngFor="let card of metricCards">
-        <c-card class="metric-card h-100">
+      <div class="col-lg-3 col-md-6 col-sm-12 mb-3" *ngFor="let card of metricCards">
+        <c-card class="metric-card">
           <c-card-body class="text-center">
             <div class="metric-icon mb-2">
               <i [class]="card.icon + ' text-' + card.color" style="font-size: 2rem;"></i>
@@ -92,7 +102,7 @@
     <!-- 趨勢分析區域 -->
     <div id="trend" class="row mb-4">
       <div class="col-lg-6 mb-4">
-        <c-card>
+        <c-card class="h-100">
           <c-card-header>
             <h5 class="mb-0">
               <i class="cil-chart-line me-2"></i>學習趨勢與遺忘曲線分析
@@ -157,7 +167,7 @@
         </c-card>
       </div>
       <div class="col-lg-6 mb-4">
-        <c-card>
+        <c-card class="h-100">
           <c-card-header>
             <h5 class="mb-0">
               <i class="cil-chart me-2"></i>學習統計
@@ -174,7 +184,7 @@
               <div class="stat-item d-flex justify-content-between mb-3">
                 <span class="stat-label">正確率</span>
                 <span class="stat-value text-success">
-                  {{ (overview?.accuracy || 0) | number:'1.1-1' }}%
+                  {{ ((overview?.accuracy || 0) * 100) | number:'1.1-1' }}%
                 </span>
               </div>
               <div class="stat-item d-flex justify-content-between mb-3">
@@ -201,30 +211,6 @@
                   {{ overview?.learning_concepts || 0 }} 個
                 </span>
               </div>
-              <div class="stat-item d-flex justify-content-between mb-3">
-                <span class="stat-label">總學習時間</span>
-                <span class="stat-value text-info">
-                  {{ overview?.total_study_time || 0 }} 小時
-                </span>
-              </div>
-              <div class="stat-item d-flex justify-content-between mb-3">
-                <span class="stat-label">平均每日</span>
-                <span class="stat-value text-muted">
-                  {{ overview?.avg_daily_time || 0 }} 分鐘
-                </span>
-              </div>
-              <div class="stat-item d-flex justify-content-between mb-3">
-                <span class="stat-label">最長學習時段</span>
-                <span class="stat-value text-info">
-                  {{ overview?.longest_session || 0 }} 分鐘
-                </span>
-              </div>
-              <div class="stat-item d-flex justify-content-between">
-                <span class="stat-label">學習強度</span>
-                <span class="stat-value text-primary">
-                  {{ overview?.study_intensity || 0 }}%
-                </span>
-              </div>
             </div>
           </c-card-body>
         </c-card>
@@ -235,7 +221,7 @@
     <div class="row mb-4">
       <!-- 能力分布雷達圖 -->
       <div class="col-lg-6 mb-4">
-        <c-card class="radar-chart-small">
+        <c-card class="radar-chart-small h-100">
           <c-card-header>
             <h5 class="mb-0">
               <i class="cil-chart me-2"></i>能力分布雷達圖
@@ -279,23 +265,6 @@
                 <canvas #integratedAnalysisChart></canvas>
               </div>
             
-            <!-- 知識點掌握度摘要 -->
-            <div class="mastery-summary mt-3">
-              <h6 class="text-primary mb-3">
-                <i class="cil-target me-2"></i>掌握度摘要
-              </h6>
-              <div class="row">
-                <div class="col-4" *ngFor="let summary of masterySummary">
-                  <div class="summary-card text-center p-2 border rounded">
-                    <div class="summary-title small text-muted mb-1">{{ summary.title }}</div>
-                    <div class="summary-value h6 mb-1" [class]="'text-' + summary.color">
-                      {{ summary.value }}
-                    </div>
-                    <div class="summary-concept small">{{ summary.concept }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
             
           </c-card-body>
         </c-card>
@@ -305,7 +274,7 @@
     <!-- 知識點變化分析 -->
     <div class="row mb-4">
       <div class="col-md-6 mb-4">
-        <c-card>
+        <c-card class="h-100">
           <c-card-header>
             <h5 class="mb-0">
               <i class="cil-arrow-top me-2 text-success"></i>最近進步的知識點
@@ -340,9 +309,6 @@
                   </div>
                   <div class="d-flex justify-content-between align-items-center">
                     <span class="text-muted small">掌握度: {{ (item.mastery * 100) | number:'1.0-1' }}%</span>
-                    <button class="btn btn-sm btn-outline-primary" (click)="openAIDiagnosisAndPractice(item)">
-                      <i class="cil-magnifying-glass me-1"></i>AI診斷
-            </button>
                   </div>
                 </div>
             </div>
@@ -350,7 +316,7 @@
         </c-card>
       </div>
       <div class="col-md-6 mb-4">
-        <c-card>
+        <c-card class="h-100">
           <c-card-header>
             <h5 class="mb-0">
               <i class="cil-arrow-bottom me-2 text-danger"></i>需要關注的知識點
@@ -380,12 +346,8 @@
                     [style.width.%]="item.mastery * 100">
                   </div>
                 </div>
-                <div class="mb-2">
-                  <small class="text-muted">{{ item.ai_strategy }}</small>
-                </div>
                 <div class="d-flex justify-content-between align-items-center">
-                  <span class="text-muted small">掌握度: {{ (item.mastery * 100) | number:'1.0-1' }}%</span>
-                  <span class="text-muted small">需要加強練習</span>
+                  <span class="text-muted small">{{ item.ai_strategy }}</span>
                 </div>
               </div>
             </div>
@@ -430,7 +392,7 @@
                   <div class="knowledge-tree">
                     <div class="row">
                       <div 
-                        class="col-md-6 mb-3" 
+                        class="col-12 mb-3" 
                         *ngFor="let knowledge of topWeakPoints; let i = index">
                         <div class="knowledge-card card h-100">
                           <div class="card-header" (click)="toggleKnowledgeNode(knowledge)">
@@ -503,43 +465,6 @@
     </div>
   </div>
 
-  <!-- 進度追蹤條 -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <c-card>
-          <c-card-header>
-          <h5 class="mb-0">
-            <i class="cil-chart me-2"></i>學習進度追蹤
-          </h5>
-          </c-card-header>
-          <c-card-body>
-            <div class="progress-tracking">
-              <div class="row">
-                <div class="col-md-4 mb-3" *ngFor="let progress of progressTracking">
-                  <div class="progress-item text-center p-3 border rounded">
-                    <div class="progress-icon mb-2">
-                      <i [class]="progress.icon + ' text-' + progress.color" style="font-size: 2rem;"></i>
-                    </div>
-                    <h6 class="mb-1">{{ progress.title }}</h6>
-                    <div class="progress mb-2" style="height: 8px;">
-                      <div 
-                        class="progress-bar" 
-                        [class]="'bg-' + progress.color"
-                        [style.width.%]="progress.percentage">
-                      </div>
-                    </div>
-                    <div class="progress-text">
-                      <span class="text-muted small">{{ progress.completed }}/{{ progress.total }}</span>
-                      <span class="text-muted small ms-2">{{ progress.percentage }}%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </c-card-body>
-        </c-card>
-      </div>
-    </div>
 
   <!-- AI學習路徑模態框 -->
   <c-modal [visible]="aiDiagnosisModalVisible" (visibleChange)="aiDiagnosisModalVisible = $event" size="lg">
