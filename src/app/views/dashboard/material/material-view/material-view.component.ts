@@ -100,18 +100,24 @@ export class MaterialViewComponent implements AfterViewChecked {
 
   // Markdown 載入完成後
   onMarkdownReady(): void {
-    this.generateTOC();
-    this.renderKaTeX();
-    this.highlightCode();
-    this.rendered = true;
-  }
-
-  ngAfterViewChecked(): void {
-    if (!this.rendered && this.content) {
+    // 延遲執行以確保 DOM 完全渲染
+    setTimeout(() => {
       this.generateTOC();
       this.renderKaTeX();
       this.highlightCode();
       this.rendered = true;
+    }, 100);
+  }
+
+  ngAfterViewChecked(): void {
+    if (!this.rendered && this.content) {
+      // 延遲執行以確保 DOM 完全渲染
+      setTimeout(() => {
+        this.generateTOC();
+        this.renderKaTeX();
+        this.highlightCode();
+        this.rendered = true;
+      }, 100);
     }
   }
 
@@ -122,20 +128,76 @@ export class MaterialViewComponent implements AfterViewChecked {
 
     const headers = content.querySelectorAll('h1,h2,h3,h4,h5,h6');
     tocList.innerHTML = '';
+    
+    if (headers.length === 0) {
+      const noContent = document.createElement('div');
+      noContent.textContent = '此文件沒有標題';
+      noContent.style.color = '#6c757d';
+      noContent.style.fontStyle = 'italic';
+      noContent.style.padding = '1rem';
+      noContent.style.textAlign = 'center';
+      tocList.appendChild(noContent);
+      return;
+    }
+
     headers.forEach((h: HTMLElement) => {
       const text = h.textContent?.trim();
       if (!text) return;
 
       if (!h.id) {
-        h.id = text.replace(/\s+/g, '_');
+        h.id = text.replace(/\s+/g, '_').replace(/[^\w\u4e00-\u9fff]/g, '');
       }
 
       const a = document.createElement('a');
       a.textContent = text;
-      a.classList.add('d-block', 'mb-1', 'toc-link');
+      a.classList.add('toc-link');
       a.style.cursor = 'pointer';
-      a.addEventListener('click', () => {
+      a.style.display = 'block';
+      a.style.padding = '0.5rem 0';
+      a.style.color = '#6c757d';
+      a.style.textDecoration = 'none';
+      a.style.fontSize = '0.9rem';
+      a.style.lineHeight = '1.4';
+      a.style.transition = 'all 0.2s ease';
+      a.style.borderLeft = '3px solid transparent';
+      a.style.paddingLeft = '1rem';
+      a.style.marginLeft = '0.5rem';
+      
+      // 根據標題層級調整縮排
+      const level = parseInt(h.tagName.charAt(1));
+      a.style.paddingLeft = `${1 + (level - 1) * 0.5}rem`;
+      
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
         this.viewportScroller.scrollToAnchor(h.id);
+        // 添加視覺反饋
+        a.style.color = '#007bff';
+        a.style.background = 'rgba(0, 123, 255, 0.05)';
+        a.style.borderLeftColor = '#007bff';
+        setTimeout(() => {
+          a.style.color = '#6c757d';
+          a.style.background = 'transparent';
+          a.style.borderLeftColor = 'transparent';
+        }, 1000);
+      });
+
+      // 懸停效果
+      a.addEventListener('mouseenter', () => {
+        if (a.style.color !== '#007bff') {
+          a.style.color = '#007bff';
+          a.style.background = 'rgba(0, 123, 255, 0.05)';
+          a.style.borderLeftColor = '#007bff';
+          a.style.transform = 'translateX(4px)';
+        }
+      });
+
+      a.addEventListener('mouseleave', () => {
+        if (a.style.color !== '#007bff') {
+          a.style.color = '#6c757d';
+          a.style.background = 'transparent';
+          a.style.borderLeftColor = 'transparent';
+          a.style.transform = 'translateX(0)';
+        }
       });
 
       tocList.appendChild(a);
