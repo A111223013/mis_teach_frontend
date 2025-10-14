@@ -1706,6 +1706,12 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   private ctx?: CanvasRenderingContext2D;
   private isDrawing = false;
   brushSize = 3;
+  brushColor = '#000000';
+  isEraserMode = false;
+  canvasWidth = 800;
+  canvasHeight = 500;
+  showCanvasSizeModal = false;
+  private cursorCircle?: HTMLElement;
 
   startDrawing(event: MouseEvent): void {
     if (!this.canvas || !this.ctx) {
@@ -1717,6 +1723,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       const rect = this.canvas!.getBoundingClientRect();
       this.ctx.beginPath();
       this.ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+      
+      // 更新游標位置
+      this.updateCursorPosition(event);
       
       // 開始繪圖時立即儲存一次（清除之前的記錄）
       this.autoSaveDrawing();
@@ -1738,12 +1747,23 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     const rect = this.canvas.getBoundingClientRect();
     this.ctx.lineWidth = this.brushSize;
     this.ctx.lineCap = 'round';
-    this.ctx.strokeStyle = '#000000';
+    
+    // 根據模式設置樣式
+    if (this.isEraserMode) {
+      this.ctx.globalCompositeOperation = 'destination-out';
+      this.ctx.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      this.ctx.globalCompositeOperation = 'source-over';
+      this.ctx.strokeStyle = this.brushColor;
+    }
     
     this.ctx.lineTo(event.clientX - rect.left, event.clientY - rect.top);
     this.ctx.stroke();
     this.ctx.beginPath();
     this.ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+    
+    // 更新游標位置
+    this.updateCursorPosition(event);
     
     // 繪圖過程中持續自動儲存（每10次繪圖才儲存一次，避免過於頻繁）
     if (Math.random() < 0.1) { // 10% 機率儲存
@@ -1769,6 +1789,119 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       // 清除後立即儲存空白畫布
       this.autoSaveDrawing();
     }
+  }
+
+  // 切換橡皮擦模式
+  toggleEraser(): void {
+    this.isEraserMode = !this.isEraserMode;
+    // 重新創建游標圓圈以更新樣式
+    this.createCursorCircle();
+  }
+
+  // 設置畫筆顏色
+  setBrushColor(color: string): void {
+    this.brushColor = color;
+    this.isEraserMode = false; // 選擇顏色時自動切換回畫筆模式
+    // 重新創建游標圓圈以更新顏色
+    this.createCursorCircle();
+  }
+
+  // 調整畫布大小
+  resizeCanvas(): void {
+    if (!this.canvas || !this.ctx) return;
+    
+    // 保存當前畫布內容
+    const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+    
+    // 調整畫布大小
+    this.canvas.width = this.canvasWidth;
+    this.canvas.height = this.canvasHeight;
+    
+    // 恢復畫布內容（會被裁切或留白）
+    this.ctx.putImageData(imageData, 0, 0);
+    
+    // 重新設置樣式
+    this.ctx.strokeStyle = this.brushColor;
+    this.ctx.lineWidth = this.brushSize;
+    this.ctx.lineCap = 'round';
+    
+    this.showCanvasSizeModal = false;
+    this.autoSaveDrawing();
+  }
+
+  // 開啟畫布大小設定對話框
+  openCanvasSizeModal(): void {
+    this.showCanvasSizeModal = true;
+  }
+
+  // 關閉畫布大小設定對話框
+  closeCanvasSizeModal(): void {
+    this.showCanvasSizeModal = false;
+  }
+
+  // 創建自訂游標圓圈
+  private createCursorCircle(): void {
+    if (!this.canvas) return;
+
+    // 移除現有的游標圓圈
+    this.removeCursorCircle();
+
+    // 創建新的游標圓圈
+    this.cursorCircle = document.createElement('div');
+    this.cursorCircle.style.position = 'absolute';
+    this.cursorCircle.style.width = this.brushSize + 'px';
+    this.cursorCircle.style.height = this.brushSize + 'px';
+    this.cursorCircle.style.border = '2px solid ' + (this.isEraserMode ? '#dc3545' : this.brushColor);
+    this.cursorCircle.style.borderRadius = '50%';
+    this.cursorCircle.style.backgroundColor = this.isEraserMode 
+      ? 'rgba(220, 53, 69, 0.2)' 
+      : (this.brushColor + '20'); // 添加透明度
+    this.cursorCircle.style.pointerEvents = 'none';
+    this.cursorCircle.style.zIndex = '1000';
+    this.cursorCircle.style.transform = 'translate(-50%, -50%)';
+    this.cursorCircle.style.display = 'none';
+
+    // 添加到畫布容器
+    const canvasContainer = this.canvas.parentElement;
+    if (canvasContainer) {
+      canvasContainer.style.position = 'relative';
+      canvasContainer.appendChild(this.cursorCircle);
+    }
+  }
+
+  // 移除游標圓圈
+  private removeCursorCircle(): void {
+    if (this.cursorCircle && this.cursorCircle.parentElement) {
+      this.cursorCircle.parentElement.removeChild(this.cursorCircle);
+    }
+    this.cursorCircle = undefined;
+  }
+
+  // 更新游標圓圈位置
+  private updateCursorPosition(event: MouseEvent): void {
+    if (!this.cursorCircle || !this.canvas) return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const containerRect = this.canvas.parentElement!.getBoundingClientRect();
+    
+    const x = event.clientX - containerRect.left;
+    const y = event.clientY - containerRect.top;
+
+    this.cursorCircle.style.left = x + 'px';
+    this.cursorCircle.style.top = y + 'px';
+    this.cursorCircle.style.display = 'block';
+  }
+
+  // 隱藏游標圓圈
+  private hideCursor(): void {
+    if (this.cursorCircle) {
+      this.cursorCircle.style.display = 'none';
+    }
+  }
+
+  // 更新筆刷大小時重新創建游標圓圈
+  onBrushSizeChange(): void {
+    this.createCursorCircle();
   }
 
   // 自動儲存繪圖（覆蓋式儲存）
@@ -1843,10 +1976,17 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       if (context) {
         this.ctx = context;
         
+        // 設置畫布大小
+        this.canvas.width = this.canvasWidth;
+        this.canvas.height = this.canvasHeight;
+        
         // 設置繪圖樣式
-        this.ctx.strokeStyle = '#000000';
+        this.ctx.strokeStyle = this.brushColor;
         this.ctx.lineWidth = this.brushSize;
         this.ctx.lineCap = 'round';
+        
+        // 創建游標圓圈
+        this.createCursorCircle();
       } else {
         console.error('❌ 無法獲取 2D context');
       }
