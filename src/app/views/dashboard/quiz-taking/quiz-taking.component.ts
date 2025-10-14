@@ -1729,18 +1729,11 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       
       // 開始繪圖時立即儲存一次（清除之前的記錄）
       this.autoSaveDrawing();
-    } else {
-      console.error('❌ 無法開始繪圖，ctx 不存在');
     }
   }
 
   draw(event: MouseEvent): void {
     if (!this.isDrawing || !this.ctx || !this.canvas) {
-      console.log('🔄 draw 被調用但條件不滿足:', {
-        isDrawing: this.isDrawing,
-        hasCtx: !!this.ctx,
-        hasCanvas: !!this.canvas
-      });
       return;
     }
     
@@ -1778,14 +1771,15 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       
       // 結束繪圖時最後儲存一次
       this.autoSaveDrawing();
-    } else {
-      console.log('❌ 無法結束繪圖，ctx 不存在');
     }
   }
 
   clearCanvas(): void {
     if (this.ctx && this.canvas) {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      // 填充白色背景（避免透明背景轉換為黑色）
+      this.ctx.fillStyle = '#FFFFFF';
+      this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       // 清除後立即儲存空白畫布
       this.autoSaveDrawing();
     }
@@ -1813,9 +1807,13 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     // 保存當前畫布內容
     const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
     
-    // 調整畫布大小
+    // 調整畫布大小（這會清除畫布為透明）
     this.canvas.width = this.canvasWidth;
     this.canvas.height = this.canvasHeight;
+    
+    // 填充白色背景（避免透明背景）
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     
     // 恢復畫布內容（會被裁切或留白）
     this.ctx.putImageData(imageData, 0, 0);
@@ -1916,12 +1914,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       // 直接覆蓋儲存到該題的答案中
       this.userAnswers[this.currentQuestionIndex] = dataURL;
       
-      
       // 更新狀態顯示
       this.cdr.detectChanges();
-      
     } catch (error) {
-      console.error('❌ 自動儲存繪圖失敗:', error);
+      // 儲存失敗，靜默處理
     }
   }
 
@@ -1932,7 +1928,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     // 檢查畫布是否有實際內容
     const hasContent = this.checkCanvasContent();
     if (!hasContent) {
-      console.warn('畫布內容為空，請先繪圖再儲存');
       alert('畫布內容為空，請先繪圖再儲存');
       return;
     }
@@ -1959,7 +1954,6 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   private setupCanvas(): void {
-    
     // 根據數學答題模式選擇正確的畫布
     let targetCanvas: ElementRef<HTMLCanvasElement> | undefined;
     
@@ -1980,6 +1974,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
         this.canvas.width = this.canvasWidth;
         this.canvas.height = this.canvasHeight;
         
+        // 填充白色背景（避免透明背景轉換為黑色）
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
         // 設置繪圖樣式
         this.ctx.strokeStyle = this.brushColor;
         this.ctx.lineWidth = this.brushSize;
@@ -1987,19 +1985,12 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
         
         // 創建游標圓圈
         this.createCursorCircle();
-      } else {
-        console.error('❌ 無法獲取 2D context');
       }
-    } else {
-      console.error('❌ 找不到可用的畫布元素');
-      console.error('❌ drawingCanvas.nativeElement:', this.drawingCanvas?.nativeElement);
-      console.error('❌ mathCanvas.nativeElement:', this.mathCanvas?.nativeElement);
     }
   }
 
   // 初始化畫圖題畫布
   private initializeDrawingCanvas(): void {
-    
     if (!this.currentQuestion || !this.shouldShowMathAnswerMode()) {
       return;
     }
@@ -2023,29 +2014,37 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   // 載入已儲存的繪圖
   private loadSavedDrawing(): void {
-    
     if (!this.canvas || !this.ctx) {
-      console.log('❌ canvas 或 ctx 不存在，無法載入');
       return;
     }
 
-    const savedAnswer = this.userAnswers[this.currentQuestionIndex];
+    // **重要：無論有沒有已保存的圖片，都先填充白色背景**
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    let savedAnswer = this.userAnswers[this.currentQuestionIndex];
     
+    // 檢測並清除損壞的黑色圖片
+    if (savedAnswer && typeof savedAnswer === 'string' && savedAnswer.startsWith('data:image/')) {
+      // 如果圖片非常小（可能是空白的黑色圖片），清除它
+      if (savedAnswer.length < 1000) {
+        savedAnswer = '';
+        this.userAnswers[this.currentQuestionIndex] = '';
+      }
+    }
+
     if (savedAnswer && typeof savedAnswer === 'string' && savedAnswer.startsWith('data:image/')) {
       const img = new Image();
       img.onload = () => {
         // 清除畫布
         this.ctx!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
+        // 重新填充白色背景（避免透明背景）
+        this.ctx!.fillStyle = '#FFFFFF';
+        this.ctx!.fillRect(0, 0, this.canvas!.width, this.canvas!.height);
         // 繪製儲存的圖片
         this.ctx!.drawImage(img, 0, 0, this.canvas!.width, this.canvas!.height);
       };
-      img.onerror = (error) => {
-        console.error('❌ 圖片載入失敗:', error);
-      };
       img.src = savedAnswer;
-    } else {
-      // 如果沒有儲存的圖片，清除畫布
-      this.ctx!.clearRect(0, 0, this.canvas!.width, this.canvas!.height);
     }
   }
 
@@ -2248,6 +2247,57 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.checkLatexInQuestion();
     // 渲染數學公式
     this.renderMathInElement();
+    
+    // **關鍵：確保 Canvas 始終有白色背景**
+    this.ensureCanvasWhiteBackground();
+  }
+  
+  private ensureCanvasWhiteBackground(): void {
+    // 檢查並填充繪圖 Canvas
+    if (this.drawingCanvas?.nativeElement) {
+      const canvas = this.drawingCanvas.nativeElement;
+      const ctx = canvas.getContext('2d');
+      if (ctx && canvas.width > 0 && canvas.height > 0) {
+        // 檢查左上角像素是否為白色
+        const imageData = ctx.getImageData(0, 0, 1, 1);
+        const isWhite = imageData.data[0] === 255 && 
+                       imageData.data[1] === 255 && 
+                       imageData.data[2] === 255;
+        
+        if (!isWhite) {
+          // 保存當前內容
+          const tempImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          // 填充白色背景
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          // 恢復內容
+          ctx.putImageData(tempImageData, 0, 0);
+        }
+      }
+    }
+    
+    // 檢查並填充數學 Canvas
+    if (this.mathCanvas?.nativeElement) {
+      const canvas = this.mathCanvas.nativeElement;
+      const ctx = canvas.getContext('2d');
+      if (ctx && canvas.width > 0 && canvas.height > 0) {
+        // 檢查左上角像素是否為白色
+        const imageData = ctx.getImageData(0, 0, 1, 1);
+        const isWhite = imageData.data[0] === 255 && 
+                       imageData.data[1] === 255 && 
+                       imageData.data[2] === 255;
+        
+        if (!isWhite) {
+          // 保存當前內容
+          const tempImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          // 填充白色背景
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          // 恢復內容
+          ctx.putImageData(tempImageData, 0, 0);
+        }
+      }
+    }
   }
 
   renderQuestionText(): string {
@@ -2539,6 +2589,20 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       const context = this.mathCanvas.nativeElement.getContext('2d');
       if (context) {
         this.mathCtx = context;
+        
+        // 設置畫布大小
+        const canvas = this.mathCanvas.nativeElement;
+        canvas.width = this.canvasWidth;
+        canvas.height = this.canvasHeight;
+        
+        // 填充白色背景（避免透明背景轉換為黑色）
+        this.mathCtx.fillStyle = '#FFFFFF';
+        this.mathCtx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 設置繪圖樣式
+        this.mathCtx.strokeStyle = this.brushColor;
+        this.mathCtx.lineWidth = this.brushSize;
+        this.mathCtx.lineCap = 'round';
       }
     }
   }
