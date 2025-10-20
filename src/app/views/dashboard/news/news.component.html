@@ -15,9 +15,11 @@
         </div>
         <div class="c-card-body">
           <div class="c-card-tags">
-              @for (tag of card.tags; track tag) {
-                  <span class="tag">{{ tag }}</span>
-              }
+            @for (tag of card.tags; track tag.text) {
+              <a class="tag" [href]="'https://www.ithome.com.tw' + tag.href" target="_blank">
+                {{ tag.text }}
+              </a>
+            }
           </div>
           <h3 class="c-card-headline">{{ card.headline }}</h3>
           <p class="c-card-subheadline">{{ card.subheadline }}</p>
