@@ -18,7 +18,6 @@ import {
     CommonModule, 
     MarkdownModule,
     CardModule,
-    CardComponent,
   ],
   templateUrl: './material-view.component.html',
   styleUrls: ['./material-view.component.scss']
