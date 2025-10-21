@@ -595,22 +595,25 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       this.currentQuestionIndex = 0;
     }
     
+    // 先清理舊畫布狀態
+    this.clearCanvasState();
+    
     this.currentQuestion = this.questions[this.currentQuestionIndex];
     
     // 新增：記錄題目開始作答時間（第一題計時器啟動）
     this.recordQuestionStartTime(this.currentQuestionIndex);
     
+    // 強制觸發變更檢測，讓 DOM 更新
+    this.cdr.detectChanges();
+    
     // 如果顯示數學答題模式（包括畫圖題和LaTeX題目），初始化畫布
     if (this.shouldShowMathAnswerMode()) {
       setTimeout(() => {
         this.initializeDrawingCanvas();
-      }, 300);
-    } else {
-      // 如果不顯示數學答題模式，清理畫布狀態
-      this.clearCanvasState();
+        // 初始化後再次檢測變更
+        this.cdr.detectChanges();
+      }, 500);
     }
-    
-    this.cdr.detectChanges();
   }
   
   // 新增：記錄題目開始作答時間
@@ -698,6 +701,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
         this.recordQuestionPauseTime(this.currentQuestionIndex);
       }
       
+      // 先徹底清理舊畫布狀態
+      this.clearCanvasState();
+      
       this.currentQuestionIndex = index;
       this.currentQuestion = this.questions[index];
       this.resetImageLoadState(); // 重置圖片載入狀態
@@ -710,19 +716,18 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       // 開始新題目的計時器
       this.recordQuestionStartTime(index);
       
+      // 強制觸發變更檢測，讓 DOM 更新
+      this.cdr.detectChanges();
+      
       // 如果顯示數學答題模式（包括畫圖題和LaTeX題目），初始化畫布
       if (this.shouldShowMathAnswerMode()) {
-        // 使用 ngAfterViewInit 的時機，確保DOM已準備好
+        // 增加延遲時間，確保 DOM 完全準備好
         setTimeout(() => {
           this.initializeDrawingCanvas();
-        }, 300);
-      } else {
-        // 如果不顯示數學答題模式，清理畫布狀態
-        this.clearCanvasState();
+          // 初始化後再次檢測變更
+          this.cdr.detectChanges();
+        }, 500);
       }
-      
-      // 強制觸發變更檢測
-      this.cdr.detectChanges();
     } else {
       console.log('❌ 無效的題目索引:', index);
     }
@@ -1953,14 +1958,21 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     return false;
   }
 
-  private setupCanvas(): void {
+  private setupCanvas(): boolean {
+    console.log('🔧 setupCanvas 開始，mathAnswerMode=', this.mathAnswerMode);
+    
     // 根據數學答題模式選擇正確的畫布
     let targetCanvas: ElementRef<HTMLCanvasElement> | undefined;
     
     if (this.mathAnswerMode === 'drawing' && this.mathCanvas?.nativeElement) {
       targetCanvas = this.mathCanvas;
+      console.log('📍 選擇數學畫布');
     } else if (this.drawingCanvas?.nativeElement) {
       targetCanvas = this.drawingCanvas;
+      console.log('📍 選擇繪圖畫布');
+    } else {
+      console.warn('⚠️ 找不到可用的畫布元素');
+      return false;
     }
     
     if (targetCanvas?.nativeElement) {
@@ -1985,31 +1997,66 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
         
         // 創建游標圓圈
         this.createCursorCircle();
+        
+        console.log('✅ setupCanvas 成功');
+        return true;
+      } else {
+        console.error('❌ 無法獲取 2D context');
+        return false;
       }
     }
+    
+    console.error('❌ setupCanvas 失敗：targetCanvas 無效');
+    return false;
   }
 
   // 初始化畫圖題畫布
   private initializeDrawingCanvas(): void {
     if (!this.currentQuestion || !this.shouldShowMathAnswerMode()) {
+      console.log('⚠️ 不需要初始化畫布：currentQuestion=', !!this.currentQuestion, 'shouldShow=', this.shouldShowMathAnswerMode());
       return;
     }
 
+    console.log('🎨 開始初始化畫布，當前題目索引：', this.currentQuestionIndex);
+    
     // 清理舊的畫布狀態
     this.clearCanvasState();
     
     // 延遲執行，確保DOM已更新
     setTimeout(() => {
-      this.setupCanvas();
-      this.loadSavedDrawing();
+      const success = this.setupCanvas();
+      if (success) {
+        this.loadSavedDrawing();
+        console.log('✅ 畫布初始化成功');
+      } else {
+        console.warn('⚠️ 畫布初始化失敗，將重試');
+        // 如果失敗，再次嘗試
+        setTimeout(() => {
+          const retrySuccess = this.setupCanvas();
+          if (retrySuccess) {
+            this.loadSavedDrawing();
+            console.log('✅ 畫布重試初始化成功');
+          } else {
+            console.error('❌ 畫布初始化失敗');
+          }
+        }, 200);
+      }
     }, 100);
   }
 
   // 清理畫布狀態
   private clearCanvasState(): void {
+    // 停止任何正在進行的繪圖
+    this.isDrawing = false;
+    this.isMathDrawing = false;
+    
+    // 清除游標圓圈
+    this.removeCursorCircle();
+    
+    // 清除畫布引用
     this.canvas = undefined;
     this.ctx = undefined;
-    this.isDrawing = false;
+    this.mathCtx = undefined;
   }
 
   // 載入已儲存的繪圖
@@ -2431,7 +2478,25 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   switchMathAnswerMode(mode: 'drawing' | 'formula'): void {
+    console.log('🔄 切換答題模式：', this.mathAnswerMode, '->', mode);
+    
+    // 先清理舊的畫布狀態
+    this.clearCanvasState();
+    
+    // 切換模式
     this.mathAnswerMode = mode;
+    
+    // 強制觸發變更檢測
+    this.cdr.detectChanges();
+    
+    // 如果切換到繪圖模式，重新初始化畫布
+    if (mode === 'drawing') {
+      setTimeout(() => {
+        this.initializeDrawingCanvas();
+        // 初始化後再次檢測變更
+        this.cdr.detectChanges();
+      }, 500);
+    }
   }
 
   // 選擇數學工具標籤頁
