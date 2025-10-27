@@ -311,6 +311,39 @@
         </c-col>
      </c-row>
 
+    <!-- AI 回饋區域 -->
+    <div class="mt-4" *ngIf="selectedQuestion.feedback && (selectedQuestion.feedback.explanation || selectedQuestion.feedback.weaknesses)">
+      <h6 class="text-muted mb-3">
+        <c-icon name="cilLightbulb" class="me-2"></c-icon> AI 學習回饋
+      </h6>
+      
+      <!-- 解釋說明 -->
+      <div class="mb-3" *ngIf="selectedQuestion.feedback.explanation">
+        <div class="d-flex align-items-start">
+          <c-icon name="cilInfo" class="text-info me-2 mt-1"></c-icon>
+          <div class="flex-grow-1">
+            <h6 class="text-info mb-2">詳細解釋</h6>
+            <div class="p-3 bg-info-subtle rounded">
+              <p class="mb-0">{{ selectedQuestion.feedback.explanation }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 弱點分析 -->
+      <div class="mb-3" *ngIf="selectedQuestion.feedback.weaknesses">
+        <div class="d-flex align-items-start">
+          <c-icon name="cilWarning" class="text-warning me-2 mt-1"></c-icon>
+          <div class="flex-grow-1">
+            <h6 class="text-warning mb-2">需要改進的地方</h6>
+            <div class="p-3 bg-warning-subtle rounded">
+              <p class="mb-0">{{ selectedQuestion.feedback.weaknesses }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="mt-3" *ngIf="selectedQuestion.is_marked">
       <c-badge color="warning">
         <c-icon name="cilCloud" class="me-1"></c-icon> 您標記了此題
