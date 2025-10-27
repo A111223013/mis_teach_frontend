@@ -30,6 +30,12 @@ interface QuizAnswer {
   options?: string[];
   image_file?: string;
   key_points?: string;
+  feedback?: {
+    explanation?: string;
+    strengths?: string;
+    suggestions?: string;
+    weaknesses?: string;
+  };
 }
 
 interface QuizResult {

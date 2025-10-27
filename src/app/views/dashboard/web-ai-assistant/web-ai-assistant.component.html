@@ -1,8 +1,8 @@
-<!-- Web AI 助手 - 懸浮窗口 -->
-<div class="web-ai-container" [class.expanded]="isExpanded">
+<!-- Web AI 助手 - 側邊框 -->
+<div class="web-ai-sidebar" [class.expanded]="isExpanded" (click)="toggleExpanded()">
   
-  <!-- 聊天窗口標題欄 -->
-  <div class="chat-header" (click)="toggleExpanded()">
+  <!-- 側邊框標題欄 -->
+  <div class="sidebar-header">
     <div class="header-content">
       <div class="ai-avatar">
         <!-- 使用 misHelper.jpg 頭像，通過 CSS 背景圖片顯示 -->
@@ -23,8 +23,8 @@
     </div>
   </div>
 
-  <!-- 聊天窗口內容 -->
-  <div class="chat-content" *ngIf="isExpanded">
+  <!-- 側邊框內容 -->
+  <div class="sidebar-content" *ngIf="isExpanded">
     
     <!-- 快速操作區 -->
     <div class="quick-actions-bar">
@@ -36,7 +36,6 @@
         [title]="item.label">
         {{ item.label }}
       </button>
-
     </div>
 
     <!-- 訊息區域 -->
@@ -160,8 +159,8 @@
   </div>
 </div>
 
-<!-- 懸浮按鈕提示 -->
-<div class="floating-hint" *ngIf="!isExpanded && messages.length === 1">
+<!-- 側邊框提示 -->
+<div class="sidebar-hint" *ngIf="!isExpanded && messages.length === 1">
   <div class="hint-bubble">
     <span>💬 有問題嗎？點我開始對話！</span>
   </div>
