@@ -1,5 +1,5 @@
-/* Web AI 助手懸浮窗口樣式 */
-.web-ai-container {
+/* Web AI 助手側邊框樣式 */
+.web-ai-sidebar {
   position: fixed;
   bottom: 20px;
   right: 20px;
@@ -8,43 +8,61 @@
   background-image: url('/assets/misHelper.jpg');
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   border-radius: 50%;
   box-shadow: 0 4px 20px rgba(40, 167, 69, 0.3);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1050;
   overflow: hidden;
+  border: 2px solid rgba(40, 167, 69, 0.2);
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 25px rgba(40, 167, 69, 0.4);
   }
 
+  &:active {
+    transform: translateY(0) scale(0.95);
+  }
+
   &.expanded {
+    top: 0;
+    right: 0;
+    bottom: auto;
     width: 380px;
-    height: 500px;
-    border-radius: 16px;
+    height: 100vh;
+    border-radius: 0;
     cursor: default;
     background: white;
     background-image: none;
     border: 1px solid #e9ecef;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    box-shadow: -20px 0 60px rgba(0, 0, 0, 0.15);
+    
+    .sidebar-content {
+      pointer-events: auto;
+    }
   }
 
   @media (max-width: 768px) {
-    right: 10px;
     bottom: 10px;
+    right: 10px;
+    width: 50px;
+    height: 50px;
     
     &.expanded {
-      width: calc(100vw - 20px);
-      height: calc(100vh - 100px);
+      top: 0;
       right: 10px;
-      bottom: 10px;
+      left: 10px;
+      bottom: auto;
+      width: calc(100vw - 20px);
+      height: 100vh;
     }
   }
 }
 
-/* 聊天標題欄 */
-.chat-header {
+/* 側邊框標題欄 */
+.sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -54,16 +72,14 @@
   cursor: pointer;
   transition: all 0.2s ease;
   height: 60px;
-  border-radius: 16px 16px 0 0;
+  border-radius: 0;
 
   &:hover {
     background: linear-gradient(135deg, #218838, #1ea085);
   }
 
-  .web-ai-container:not(.expanded) & {
-    justify-content: center;
-    padding: 16px;
-    border-radius: 50%;
+  .web-ai-sidebar:not(.expanded) & {
+    display: none; // 收縮狀態時隱藏標題欄
   }
 }
 
@@ -72,7 +88,7 @@
   align-items: center;
   gap: 12px;
 
-  .web-ai-container:not(.expanded) & {
+  .web-ai-sidebar:not(.expanded) & {
     flex-direction: column;
     gap: 4px;
   }
@@ -87,7 +103,7 @@
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.3);
 
-  .web-ai-container:not(.expanded) & {
+  .web-ai-sidebar:not(.expanded) & {
     width: 24px;
     height: 24px;
   }
@@ -98,7 +114,7 @@
   height: 20px;
   color: white;
 
-  .web-ai-container:not(.expanded) & {
+  .web-ai-sidebar:not(.expanded) & {
     width: 18px;
     height: 18px;
   }
@@ -108,7 +124,7 @@
   display: flex;
   flex-direction: column;
 
-  .web-ai-container:not(.expanded) & {
+  .web-ai-sidebar:not(.expanded) & {
     display: none;
   }
 
@@ -130,7 +146,7 @@
   align-items: center;
   gap: 8px;
 
-  .web-ai-container:not(.expanded) & {
+  .web-ai-sidebar:not(.expanded) & {
     display: none;
   }
 }
@@ -148,12 +164,16 @@
   }
 }
 
-/* 聊天內容 */
-.chat-content {
+/* 側邊框內容 */
+.sidebar-content {
   display: flex;
   flex-direction: column;
-  height: calc(100% - 60px);
+  height: calc(100vh - 60px);
   background: white;
+
+  .web-ai-sidebar:not(.expanded) & {
+    display: none; // 收縮狀態時隱藏內容
+  }
 }
 
 /* 快速操作區 */
@@ -401,8 +421,8 @@
   }
 }
 
-/* 懸浮提示 */
-.floating-hint {
+/* 側邊框提示 */
+.sidebar-hint {
   position: fixed;
   bottom: 90px;
   right: 20px;
@@ -411,7 +431,7 @@
 
   @media (max-width: 768px) {
     right: 10px;
-    bottom: 80px;
+    bottom: 70px;
   }
 }
 

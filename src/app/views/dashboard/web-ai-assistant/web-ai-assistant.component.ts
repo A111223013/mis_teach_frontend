@@ -39,7 +39,7 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
   @ViewChild('messageInput') messageInput!: ElementRef;
 
   // 組件狀態
-  isExpanded = false;
+  isExpanded = false; // 側邊框預設收縮
   isTyping = false;
   isAiTakingOver = false;
   shouldScrollToBottom = false;
