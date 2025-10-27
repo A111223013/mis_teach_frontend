@@ -1,5 +1,4 @@
 import { INavData } from '@coreui/angular';
-import { cilBrush } from '@coreui/icons';
 
 export const navItems: INavData[] = [
   {

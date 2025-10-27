@@ -11,7 +11,8 @@ import {
 import { IconDirective, IconSetService } from '@coreui/icons-angular';
 import { 
   cilUser, cilPlus, cilChevronLeft, cilChevronRight, cilCalendar, 
-  cilClock, cilNotes, cilBell, cilCheck, cilX, cilPencil, cilTrash 
+  cilClock, cilNotes, cilBell, cilCheck, cilX, cilPencil, cilTrash,
+  cilChart, cilTask, cilWarning, cilNewspaper, cilSpeedometer, cilSchool
 } from '@coreui/icons';
 import { DashboardService } from '../../../service/dashboard.service';
 import { OverviewService } from '../../../service/overview.service';
@@ -101,6 +102,17 @@ export class OverviewComponent implements OnInit {
   activeDayIsOpen: boolean = true;
   refresh = new Subject<void>();
 
+  // 頭條新聞
+  topNews: any[] = [];
+
+  // 簽到狀態
+  checkinStatus = {
+    checked_today: false,
+    checkin_streak: 0,
+    total_checkin_days: 0,
+    last_checkin_date: ''
+  };
+
 
   // 統一的 modal 相關屬性
   showEventModal: boolean = false;
@@ -137,9 +149,12 @@ export class OverviewComponent implements OnInit {
     private overviewService: OverviewService,
     private cdr: ChangeDetectorRef
   ) { 
-    iconSetService.icons = { 
-      cilUser, cilPlus, cilChevronLeft, cilChevronRight, cilCalendar, 
-      cilClock, cilNotes, cilBell, cilCheck, cilX, cilPencil, cilTrash 
+    const existingIcons = iconSetService.icons || {};
+    iconSetService.icons = {
+      ...existingIcons,
+      ...{ cilUser, cilPlus, cilChevronLeft, cilChevronRight, cilCalendar, 
+      cilClock, cilNotes, cilBell, cilCheck, cilX, cilPencil, cilTrash,
+      cilChart, cilTask, cilWarning, cilNewspaper, cilSpeedometer, cilSchool }
     };
     Chart.register(...registerables);
   }
@@ -147,6 +162,10 @@ export class OverviewComponent implements OnInit {
   ngOnInit(): void {
     this.getUserInfo();
     this.loadEvents();
+    this.loadTopNews();
+    this.loadCheckinStatus();
+    // 自動執行簽到
+    this.autoCheckin();
   }
 
   getUserInfo(): void {
@@ -494,6 +513,122 @@ export class OverviewComponent implements OnInit {
 
   closeModal(): void {
     this.showEventModal = false;
+  }
+
+  loadTopNews(): void {
+    this.overviewService.getTopNews().subscribe({
+      next: (response: any) => {
+        if (response.data) {
+          this.topNews = response.data.slice(0, 6);
+        }
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('載入新聞失敗:', error);
+        this.topNews = [];
+      }
+    });
+  }
+
+  getNewsUrl(href: string): string {
+    if (!href) return '#';
+    if (href.startsWith('http')) return href;
+    return `https://www.ithome.com.tw${href}`;
+  }
+
+  getTags(tags: any): any[] {
+    if (!tags) return [];
+    if (typeof tags === 'string') {
+      try {
+        return JSON.parse(tags);
+      } catch {
+        return [];
+      }
+    }
+    return Array.isArray(tags) ? tags : [];
+  }
+
+  formatNewsDate(dateString: string): string {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('zh-TW', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch {
+      return dateString;
+    }
+  }
+
+  loadCheckinStatus(): void {
+    this.overviewService.getCheckinStatus().subscribe({
+      next: (response: any) => {
+        if (response) {
+          this.checkinStatus = {
+            checked_today: response.checked_today || false,
+            checkin_streak: response.checkin_streak || 0,
+            total_checkin_days: response.total_checkin_days || 0,
+            last_checkin_date: response.last_checkin_date || ''
+          };
+        }
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('載入簽到狀態失敗:', error);
+      }
+    });
+  }
+
+  autoCheckin(): void {
+    // 頁面載入時自動嘗試簽到
+    this.overviewService.dailyCheckin().subscribe({
+      next: (response: any) => {
+        if (response && !response.already_checked) {
+          // 簽到成功
+          this.checkinStatus.checked_today = true;
+          this.checkinStatus.checkin_streak = response.checkin_streak || 0;
+          console.log('✅ 自動簽到成功');
+        } else if (response && response.already_checked) {
+          // 已經簽到了
+          this.checkinStatus.checked_today = true;
+          console.log('✅ 今日已簽到');
+        }
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('自動簽到失敗:', error);
+      }
+    });
+  }
+
+  performCheckin(): void {
+    if (this.checkinStatus.checked_today) {
+      return; // 已經簽到了
+    }
+
+    this.overviewService.dailyCheckin().subscribe({
+      next: (response: any) => {
+        if (response) {
+          this.checkinStatus.checked_today = true;
+          this.checkinStatus.checkin_streak = response.checkin_streak || 0;
+          console.log('✅ 簽到成功');
+        }
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('簽到失敗:', error);
+      }
+    });
   }
 
 }

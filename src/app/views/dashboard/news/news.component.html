@@ -1,33 +1,116 @@
-<div class="c-card-container">
-  @for (card of cards; track card.headline) {
-    <a [href]="card.url" target="_blank" class="card-link">
-      <div class="c-card">
-        <div class="c-card-header">
-          @if (card.headerType === 'image') {
-            <div class="header-image-wrapper">
-              <img [src]="card.headerContent" alt="卡片標頭圖片" class="header-image">
-            </div>
-          } @else {
-            <div class="header-text-wrapper">
-              <pre>{{ card.headerContent }}</pre>
-            </div>
-          }
-        </div>
-        <div class="c-card-body">
-          <div class="c-card-tags">
-            @for (tag of card.tags; track tag.text) {
-              <a class="tag" [href]="'https://www.ithome.com.tw' + tag.href" target="_blank">
-                {{ tag.text }}
-              </a>
+<div class="news-container">
+  <!-- 搜尋欄 -->
+  <div class="search-container">
+    <div class="search-box">
+      <input 
+        type="text" 
+        [(ngModel)]="searchTerm" 
+        placeholder="搜尋新聞標題..."
+        class="search-input"
+        (keyup.enter)="onSearch()">
+      <button class="search-btn" (click)="onSearch()">
+        <i class="cil-magnifying-glass"></i> 搜尋
+      </button>
+      @if (searchTerm) {
+        <button class="clear-btn" (click)="clearSearch()">
+          <i class="cil-x"></i> 清除
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- 載入指示器 -->
+  @if (loading) {
+    <div class="loading-container">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">載入中...</span>
+      </div>
+      <p class="loading-text">載入新聞中...</p>
+    </div>
+  }
+
+  <!-- 卡片容器 -->
+  <div class="c-card-container">
+    @for (card of cards; track card.headline) {
+      <a [href]="card.url" target="_blank" class="card-link">
+        <div class="c-card">
+          <div class="c-card-header">
+            @if (card.headerType === 'image') {
+              <div class="header-image-wrapper">
+                <img [src]="card.headerContent" alt="卡片標頭圖片" class="header-image" 
+                     onerror="this.onerror=null; this.style.display='none';">
+              </div>
+            } @else {
+              <div class="header-text-wrapper">
+                <pre>{{ card.headerContent }}</pre>
+              </div>
             }
           </div>
-          <h3 class="c-card-headline">{{ card.headline }}</h3>
-          <p class="c-card-subheadline">{{ card.subheadline }}</p>
+          <div class="c-card-body">
+            <div class="c-card-tags">
+              @for (tag of card.tags; track tag.text) {
+                <span class="tag">{{ tag.text }}</span>
+              }
+            </div>
+            <h3 class="c-card-headline">{{ card.headline }}</h3>
+            <p class="c-card-subheadline">{{ card.subheadline }}</p>
+          </div>
+          <div class="c-card-footer">
+            <span class="c-card-date">{{ card.date }}</span>
+          </div>
         </div>
-        <div class="c-card-footer">
-          <span class="c-card-date">{{ card.date }}</span>
-        </div>
+      </a>
+    }
+  </div>
+
+  <!-- 分頁器 -->
+  @if (!loading && cards.length > 0) {
+    <div class="pagination-container">
+      <nav aria-label="新聞分頁">
+        <ul class="pagination">
+          <!-- 上一頁按鈕 -->
+          <li class="page-item" [class.disabled]="!hasPrev">
+            <a class="page-link" (click)="goToPage(currentPage - 1)" [class.disabled]="!hasPrev">
+              上一頁
+            </a>
+          </li>
+          
+          <!-- 頁碼按鈕 -->
+          @for (page of getPageNumbers(); track page) {
+            @if (page === '...') {
+              <li class="page-item disabled">
+                <span class="page-link">...</span>
+              </li>
+            } @else {
+              <li class="page-item" [class.active]="page === currentPage">
+                <a class="page-link" (click)="goToPage(page)">
+                  {{ page }}
+                </a>
+              </li>
+            }
+          }
+          
+          <!-- 下一頁按鈕 -->
+          <li class="page-item" [class.disabled]="!hasNext">
+            <a class="page-link" (click)="goToPage(currentPage + 1)" [class.disabled]="!hasNext">
+              下一頁
+            </a>
+          </li>
+        </ul>
+      </nav>
+      
+      <!-- 分頁資訊 -->
+      <div class="pagination-info">
+        顯示第 {{ (currentPage - 1) * perPage + 1 }} - {{ currentPage * perPage > totalItems ? totalItems : currentPage * perPage }} 條，
+        共 {{ totalItems }} 條新聞
       </div>
-    </a>
+    </div>
+  }
+
+  <!-- 無結果訊息 -->
+  @if (!loading && cards.length === 0) {
+    <div class="no-results">
+      <p>沒有找到相關新聞</p>
+    </div>
   }
 </div>

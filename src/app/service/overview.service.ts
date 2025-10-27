@@ -72,4 +72,28 @@ export class OverviewService {
       })
     );
   }
+
+  getTopNews(): Observable<any> {
+    return this.authService.authenticatedRequest(() => 
+      this.http.get<any>(`${this.baseUrl}/api/news?page=1&per_page=6`, {
+        headers: this.getHeaders()
+      })
+    );
+  }
+
+  dailyCheckin(): Observable<any> {
+    return this.authService.authenticatedRequest(() => 
+      this.http.post<any>(`${this.baseUrl}/dashboard/daily-checkin`, {}, {
+        headers: this.getHeaders()
+      })
+    );
+  }
+
+  getCheckinStatus(): Observable<any> {
+    return this.authService.authenticatedRequest(() => 
+      this.http.post<any>(`${this.baseUrl}/dashboard/checkin-status`, {}, {
+        headers: this.getHeaders()
+      })
+    );
+  }
 }

@@ -75,8 +75,10 @@ export class SettingsComponent implements OnInit {
     private iconSetService: IconSetService,
     private settingsService: SettingsService
   ) {
-    iconSetService.icons = { 
-      cilUser, cilCalendar, cilSchool, cilCommentBubble, cilTag, cilImage, cilCog, cilQrCode, cilCheckCircle, cilPlus, cilX, cilReload
+    const existingIcons = iconSetService.icons || {};
+    iconSetService.icons = {
+      ...existingIcons,
+      ...{ cilUser, cilCalendar, cilSchool, cilCommentBubble, cilTag, cilImage, cilCog, cilQrCode, cilCheckCircle, cilPlus, cilX, cilReload }
     };
   }
 

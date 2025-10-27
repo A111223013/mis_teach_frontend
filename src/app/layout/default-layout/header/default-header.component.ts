@@ -18,7 +18,7 @@ import {
   cilAccountLogout, 
   cilSpeedometer, cilBook, cilSchool, cilChartPie,
   cilBrush, cilCog, cilSettings, cilSpeech, cilNewspaper,
-  cilQrCode, cilTag, cilImage
+  cilQrCode, cilTag, cilImage, cilMinus, cilCheck
 } from '@coreui/icons';
 
 @Component({
@@ -49,11 +49,16 @@ export class DefaultHeaderComponent {
     private iconSetService: IconSetService,
     private authService: AuthService
   ) {
-    iconSetService.icons = { 
-      cilAccountLogout, 
-      cilSpeedometer, cilBook, cilSchool, cilChartPie, 
-      cilBrush, cilCog, cilSettings, cilSpeech, cilNewspaper,
-      cilQrCode, cilTag, cilImage
+    // 合併現有 icons 和新的 icons
+    const existingIcons = iconSetService.icons || {};
+    iconSetService.icons = {
+      ...existingIcons,
+      ...{ 
+        cilAccountLogout, 
+        cilSpeedometer, cilBook, cilSchool, cilChartPie, 
+        cilBrush, cilCog, cilSettings, cilSpeech, cilNewspaper,
+        cilQrCode, cilTag, cilImage, cilMinus, cilCheck
+      }
     };
   }
 
