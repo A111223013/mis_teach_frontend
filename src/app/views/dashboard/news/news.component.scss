@@ -1,0 +1,287 @@
+/* 新聞容器 */
+.news-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+/* 搜尋容器 */
+.search-container {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.search-box {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.search-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 1rem;
+    
+    &:focus {
+        outline: none;
+        border-color: #321fdb;
+        box-shadow: 0 0 0 0.2rem rgba(50, 31, 219, 0.25);
+    }
+}
+
+.search-btn, .clear-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.search-btn {
+    background-color: #321fdb;
+    color: white;
+    
+    &:hover {
+        background-color: #2214a3;
+    }
+}
+
+.clear-btn {
+    background-color: #6c757d;
+    color: white;
+    
+    &:hover {
+        background-color: #5a6268;
+    }
+}
+
+/* 載入指示器 */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    gap: 1rem;
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border: 0.25em solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spinner-border 0.75s linear infinite;
+}
+
+@keyframes spinner-border {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-text {
+    color: #6c757d;
+    font-size: 1.1rem;
+}
+
+/* 整個卡片容器的 Flexbox 佈局 */
+.c-card-container {
+    display: flex;
+    gap: 1rem; // 卡片之間的間距
+    flex-wrap: wrap; // 超出時換行
+    justify-content: center; // 水平置中
+    padding: 1.25rem 0;
+}
+
+/* 單張卡片的基礎樣式 */
+.c-card {
+    cursor: pointer;
+    width: 350px; // 卡片固定寬度
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+    display: flex;
+    flex-direction: column; // 內部元件垂直排列
+    transition: transform 0.2s; // 增加滑鼠懸停效果
+
+    &:hover {
+        transform: translateY(-5px); // 滑鼠懸停時上移
+    }
+}
+
+/* 標頭樣式 */
+.c-card-header {
+    height: 200px;
+    overflow: hidden;
+    background-color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.header-image-wrapper, .header-text-wrapper {
+    width: 100%;
+    height: 100%;
+}
+
+.header-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; // 圖片填滿容器
+}
+
+.header-text-wrapper {
+    color: white;
+    background-color: #d90f23; // 根據圖片設定為紅色
+    padding: 0.625rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.header-text-wrapper pre {
+    margin: 0;
+    font-size: 2em;
+    font-weight: bold;
+    white-space: pre-wrap; // 換行顯示
+}
+
+/* 內文樣式 */
+.c-card-body {
+    padding: 1rem;
+    flex-grow: 1; // 佔據剩餘空間
+}
+
+.c-card-tags {
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+
+    .tag {
+        background-color: #e6f7ff;
+        color: #1890ff;
+        border: 1px solid #91d5ff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-right: 4px;
+        white-space: nowrap; // 避免標籤換行
+    }
+}
+
+.c-card-headline {
+    font-size: 1.25em;
+    font-weight: bold;
+    color: #333;
+    margin: 0 0 0.5rem;
+}
+
+.c-card-subheadline {
+    font-size: 1em;
+    color: #666;
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; // 限制文字顯示兩行
+    -webkit-box-orient: vertical;
+}
+
+/* 底部樣式 */
+.c-card-footer {
+    padding: 1rem;
+    border-top: 1px solid #e0e0e0;
+    font-size: 0.8rem;
+    color: #999;
+}
+
+/* 將 <a> 標籤的樣式移除，讓它看起來像原本的卡片 */
+.card-link {
+  text-decoration: none; /* 移除底線 */
+  color: inherit; /* 繼承父元素的顏色 */
+  display: block; /* 讓 <a> 標籤變成區塊元素，才能佔據整個卡片空間 */
+}
+
+/* 分頁容器 */
+.pagination-container {
+    margin-top: 3rem;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    justify-content: center;
+    gap: 0.25rem;
+}
+
+.page-item {
+    &.disabled .page-link {
+        color: #6c757d;
+        pointer-events: none;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+    
+    &.active .page-link {
+        background-color: #321fdb;
+        color: white;
+        border-color: #321fdb;
+    }
+}
+
+.page-link {
+    padding: 0.5rem 0.75rem;
+    line-height: 1.25;
+    color: #321fdb;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    display: block;
+    text-decoration: none;
+    transition: all 0.2s;
+    
+    &:hover:not(.disabled) {
+        background-color: #e9ecef;
+        border-color: #dee2e6;
+    }
+}
+
+.pagination-info {
+    text-align: center;
+    margin-top: 1rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* 無結果 */
+.no-results {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    color: #6c757d;
+    
+    p {
+        font-size: 1.2rem;
+        margin: 0;
+    }
+}

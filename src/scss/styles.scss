@@ -24,5 +24,8 @@
 // 導入範例樣式
 @use "examples" as examples;
 
+// 導入 angular-calendar 樣式
+@import "../../node_modules/angular-calendar/css/angular-calendar.css";
+
 // 註釋掉的 joint-plus CSS
 // @use "@joint/plus/joint-plus.css";

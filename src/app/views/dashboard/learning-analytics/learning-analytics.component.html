@@ -1,0 +1,950 @@
+<!-- 學習成效分析頁面 - 單頁Dashboard -->
+<div class="learning-analytics-container" [class.loading]="isLoading">
+  <!-- Loading 覆蓋層 -->
+  <div *ngIf="isLoading" class="loading-overlay">
+    <div class="loading-content">
+      <div class="spinner-border text-primary mb-3" role="status">
+        <span class="visually-hidden">載入中...</span>
+      </div>
+      <h5 class="text-primary">正在分析您的學習數據...</h5>
+      <p class="text-muted">AI教練正在為您準備個人化分析報告</p>
+    </div>
+  </div>
+  <!-- 頁面標題 -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div>
+        <h2 class="mb-1">
+          <i class="cil-chart-line me-2 text-primary"></i>學習成效分析
+        </h2>
+        <p class="text-muted mb-0">AI教練為您分析學習狀況，提供個人化建議</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 模組一：總覽 (Overview) ========== -->
+  <div id="summary">
+    <!-- AI教練總結卡片 -->
+  <div class="row mb-4">
+    <div class="col-12">
+        <c-card class="ai-coach-summary">
+        <c-card-body>
+            <div class="d-flex align-items-start">
+              <div class="ai-avatar me-3">
+                <i class="cil-robot display-4 text-primary"></i>
+              </div>
+              <div class="flex-grow-1">
+                <h5 class="mb-2">
+                  <i class="cil-lightbulb me-2 text-warning"></i>AI教練分析
+                </h5>
+                <div *ngIf="isLoadingAI; else aiContent">
+                  <div class="skeleton-text mb-2">
+                    <div class="skeleton-line"></div>
+                    <div class="skeleton-line short"></div>
+                  </div>
+                </div>
+                <ng-template #aiContent>
+                  <div class="ai-summary-content">
+                    <p class="mb-2">{{ aiCoachAnalysis?.analysis || '正在分析您的學習數據...' }}</p>
+                    <div class="ai-recommendations" *ngIf="aiCoachAnalysis?.weak_domains?.length > 0">
+                      <h6 class="mb-2 text-warning">需要關注的領域：</h6>
+                      <ul class="list-unstyled mb-0">
+                        <li *ngFor="let domain of aiCoachAnalysis.weak_domains" class="mb-1">
+                          <i class="cil-warning me-2 text-warning"></i>{{ domain }}
+                        </li>
+                      </ul>
+                    </div>
+                    <div class="ai-recommendations" *ngIf="aiCoachAnalysis?.strong_domains?.length > 0">
+                      <h6 class="mb-2 text-success">表現良好的領域：</h6>
+                      <ul class="list-unstyled mb-0">
+                        <li *ngFor="let domain of aiCoachAnalysis.strong_domains" class="mb-1">
+                          <i class="cil-check-circle me-2 text-success"></i>{{ domain }}
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </ng-template>
+                <div class="d-flex align-items-center text-muted">
+                  <small>
+                    <i class="cil-clock me-1"></i>
+                    最後更新：{{ aiCoachAnalysis?.last_updated || getCurrentTime() }}
+                  </small>
+                </div>
+              </div>
+          </div>
+        </c-card-body>
+      </c-card>
+    </div>
+  </div>
+
+    <!-- 核心指標卡片區 -->
+    <div class="row mb-4">
+      <div class="col-lg-3 col-md-6 col-sm-12 mb-3" *ngFor="let card of metricCards">
+        <c-card class="metric-card">
+          <c-card-body class="text-center">
+            <div class="metric-icon mb-2">
+              <i [class]="card.icon + ' text-' + card.color" style="font-size: 2rem;"></i>
+      </div>
+            <h4 class="metric-value" [ngClass]="'text-' + card.color">{{ card.value }}</h4>
+            <p class="metric-label text-muted small mb-1">{{ card.label }}</p>
+            <p class="metric-description text-muted small">{{ card.description }}</p>
+            <div class="metric-trend">
+              <small [class]="'text-' + card.color">
+                <i [class]="card.trend.includes('+') ? 'cil-arrow-top' : 'cil-arrow-bottom'" class="me-1"></i>
+                {{ card.trend }}
+              </small>
+      </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+
+    <!-- 趨勢分析區域 -->
+    <div id="trend" class="row mb-4">
+      <div class="col-lg-6 mb-4">
+        <c-card class="h-100">
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-chart-line me-2"></i>學習趨勢與遺忘曲線分析
+            </h5>
+            <small class="text-muted">顯示學習進度與知識遺忘情況</small>
+          </c-card-header>
+          <c-card-body>
+            <div class="trend-controls mb-3">
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="btn-group" role="group">
+                    <button 
+                      type="button" 
+                      class="btn btn-sm"
+                      [class.btn-primary]="selectedTrendPeriod === 7"
+                      [class.btn-outline-primary]="selectedTrendPeriod !== 7"
+                      (click)="changeTrendPeriod(7)">
+                      7天
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn btn-sm"
+                      [class.btn-primary]="selectedTrendPeriod === 30"
+                      [class.btn-outline-primary]="selectedTrendPeriod !== 30"
+                      (click)="changeTrendPeriod(30)">
+                      30天
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn btn-sm"
+                      [class.btn-primary]="selectedTrendPeriod === 90"
+                      [class.btn-outline-primary]="selectedTrendPeriod !== 90"
+                      (click)="changeTrendPeriod(90)">
+                      90天
+                    </button>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <select 
+                    class="form-select form-select-sm" 
+                    [(ngModel)]="selectedTrendDomain" 
+                    (change)="onTrendDomainChange()">
+                    <option *ngFor="let domain of availableTrendDomains" 
+                            [value]="domain">
+                      {{ domain === 'all' ? '全部知識點' : domain }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="chart-container" *ngIf="trendData.length > 0; else noTrendData">
+              <canvas #trendLineChart></canvas>
+            </div>
+            <ng-template #noTrendData>
+              <div class="no-data-placeholder text-center py-5">
+                <i class="cil-chart-line display-4 text-muted mb-3"></i>
+                <h6 class="text-muted">暫無趨勢數據</h6>
+                <p class="text-muted small">完成更多練習後將顯示學習趨勢</p>
+            </div>
+            </ng-template>
+          </c-card-body>
+        </c-card>
+      </div>
+      <div class="col-lg-6 mb-4">
+        <c-card class="h-100">
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-chart me-2"></i>學習統計
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <div class="learning-stats">
+              <div class="stat-item d-flex justify-content-between mb-3">
+                <span class="stat-label">總練習次數</span>
+                <span class="stat-value text-primary">
+                  {{ overview?.total_attempts || 0 }} 次
+                </span>
+              </div>
+              <div class="stat-item d-flex justify-content-between mb-3">
+                <span class="stat-label">正確率</span>
+                <span class="stat-value text-success">
+                  {{ ((overview?.accuracy || 0) * 100) | number:'1.1-1' }}%
+                </span>
+              </div>
+              <div class="stat-item d-flex justify-content-between mb-3">
+                <span class="stat-label">連續學習天數</span>
+                <span class="stat-value text-info">
+                  {{ overview?.consecutive_days || 0 }} 天
+                </span>
+              </div>
+              <div class="stat-item d-flex justify-content-between mb-3">
+                <span class="stat-label">本週已作答</span>
+                <span class="stat-value text-warning">
+                  {{ overview?.recent_activity || 0 }} 題
+                </span>
+              </div>
+              <div class="stat-item d-flex justify-content-between mb-3">
+                <span class="stat-label">已掌握概念</span>
+                <span class="stat-value text-success">
+                  {{ overview?.mastered_concepts || 0 }} 個
+                </span>
+              </div>
+              <div class="stat-item d-flex justify-content-between mb-3">
+                <span class="stat-label">學習中概念</span>
+                <span class="stat-value text-warning">
+                  {{ overview?.learning_concepts || 0 }} 個
+                </span>
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+
+    <!-- 學習分析圖表區域 -->
+    <div class="row mb-4">
+      <!-- 能力分布雷達圖 -->
+      <div class="col-lg-6 mb-4">
+        <c-card class="radar-chart-small h-100">
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-chart me-2"></i>能力分布雷達圖
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <div class="chart-container">
+              <canvas #radarChart></canvas>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+      
+        <!-- 深度分析圖表區域 -->
+        <div class="col-lg-6 mb-4">
+          <c-card>
+            <c-card-header>
+              <h5 class="mb-0">
+                <i class="cil-analytics me-2"></i>深度分析 - 主要知識點難度掌握度
+              </h5>
+              <small class="text-muted">顯示主要知識點在不同難度下的掌握情況</small>
+              
+              <!-- 大知識點選擇器 -->
+              <div class="mt-3">
+                <label class="form-label small text-muted">選擇大知識點：</label>
+                <select class="form-select form-select-sm" 
+                        [(ngModel)]="selectedMajorConcept" 
+                        (change)="onMajorConceptChange()">
+                  <option value="all">全部大知識點</option>
+                  <option *ngFor="let concept of availableMajorConcepts" 
+                          [value]="concept" 
+                          [disabled]="concept === 'all'">
+                    {{ concept === 'all' ? '全部大知識點' : concept }}
+                  </option>
+                </select>
+              </div>
+            </c-card-header>
+            <c-card-body>
+              <!-- 整合圖表容器 -->
+              <div class="chart-container">
+                <canvas #integratedAnalysisChart></canvas>
+              </div>
+            
+            
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+
+    <!-- 知識點變化分析 -->
+    <div class="row mb-4">
+      <div class="col-md-6 mb-4">
+        <c-card class="h-100">
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-arrow-top me-2 text-success"></i>最近進步的知識點
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <div class="improvement-section">
+              <div *ngIf="isLoading" class="text-muted text-center py-3">
+                <i class="cil-info me-2"></i>載入中...
+              </div>
+              <div *ngIf="!isLoading && improvementItems.length === 0" class="text-muted text-center py-3">
+                <i class="cil-info me-2"></i>暫無進步數據
+              </div>
+                <div class="improvement-item p-3 border rounded mb-3" *ngFor="let item of improvementItems">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="mb-0">{{ item.name }}</h6>
+                    <div class="d-flex gap-2">
+                      <span class="badge bg-success">+{{ item.improvement }}%</span>
+                      <span class="badge bg-secondary">
+                        {{ item.questions }} 題
+                      </span>
+                    </div>
+                  </div>
+                  <div class="progress mb-2" style="height: 6px;">
+                    <div 
+                      class="progress-bar bg-success" 
+                      [style.width.%]="item.mastery * 100">
+                    </div>
+                  </div>
+                  <div class="mb-2">
+                    <small class="text-muted">{{ item.ai_strategy }}</small>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">掌握度: {{ (item.mastery * 100) | number:'1.0-1' }}%</span>
+                  </div>
+                </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+      <div class="col-md-6 mb-4">
+        <c-card class="h-100">
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-arrow-bottom me-2 text-danger"></i>需要關注的知識點
+            </h5>
+          </c-card-header>
+          <c-card-body>
+            <div class="attention-section">
+              <div *ngIf="isLoading" class="text-muted text-center py-3">
+                <i class="cil-info me-2"></i>載入中...
+              </div>
+              <div *ngIf="!isLoading && attentionItems.length === 0" class="text-muted text-center py-3">
+                <i class="cil-info me-2"></i>暫無關注數據
+              </div>
+              <div class="attention-item p-3 border rounded mb-3" *ngFor="let item of attentionItems">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h6 class="mb-0">{{ item.name }}</h6>
+                  <div class="d-flex gap-2">
+                    <span class="badge bg-danger">{{ (item.mastery * 100) | number:'1.0-1' }}%</span>
+                    <span class="badge bg-secondary">
+                      {{ item.questions }} 題
+                    </span>
+                  </div>
+                </div>
+                <div class="progress mb-2" style="height: 6px;">
+                  <div 
+                    class="progress-bar bg-danger" 
+                    [style.width.%]="item.mastery * 100">
+                  </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="text-muted small">{{ item.ai_strategy }}</span>
+                </div>
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 模組二：知識診斷中心 (Knowledge Diagnosis Center) ========== -->
+  <div id="knowledge">
+    <div class="row mb-4">
+      <div class="col-12">
+        <c-card>
+          <c-card-header>
+            <h5 class="mb-0">
+              <i class="cil-magnifying-glass me-2 text-primary"></i>知識診斷中心
+            </h5>
+            <p class="text-muted mb-0 small">深入分析您的知識掌握狀況，發現學習盲點</p>
+          </c-card-header>
+          <c-card-body>
+            <!-- Tab 導航 -->
+            <ul class="nav nav-tabs mb-3" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button 
+                  class="nav-link active" 
+                  type="button" 
+                  role="tab">
+                  <i class="cil-list me-2"></i>層級分析
+                </button>
+              </li>
+            </ul>
+
+            <!-- Tab 內容 -->
+            <div class="tab-content">
+              <!-- 層級分析 -->
+              <div class="tab-pane active">
+                <div class="hierarchy-analysis">
+                  <h6 class="mb-3">
+                    <i class="cil-warning me-2 text-danger"></i>知識點掌握度分析
+                  </h6>
+                  <div class="knowledge-tree">
+                    <div class="row">
+                      <div 
+                        class="col-12 mb-3" 
+                        *ngFor="let knowledge of topWeakPoints; let i = index">
+                        <div class="knowledge-card card h-100">
+                          <div class="card-header" (click)="toggleKnowledgeNode(knowledge)">
+                            <div class="d-flex align-items-center">
+                              <i [class]="knowledge.expanded ? 'cil-chevron-bottom' : 'cil-chevron-right'" class="me-2"></i>
+                              <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ knowledge.name }}</h6>
+                                <div class="d-flex align-items-center">
+                                  <div class="progress me-2" style="width: 100px; height: 8px;">
+                                    <div 
+                                      class="progress-bar" 
+                                      [class]="'bg-' + getMasteryColor(knowledge.mastery)"
+                                      [style.width.%]="knowledge.mastery * 100">
+                                    </div>
+                                  </div>
+                                  <span class="text-muted small">{{ (knowledge.mastery * 100) | number:'1.0-1' }}%</span>
+                                  <span 
+                                    class="badge ms-2" 
+                                    [class]="knowledge.status === 'no_data' ? 'bg-secondary' : 
+                                            knowledge.status === 'weak' ? 'bg-warning' : 'bg-success'">
+                                    {{ knowledge.status_text }}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                      
+                          <div class="card-body" *ngIf="knowledge.expanded">
+                            <div class="sub-concepts">
+                              <h6 class="mb-2">小知識點掌握度</h6>
+                              <div class="row">
+                                <div class="col-12" *ngFor="let concept of knowledge.concepts">
+                                  <div class="sub-concept-item d-flex justify-content-between align-items-center p-2 border rounded mb-2">
+                                    <div class="flex-grow-1">
+                                      <span class="fw-medium">{{ concept.name }}</span>
+                                      <div class="d-flex align-items-center mt-1">
+                                        <div class="progress me-2" style="width: 80px; height: 6px;">
+                                          <div 
+                                            class="progress-bar" 
+                                            [class]="'bg-' + getMasteryColor(concept.mastery)"
+                                            [style.width.%]="concept.mastery * 100">
+                                          </div>
+                                        </div>
+                                        <span class="small text-muted">{{ (concept.mastery * 100) | number:'1.0-1' }}%</span>
+                                      </div>
+                                    </div>
+                                    <div class="ms-2">
+                                      <button 
+                                        class="btn btn-sm btn-outline-primary" 
+                                        (click)="openMicroConceptAIDiagnosis(concept, knowledge.name)"
+                                        title="AI診斷此知識點">
+                                        <i class="cil-magnifying-glass me-1"></i>AI診斷
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </c-card-body>
+        </c-card>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- AI學習路徑模態框 -->
+  <c-modal [visible]="aiDiagnosisModalVisible" (visibleChange)="aiDiagnosisModalVisible = $event" size="lg">
+    <c-modal-header>
+      <h5 class="modal-title">
+        <i class="cil-robot me-2 text-primary"></i>AI診斷與練習建議
+      </h5>
+    </c-modal-header>
+    <c-modal-body>
+          <!-- 概念詳細數據 -->
+          <div *ngIf="currentConceptData && !showAILearningPath">
+            <div class="concept-details mb-4">
+              <h5 class="mb-3">{{ currentConceptData.name }}</h5>
+              <p class="text-muted mb-3">{{ currentConceptData.domainName }}</p>
+              
+              <!-- 掌握度指標 -->
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <div class="text-center p-3 border rounded">
+                    <div class="h4 mb-1 text-primary">{{ (currentConceptData.mastery * 100) | number:'1.0-1' }}%</div>
+                    <small class="text-muted">掌握度</small>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="text-center p-3 border rounded">
+                    <div class="h4 mb-1 text-info">{{ currentConceptData.questionCount }}</div>
+                    <small class="text-muted">總答題數</small>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="text-center p-3 border rounded">
+                    <div class="h4 mb-1 text-danger">{{ currentConceptData.wrongCount }}</div>
+                    <small class="text-muted">錯誤次數</small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 掌握度進度條 -->
+              <div class="mb-3">
+                <label class="form-label">掌握度進度</label>
+                <div class="progress" style="height: 20px;">
+                  <div 
+                    class="progress-bar" 
+                    [class]="'bg-' + getMasteryColor(currentConceptData.mastery)"
+                    [style.width.%]="currentConceptData.mastery * 100"
+                    role="progressbar">
+                    {{ (currentConceptData.mastery * 100) | number:'1.0-1' }}%
+                  </div>
+                </div>
+              </div>
+
+              <!-- 學習建議提示 -->
+              <div class="alert alert-info">
+                <i class="cil-info me-2"></i>
+                點擊下方「AI學習路徑」按鈕，獲取個性化的學習建議和診斷分析。
+              </div>
+            </div>
+          </div>
+
+          <!-- 載入中狀態 -->
+          <div *ngIf="isDiagnosisLoading" class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">載入中...</span>
+            </div>
+            <p class="mt-2 text-muted">AI正在分析您的學習狀況...</p>
+          </div>
+
+          <!-- AI診斷結果 - 分層顯示 -->
+          <div *ngIf="!isDiagnosisLoading && currentAIDiagnosis && showAILearningPath">
+
+            <!-- 摘要卡片 -->
+            <div class="summary-card mb-4">
+              <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                  <h5 class="card-title text-primary mb-3">
+                    <i class="cil-robot me-2"></i>{{ currentAIDiagnosis.metrics.concept }}
+                  </h5>
+                  <p class="card-text lead">{{ currentAIDiagnosis.summary }}</p>
+                  
+                  <!-- 關鍵指標 -->
+                  <div class="row mt-3">
+                    <div class="col-4">
+                      <div class="text-center">
+                        <div class="h4 text-primary">{{ (currentAIDiagnosis.metrics.mastery * 100) | number:'1.0-1' }}%</div>
+                        <small class="text-muted">掌握度</small>
+                      </div>
+                    </div>
+                    <div class="col-4">
+                      <div class="text-center">
+                        <div class="h4 text-info">{{ currentAIDiagnosis.metrics.attempts }}</div>
+                        <small class="text-muted">答題次數</small>
+                      </div>
+                    </div>
+                    <div class="col-4">
+                      <div class="text-center">
+                        <div class="h4 text-warning">{{ (currentAIDiagnosis.metrics.recent_accuracy * 100) | number:'1.0-1' }}%</div>
+                        <small class="text-muted">最近準確率</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 信心度標示 -->
+                  <div class="mt-3">
+                    <span class="badge" 
+                          [class]="'bg-' + (currentAIDiagnosis.confidence === 'high' ? 'success' : currentAIDiagnosis.confidence === 'medium' ? 'warning' : 'danger')">
+                      <i class="cil-shield-alt me-1"></i>
+                      {{ currentAIDiagnosis.confidence === 'high' ? '高信心度' : currentAIDiagnosis.confidence === 'medium' ? '中等信心度' : '低信心度' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 快速行動按鈕 -->
+            <div class="quick-actions mb-4">
+              <h6 class="text-success mb-3">
+                <i class="cil-lightbulb me-2"></i>立即行動
+              </h6>
+              <div class="row">
+                <div class="col-md-4 mb-2" *ngFor="let action of currentAIDiagnosis.top_actions; let i = index">
+                  <button class="btn btn-outline-success w-100" 
+                          [class]="'btn-outline-' + (i === 0 ? 'primary' : i === 1 ? 'success' : 'info')"
+                          [disabled]="isDiagnosisLoading || isAIPracticeLoading"
+                          (click)="startAction(action)">
+                    <i class="cil-play me-1" *ngIf="!isDiagnosisLoading && !isAIPracticeLoading"></i>
+                    <i class="cil-reload c-spinner" *ngIf="isDiagnosisLoading || isAIPracticeLoading"></i>
+                    <div class="fw-bold">{{ getActionDisplayName(action.action) }}</div>
+                    <small class="text-muted">{{ action.detail }}</small>
+                    <div class="small text-muted mt-1">
+                      <i class="cil-clock me-1"></i>約 {{ action.est_min }} 分鐘
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 問題根因 -->
+            <div class="root-causes mb-4">
+              <h6 class="text-danger mb-3">
+                <i class="cil-magnifying-glass me-2"></i>問題根因
+              </h6>
+              <div class="row">
+                <div class="col-md-4 mb-2" *ngFor="let cause of currentAIDiagnosis.root_causes">
+                  <div class="alert alert-danger mb-0">
+                    <i class="cil-warning me-2"></i>{{ cause }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 學習路徑推薦 -->
+            <div class="learning-path-recommendation mb-4" *ngIf="currentAIDiagnosis.learning_path && currentAIDiagnosis.learning_path.length > 0">
+              <h6 class="text-primary mb-3">
+                <i class="cil-route me-2"></i>推薦學習路徑
+              </h6>
+              
+              <!-- 簡化學習路徑 O----O-----O -->
+              <div class="simple-learning-path">
+                <div class="path-container d-flex align-items-center justify-content-center">
+                  <div *ngFor="let step of currentAIDiagnosis.learning_path; let i = index; let last = last" 
+                       class="path-item d-flex align-items-center">
+                    
+                    <!-- 學習路徑節點 -->
+                    <div class="path-node" (click)="addToCalendar(step)">
+                      <div class="node-circle">
+                        <span class="node-number">{{ i + 1 }}</span>
+                      </div>
+                      <div class="node-text">{{ step.step_info || step.concept_name }}</div>
+                    </div>
+                    
+                    <!-- 連接線 -->
+                    <div *ngIf="!last" class="path-line"></div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 學習路徑說明 -->
+              <div class="text-center mt-3">
+                <small class="text-muted">
+                  <i class="cil-info me-1"></i>
+                  點擊圓圈可加入行事曆，按順序完成學習步驟
+                </small>
+              </div>
+            </div>
+
+            <!-- 練習題建議 -->
+            <div class="practice-examples mb-4">
+              <h6 class="text-info mb-3">
+                <i class="cil-education me-2"></i>推薦練習
+              </h6>
+              <div class="list-group">
+                <div class="list-group-item d-flex justify-content-between align-items-center" 
+                     *ngFor="let example of currentAIDiagnosis.practice_examples">
+                  <div>
+                    <div class="fw-bold">{{ example.text }}</div>
+                    <small class="text-muted">題目ID: {{ example.q_id }}</small>
+                  </div>
+                  <span class="badge" 
+                        [class]="'bg-' + (example.difficulty === 'easy' ? 'success' : example.difficulty === 'medium' ? 'warning' : 'danger')">
+                    {{ example.difficulty === 'easy' ? '簡單' : example.difficulty === 'medium' ? '中等' : '困難' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 證據數據 -->
+            <div class="evidence mb-4">
+              <h6 class="text-secondary mb-3">
+                <i class="cil-chart me-2"></i>分析依據
+              </h6>
+              <div class="d-flex flex-wrap gap-2">
+                <span class="badge bg-secondary" *ngFor="let evidence of currentAIDiagnosis.evidence">
+                  {{ evidence }}
+                </span>
+              </div>
+            </div>
+
+            <!-- 展開詳細診斷 -->
+            <div class="full-diagnosis">
+              <button class="btn btn-outline-primary w-100" 
+                      (click)="toggleFullDiagnosis()"
+                      [attr.aria-expanded]="showFullDiagnosis">
+                <i class="cil-arrow-bottom me-2" *ngIf="!showFullDiagnosis"></i>
+                <i class="cil-arrow-top me-2" *ngIf="showFullDiagnosis"></i>
+                {{ showFullDiagnosis ? '收起詳細診斷' : '展開詳細診斷' }}
+              </button>
+              
+              <div class="mt-3" *ngIf="showFullDiagnosis">
+                <div class="card">
+                  <div class="card-body">
+                    <h6 class="card-title text-primary">
+                      <i class="cil-document me-2"></i>完整診斷分析
+                    </h6>
+                    <div class="card-text">{{ currentAIDiagnosis.full_text }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+      <!-- 錯誤狀態 -->
+      <div *ngIf="!isDiagnosisLoading && !currentAIDiagnosis && showAILearningPath" class="text-center py-4">
+        <i class="cil-warning text-danger" style="font-size: 3rem;"></i>
+        <p class="mt-2 text-danger">AI學習路徑生成失敗，請稍後再試</p>
+        <button class="btn btn-outline-primary" (click)="closeAIDiagnosisModal()">關閉</button>
+      </div>
+    </c-modal-body>
+    <c-modal-footer>
+      <button type="button" class="btn btn-secondary" (click)="closeAIDiagnosisModal()">關閉</button>
+      
+      <!-- 顯示AI學習路徑按鈕 -->
+      <button 
+        type="button" 
+        class="btn btn-primary" 
+        (click)="getAILearningPath()" 
+        *ngIf="currentConceptData && !showAILearningPath"
+        [disabled]="isDiagnosisLoading">
+        <i class="cil-robot me-1"></i>AI學習路徑
+      </button>
+    </c-modal-footer>
+  </c-modal>
+</div>
+
+<!-- AI出題載入遮罩 -->
+<div class="loading-overlay" *ngIf="isAIPracticeLoading">
+  <div class="loading-content">
+    <div class="spinner-border text-primary mb-3" role="status">
+      <span class="visually-hidden">載入中...</span>
+    </div>
+    <h5 class="text-primary">AI正在生成題目...</h5>
+    <p class="text-muted">請稍候，這可能需要30-60秒</p>
+  </div>
+</div>
+
+<!-- 行事曆Modal -->
+<c-modal 
+  [visible]="calendarModalVisible" 
+  (visibleChange)="calendarModalVisible = $event"
+  size="lg">
+  <c-modal-header>
+    <h5 class="modal-title">
+      <i class="cil-calendar me-2 text-primary"></i>加入行事曆
+    </h5>
+  </c-modal-header>
+  <c-modal-body>
+    <div class="mb-3">
+      <label class="form-label">事件標題：<span class="text-danger">*</span></label>
+      <input 
+        type="text" 
+        class="form-control" 
+        [(ngModel)]="calendarEvent.title"
+        placeholder="請輸入事件標題">
+    </div>
+    
+    <div class="mb-3">
+      <label class="form-label">事件內容：<span class="text-danger">*</span></label>
+      <textarea 
+        class="form-control" 
+        rows="3"
+        [(ngModel)]="calendarEvent.content"
+        placeholder="請輸入事件內容">
+      </textarea>
+    </div>
+    
+    <div class="mb-3">
+      <label class="form-label">事件日期：<span class="text-danger">*</span></label>
+      <input 
+        type="date" 
+        class="form-control" 
+        [ngModel]="calendarEvent.eventDate"
+        (ngModelChange)="updateEventDate($event)">
+    </div>
+    
+    <div class="mb-3">
+      <div class="form-check">
+        <input 
+          class="form-check-input" 
+          type="checkbox" 
+          [(ngModel)]="calendarEvent.notifyEnabled"
+          id="notifyCheck">
+        <label class="form-check-label" for="notifyCheck">
+          是否通知
+        </label>
+      </div>
+    </div>
+    
+    <div class="mb-3" *ngIf="calendarEvent.notifyEnabled">
+      <label class="form-label">通知時間：<span class="text-danger">*</span></label>
+      <input 
+        type="time" 
+        class="form-control" 
+        [ngModel]="calendarEvent.notifyTime | date:'HH:mm'"
+        (ngModelChange)="updateNotifyTime($event)">
+    </div>
+  </c-modal-body>
+  <c-modal-footer>
+    <button type="button" class="btn btn-secondary" (click)="cancelAddToCalendar()">
+      取消
+    </button>
+    <button type="button" class="btn btn-primary" (click)="confirmAddToCalendar()">
+      <i class="cil-calendar me-1"></i>加入行事曆
+    </button>
+  </c-modal-footer>
+</c-modal>
+
+<style>
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.c-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 簡化學習路徑樣式 */
+.simple-learning-path {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.path-container {
+  flex-wrap: nowrap;
+  gap: 0;
+}
+
+.path-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.path-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 10px;
+  border-radius: 8px;
+  min-width: 120px;
+}
+
+.path-node:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.node-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #007bff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.node-circle:hover {
+  background: #0056b3;
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.node-number {
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.node-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 100px;
+}
+
+.path-line {
+  width: 60px;
+  height: 2px;
+  background: #dee2e6;
+  margin: 0 10px;
+  position: relative;
+}
+
+.path-line::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: -3px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid #dee2e6;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .path-container {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .path-connector {
+    transform: rotate(90deg);
+    width: 20px;
+    margin: 10px 0;
+  }
+  
+  .path-node {
+    min-width: 100px;
+  }
+}
+</style>

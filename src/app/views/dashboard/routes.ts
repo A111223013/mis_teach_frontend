@@ -26,10 +26,17 @@ export const routes: Routes = [
         }
     },
     {
-        path: 'material',
+        path: 'material/:keypoint',
         loadComponent: () => import('./material/material.component').then(m => m.MaterialComponent),
         data: {
           title: '教材'
+        }
+    },
+    {
+        path: 'material-view/:filename',
+        loadComponent: () => import('./material/material-view/material-view.component').then(m => m.MaterialViewComponent),
+        data: {
+          title: '教材內容'
         }
     },
     {
@@ -61,8 +68,8 @@ export const routes: Routes = [
         }
     },
     {
-        path: 'analytics',
-        loadComponent: () => import('./analytics/analytics.component').then(m => m.AnalyticsComponent),
+        path: 'learning-analytics',
+        loadComponent: () => import('./learning-analytics/learning-analytics.component').then(m => m.LearningAnalyticsComponent),
         data: {
           title: '學習分析'
         }
@@ -89,8 +96,17 @@ export const routes: Routes = [
         }
     },
     {
-        path: 'analytics',
-        redirectTo: 'overview',
-        pathMatch: 'full'
-    }
+        path: 'mistake-analysis',
+        loadComponent: () => import('./mistake-analysis/mistake-analysis.component').then(m => m.MistakeAnalysisComponent),
+        data: {
+          title: '錯題統整'
+        }
+    },
+    {
+        path: 'news',
+        loadComponent: () => import('./news/news.component').then(m => m.NewsComponent),
+        data: {
+          title: '科技趨勢'
+        }
+    },
 ];

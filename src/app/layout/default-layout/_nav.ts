@@ -1,5 +1,4 @@
 import { INavData } from '@coreui/angular';
-import { cilBrush } from '@coreui/icons';
 
 export const navItems: INavData[] = [
   {
@@ -28,7 +27,7 @@ export const navItems: INavData[] = [
   },
   {
     name: '學習分析',
-    url: '/dashboard/analytics',
+    url: '/dashboard/learning-analytics',
     iconComponent: { name: 'cilChartPie' }
   },
   {
@@ -41,5 +40,10 @@ export const navItems: INavData[] = [
         iconComponent: { name: 'cilSpeech' }
       }
     ]
-  }
+  },
+  {
+    name: '科技趨勢',
+    url: '/dashboard/news',
+    iconComponent: { name: 'cilNewspaper' }
+  },
 ]; 

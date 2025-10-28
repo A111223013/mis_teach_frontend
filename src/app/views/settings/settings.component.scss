@@ -1,0 +1,97 @@
+.avatar-container {
+  .avatar-preview {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #e9ecef;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .avatar-placeholder {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background-color: #f8f9fa;
+    border: 3px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    color: #6c757d;
+  }
+}
+
+.learning-goals-list {
+  max-height: 200px;
+  overflow-y: auto;
+
+  .learning-goal-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+
+    .goal-text {
+      flex: 1;
+      font-size: 0.9rem;
+      color: #495057;
+    }
+
+    .btn {
+      padding: 2px 8px;
+      font-size: 0.8rem;
+      line-height: 1.2;
+    }
+  }
+}
+
+// 模態框樣式調整
+.modal-lg {
+  max-width: 800px;
+}
+
+// 表單樣式
+.form-control:focus,
+.form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+// 卡片間距
+.card {
+  margin-bottom: 1rem;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+// 按鈕樣式
+.btn-outline-primary:hover {
+  color: #fff;
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .avatar-container {
+    .avatar-preview,
+    .avatar-placeholder {
+      width: 80px;
+      height: 80px;
+    }
+  }
+  
+  .learning-goals-list {
+    max-height: 150px;
+  }
+}

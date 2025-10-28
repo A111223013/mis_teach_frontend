@@ -1,5 +1,5 @@
-/* Web AI 助手懸浮窗口樣式 */
-.web-ai-container {
+/* Web AI 助手側邊框樣式 */
+.web-ai-sidebar {
   position: fixed;
   bottom: 20px;
   right: 20px;
@@ -8,43 +8,61 @@
   background-image: url('/assets/misHelper.jpg');
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   border-radius: 50%;
   box-shadow: 0 4px 20px rgba(40, 167, 69, 0.3);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1050;
   overflow: hidden;
+  border: 2px solid rgba(40, 167, 69, 0.2);
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 25px rgba(40, 167, 69, 0.4);
   }
 
+  &:active {
+    transform: translateY(0) scale(0.95);
+  }
+
   &.expanded {
+    top: 0;
+    right: 0;
+    bottom: auto;
     width: 380px;
-    height: 500px;
-    border-radius: 16px;
+    height: 100vh;
+    border-radius: 0;
     cursor: default;
     background: white;
     background-image: none;
     border: 1px solid #e9ecef;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    box-shadow: -20px 0 60px rgba(0, 0, 0, 0.15);
+    
+    .sidebar-content {
+      pointer-events: auto;
+    }
   }
 
   @media (max-width: 768px) {
-    right: 10px;
     bottom: 10px;
+    right: 10px;
+    width: 50px;
+    height: 50px;
     
     &.expanded {
-      width: calc(100vw - 20px);
-      height: calc(100vh - 100px);
+      top: 0;
       right: 10px;
-      bottom: 10px;
+      left: 10px;
+      bottom: auto;
+      width: calc(100vw - 20px);
+      height: 100vh;
     }
   }
 }
 
-/* 聊天標題欄 */
-.chat-header {
+/* 側邊框標題欄 */
+.sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -54,16 +72,14 @@
   cursor: pointer;
   transition: all 0.2s ease;
   height: 60px;
-  border-radius: 16px 16px 0 0;
+  border-radius: 0;
 
   &:hover {
     background: linear-gradient(135deg, #218838, #1ea085);
   }
 
-  .web-ai-container:not(.expanded) & {
-    justify-content: center;
-    padding: 16px;
-    border-radius: 50%;
+  .web-ai-sidebar:not(.expanded) & {
+    display: none; // 收縮狀態時隱藏標題欄
   }
 }
 
@@ -72,7 +88,7 @@
   align-items: center;
   gap: 12px;
 
-  .web-ai-container:not(.expanded) & {
+  .web-ai-sidebar:not(.expanded) & {
     flex-direction: column;
     gap: 4px;
   }
@@ -87,7 +103,7 @@
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.3);
 
-  .web-ai-container:not(.expanded) & {
+  .web-ai-sidebar:not(.expanded) & {
     width: 24px;
     height: 24px;
   }
@@ -98,7 +114,7 @@
   height: 20px;
   color: white;
 
-  .web-ai-container:not(.expanded) & {
+  .web-ai-sidebar:not(.expanded) & {
     width: 18px;
     height: 18px;
   }
@@ -108,7 +124,7 @@
   display: flex;
   flex-direction: column;
 
-  .web-ai-container:not(.expanded) & {
+  .web-ai-sidebar:not(.expanded) & {
     display: none;
   }
 
@@ -130,7 +146,7 @@
   align-items: center;
   gap: 8px;
 
-  .web-ai-container:not(.expanded) & {
+  .web-ai-sidebar:not(.expanded) & {
     display: none;
   }
 }
@@ -148,12 +164,16 @@
   }
 }
 
-/* 聊天內容 */
-.chat-content {
+/* 側邊框內容 */
+.sidebar-content {
   display: flex;
   flex-direction: column;
-  height: calc(100% - 60px);
+  height: calc(100vh - 60px);
   background: white;
+
+  .web-ai-sidebar:not(.expanded) & {
+    display: none; // 收縮狀態時隱藏內容
+  }
 }
 
 /* 快速操作區 */
@@ -401,8 +421,8 @@
   }
 }
 
-/* 懸浮提示 */
-.floating-hint {
+/* 側邊框提示 */
+.sidebar-hint {
   position: fixed;
   bottom: 90px;
   right: 20px;
@@ -411,7 +431,7 @@
 
   @media (max-width: 768px) {
     right: 10px;
-    bottom: 80px;
+    bottom: 70px;
   }
 }
 
@@ -447,5 +467,193 @@
   }
   60% {
     transform: translateY(-5px);
+  }
+}
+
+/* AI處理提示覆蓋層 */
+.ai-processing-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none; /* 不阻擋用戶操作 */
+  animation: fadeIn 0.3s ease-out;
+}
+
+.processing-content {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 24px 32px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  animation: slideInUp 0.4s ease-out;
+}
+
+.processing-icon {
+  margin-bottom: 16px;
+  
+  .rotating-icon {
+    width: 32px;
+    height: 32px;
+    color: #28a745;
+    animation: rotate 2s linear infinite;
+  }
+}
+
+.processing-text {
+  h5 {
+    color: #333;
+    margin-bottom: 4px;
+    font-weight: 600;
+    font-size: 16px;
+  }
+  
+  p {
+    color: #666;
+    margin: 0;
+    font-size: 13px;
+  }
+}
+
+.takeover-icon {
+  margin-bottom: 20px;
+  
+  .rotating-icon {
+    width: 60px;
+    height: 60px;
+    color: #667eea;
+    animation: rotate 2s linear infinite;
+  }
+}
+
+.takeover-text {
+  margin-bottom: 30px;
+  
+  h5 {
+    color: #333;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  
+  p {
+    color: #666;
+    margin: 0;
+    font-size: 14px;
+  }
+}
+
+.takeover-progress {
+  .progress-bar {
+    width: 100%;
+    height: 4px;
+    background: #e0e0e0;
+    border-radius: 2px;
+    overflow: hidden;
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      border-radius: 2px;
+      animation: progress 2s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes progress {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 100%; }
+}
+
+/* 開始測驗按鈕區域 */
+.quiz-action-container {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #28a745;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px;
+  animation: slideInUp 0.3s ease-out;
+  
+  .quiz-info {
+    text-align: center;
+    margin-bottom: 12px;
+    
+    .quiz-title {
+      color: #28a745;
+      font-weight: 600;
+      margin-bottom: 4px;
+      font-size: 1rem;
+    }
+    
+    .quiz-details {
+      color: #6c757d;
+      font-size: 0.875rem;
+      margin: 0;
+    }
+  }
+  
+  .quiz-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    
+    .start-quiz-btn {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      padding: 12px 24px;
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+      transition: all 0.2s ease;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+      }
+      
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

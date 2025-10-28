@@ -70,6 +70,13 @@ export class AuthService {
     
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
     return requestFn(headers).pipe(
+      map((response: any) => {
+        // 檢查返回的響應是否包含新的 token
+        if (response && response.token) {
+          this.setToken(response.token);
+        }
+        return response;
+      }),
       catchError(error => {
         if (error.status === 401) {
           this.clearToken();

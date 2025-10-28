@@ -1,0 +1,122 @@
+<div class="modern-reader" [class.sidebar-open]="sidebarVisible">
+    <!-- 頂部導航欄 -->
+    <header class="reader-header">
+        <div class="header-content">
+            <button class="back-button" (click)="goBack()">
+                <i class="cil-arrow-left"></i>
+                <span>返回</span>
+            </button>
+            <div class="header-title">
+                <h1>{{ filename }}</h1>
+            </div>
+            <div class="header-actions">
+                <button class="action-button" (click)="toggleTOC()" [class.active]="!tocCollapsed">
+                    <i class="cil-list"></i>
+                </button>
+                <button class="action-button" (click)="toggleSidebar()" [class.active]="sidebarVisible">
+                    <i class="cil-highlight"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區域 -->
+    <main class="reader-main">
+        <!-- 側邊目錄 -->
+        <aside class="toc-sidebar" [class.collapsed]="tocCollapsed">
+            <div class="toc-content">
+                <h3>目錄</h3>
+                <nav id="toc-list" class="toc-nav"></nav>
+            </div>
+        </aside>
+
+        <!-- 文章內容 -->
+        <article class="article-content" [class.full-width]="tocCollapsed">
+            <div class="article-wrapper">
+                <div class="markdown-content" id="content">
+                    <markdown [data]="content" (ready)="onMarkdownReady()"></markdown>
+                </div>
+            </div>
+        </article>
+    </main>
+
+    <!-- 螢光筆工具列 -->
+    <div class="highlighter-toolbar" [class.active]="sidebarVisible">
+        <div class="toolbar-content">
+            <!-- 顏色選擇器 -->
+            <div class="color-picker">
+                <h4>選擇顏色</h4>
+                <div class="color-grid">
+                    <button 
+                        *ngFor="let color of highlightColors" 
+                        class="color-option"
+                        [class.selected]="selectedColor === color.value"
+                        [style.background-color]="color.value"
+                        [title]="color.name"
+                        (click)="selectColor(color.value)"
+                    ></button>
+                </div>
+            </div>
+            
+            <!-- 工具按鈕 -->
+            <div class="tool-actions">
+                <button 
+                    class="tool-button"
+                    [class.active]="highlighterMode"
+                    (click)="toggleHighlighterMode()"
+                    title="{{ highlighterMode ? '關閉' : '開啟' }}螢光筆"
+                >
+                    <i class="cil-highlight"></i>
+                    <span>螢光筆</span>
+                </button>
+                <button 
+                    class="tool-button"
+                    (click)="generateQuizFromToolbar()"
+                    title="生成題目"
+                >
+                    <i class="cil-lightbulb"></i>
+                    <span>生成題目</span>
+                </button>
+                <button 
+                    class="tool-button"
+                    (click)="clearAllHighlights()"
+                    title="清除所有劃記"
+                >
+                    <i class="cil-trash"></i>
+                    <span>清除劃記</span>
+                </button>
+                <button 
+                    class="tool-button"
+                    (click)="exportHighlights()"
+                    title="匯出劃記內容"
+                >
+                    <i class="cil-export"></i>
+                    <span>匯出</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 浮動按鈕組 -->
+<div 
+  *ngIf="showButtons" 
+  class="floating-buttons"
+  [style.left.px]="buttonPosition.x"
+  [style.top.px]="buttonPosition.y"
+>
+  <button 
+    class="btn btn-primary btn-sm me-2" 
+    (click)="askQuestion()"
+    title="詢問關於選中的內容"
+  >
+    <i class="cil-question-mark"></i> 詢問
+  </button>
+  <button 
+    class="btn btn-warning btn-sm" 
+    (click)="highlightSelectedText()"
+    title="劃記選中的文字"
+  >
+    <i class="cil-highlight"></i> 劃記
+  </button>
+</div>

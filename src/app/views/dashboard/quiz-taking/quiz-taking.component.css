@@ -1,6 +1,23 @@
 .exam-page-layout {
   height: calc(100vh - 120px);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* 移除 Bootstrap 默認的間距和邊框 */
+.exam-page-layout .row {
+  margin: 0;
+  --bs-gutter-x: 0;
+}
+
+.exam-page-layout .col-md-3,
+.exam-page-layout .col-lg-2,
+.exam-page-layout .col-md-9,
+.exam-page-layout .col-lg-10 {
+  padding: 0;
 }
 
 .question-nav-panel {
@@ -8,7 +25,23 @@
   padding: 15px;
   height: 100%;
   overflow-y: auto;
-  border-right: 1px solid #eee;
+  border-right: 1px solid #e9ecef;
+  flex-shrink: 0;
+  min-width: 200px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* 主要內容區域 */
+.col-md-9.col-lg-10 {
+  height: 100%;
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .exam-info {
@@ -22,8 +55,9 @@
 .question-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 15px;
+  justify-content: flex-start;
 }
 
 .question-nav-btn {
@@ -103,12 +137,22 @@
   padding: 20px;
   height: 100%;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0; /* 確保flex子元素可以縮小 */
+  background-color: #fff;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
 }
 
 .exam-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
+}
+
+.question-area {
   margin-bottom: 20px;
 }
 
@@ -223,6 +267,11 @@ img[src=""]:after {
 /* 答題區域樣式 */
 .answer-section {
   margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  min-height: 200px; /* 確保最小高度 */
 }
 
 /* 單選題美化樣式 */
@@ -370,6 +419,26 @@ img[src=""]:after {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+/* 文字答題區域樣式 */
+.text-answer-section {
+  margin-top: 15px;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  min-height: 150px;
+}
+
+/* 填空題區域樣式 */
+.fill-blank-section {
+  margin-top: 15px;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  min-height: 150px;
+}
+
 .text-answer-section .form-control,
 .fill-blank-section .form-control {
   font-size: 1rem;
@@ -388,23 +457,185 @@ img[src=""]:after {
 /* 繪圖區域樣式 */
 .draw-answer-section {
   margin-top: 15px;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  min-height: 200px;
 }
 
-.drawing-area {
-  border: 2px solid #e0e0e0;
+/* 繪圖工具欄 */
+.drawing-toolbar {
+  background: #ffffff;
+  border: 2px solid #0d6efd;
   border-radius: 8px;
   padding: 15px;
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+  margin-bottom: 15px !important;
+}
+
+.toolbar-header {
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 8px;
+}
+
+.toolbar-header h6 {
+  color: #0d6efd;
+  font-weight: 700;
+  font-size: 16px;
+  margin: 0;
+}
+
+.toolbar-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+}
+
+.toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* 顏色選擇器 */
+.color-picker-group {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px;
+  background-color: #fff;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.color-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #dee2e6;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.color-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.color-btn.active {
+  border-color: #0d6efd;
+  border-width: 3px;
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+}
+
+.color-btn.active::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.custom-color-picker {
+  width: 40px;
+  height: 32px;
+  border-radius: 6px;
+  border: 2px solid #dee2e6;
+  cursor: pointer;
+  background: linear-gradient(45deg, 
+    red, yellow, lime, cyan, blue, magenta, red);
+}
+
+.custom-color-picker:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* 筆刷大小滑桿 */
+.brush-size-slider {
+  cursor: pointer;
+}
+
+.brush-size-slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  background: #0d6efd;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.brush-size-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #0d6efd;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+/* 畫布區域 */
+.drawing-area {
   background-color: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.canvas-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: 
+    linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
+    linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
+    linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .drawing-canvas {
-  border: 1px solid #ccc;
+  border: 2px solid #0d6efd;
   border-radius: 4px;
   background-color: white;
-  cursor: crosshair;
+  cursor: none; /* 移除預設游標 */
   display: block;
   margin: 0 auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.2s ease;
+  position: relative;
 }
+
+.drawing-canvas:hover {
+  box-shadow: 0 4px 16px rgba(13, 110, 253, 0.3);
+}
+
+/* 自訂游標圓圈樣式已移至 JavaScript 動態創建 */
 
 .drawing-controls {
   text-align: center;
@@ -413,6 +644,11 @@ img[src=""]:after {
 /* 程式撰寫題樣式 */
 .coding-answer-section {
   margin-top: 15px;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  min-height: 200px;
 }
 
 .code-editor {
@@ -438,6 +674,11 @@ img[src=""]:after {
 /* 選填題樣式 */
 .choice-answer-section {
   margin-top: 15px;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  min-height: 150px;
 }
 
 .choice-answer-section .options-list {
@@ -450,6 +691,11 @@ img[src=""]:after {
 /* 群組題目樣式 */
 .group-question-section {
   margin-top: 15px;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  min-height: 200px;
 }
 
 .sub-question-item {
@@ -510,16 +756,22 @@ img[src=""]:after {
   padding: 4px 8px;
 }
 
-/* 響應式設計 */
-@media (max-width: 768px) {
+/* 響應式設計 - 平板 */
+@media (max-width: 992px) {
   .exam-page-layout {
-    height: auto;
+    height: calc(100vh - 100px);
   }
   
   .question-nav-panel {
     height: auto;
+    max-height: 150px;
     border-right: none;
     border-bottom: 1px solid #eee;
+  }
+  
+  .col-md-9.col-lg-10 {
+    height: calc(100vh - 250px);
+    overflow-y: auto;
   }
   
   .exam-header {
@@ -636,4 +888,891 @@ img[src=""]:after {
 
 @keyframes progress-bar-stripes {
   0% { background-position-x: 1rem; }
+}
+
+/* ==================== 數學公式相關樣式 ==================== */
+
+/* 題目中的數學公式渲染 */
+.question-text .math-display {
+  display: block;
+  text-align: center;
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.question-text .math-inline {
+  display: inline;
+  margin: 0 2px;
+}
+
+/* 數學公式答題區域 */
+.math-answer-section {
+  margin-top: 20px;
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  min-height: 200px;
+}
+
+/* 數學編輯器左右分佈佈局 */
+.math-editor-layout {
+  display: flex;
+  height: 500px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+/* 左側輸入區域 */
+.math-input-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #e9ecef;
+}
+
+.math-input-header {
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.math-input-area {
+  flex: 1;
+  padding: 20px;
+}
+
+.math-latex-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+  background-color: #fafafa;
+  padding: 15px;
+  border-radius: 6px;
+}
+
+.math-latex-input:focus {
+  background-color: white;
+  box-shadow: inset 0 0 0 2px #0d6efd;
+}
+
+/* 右側預覽區域 */
+.math-preview-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+}
+
+.math-preview-header {
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.math-preview-area {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: white;
+  min-height: 200px;
+}
+
+.math-preview-content {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  line-height: 1.8;
+  color: #333;
+}
+
+/* 預覽區域上方的工具選擇 */
+.math-tools-above-preview {
+  background-color: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  padding: 20px;
+  max-height: 350px;
+  overflow-y: auto;
+  min-height: 200px;
+}
+
+/* 標題欄中的下拉選單選擇器樣式 */
+.math-tools-dropdown {
+  min-width: 150px;
+}
+
+.math-tools-select {
+  background-color: #fff;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #495057;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.math-tools-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+  outline: none;
+}
+
+.math-tools-select:hover {
+  border-color: #adb5bd;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* 工具選擇內容區域 */
+.math-tools-content {
+  background-color: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  padding: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 改善工具選擇區域的間距 */
+.math-tools-above-preview .math-quick-tools,
+.math-tools-above-preview .math-templates-content {
+  margin-top: 10px;
+}
+
+/* 改善網格間距 */
+.math-tools-above-preview .quick-tools-grid,
+.math-tools-above-preview .templates-grid {
+  gap: 10px;
+  padding: 15px;
+}
+
+/* 改善按鈕間距 */
+.math-tools-above-preview .quick-tool-btn,
+.math-tools-above-preview .template-btn {
+  margin-bottom: 5px;
+}
+
+/* 統一的數學工具面板 */
+.math-tools-panel {
+  background-color: #f8f9fa;
+  padding: 20px;
+}
+
+.math-tools-header {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* 區塊標題 */
+.section-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.section-title .badge {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+}
+
+/* 舊的標籤頁樣式已移除，現在使用下拉選單 */
+
+/* 快捷工具網格 */
+.quick-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 18px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 25px;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.quick-tool-btn {
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 12px;
+  border: 2px solid #dee2e6;
+  background-color: white;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.quick-tool-btn:hover {
+  background-color: #e3f2fd;
+  border-color: #2196f3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.2);
+}
+
+.quick-tool-btn:active {
+  transform: translateY(0);
+  background-color: #2196f3;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.tool-preview {
+  font-size: 1.4rem;
+  margin-bottom: 10px;
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+  color: #333;
+  font-weight: 500;
+  line-height: 1.4;
+  flex: 1;
+  max-width: 100%;
+  overflow: hidden;
+  text-align: center;
+}
+
+.tool-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
+  opacity: 0.8;
+  color: #666;
+  margin-top: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.quick-tool-btn:hover .tool-preview,
+.quick-tool-btn:hover .tool-name {
+  opacity: 1;
+}
+
+/* 符號和模板網格容器 */
+.math-symbols-section,
+.math-templates-section,
+.math-templates-content {
+  margin-bottom: 0;
+}
+
+/* 符號網格 */
+.symbols-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+  gap: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 12px;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.symbol-btn {
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  border: 1px solid #dee2e6;
+  background-color: white;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.symbol-btn:hover {
+  background-color: #e3f2fd;
+  border-color: #2196f3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.symbol-btn:active {
+  transform: translateY(0);
+  background-color: #2196f3;
+  color: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* 模板網格 */
+.templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 18px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 25px;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.template-btn {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 12px;
+  border: 2px solid #dee2e6;
+  background-color: white;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.template-btn:hover {
+  background-color: #e8f5e8;
+  border-color: #4caf50;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.2);
+}
+
+.template-btn:active {
+  transform: translateY(0);
+  background-color: #4caf50;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.template-preview {
+  font-size: 1.3rem;
+  margin-bottom: 10px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+  color: #333;
+  font-weight: 500;
+  line-height: 1.4;
+  flex: 1;
+  max-width: 100%;
+  overflow: hidden;
+  text-align: center;
+}
+
+.template-name {
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
+  opacity: 0.8;
+  color: #666;
+  margin-top: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.template-btn:hover .template-preview,
+.template-btn:hover .template-name {
+  opacity: 1;
+}
+
+.math-mode-selector {
+  margin-bottom: 0;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid #dee2e6;
+}
+
+.math-mode-selector .btn-group .btn {
+  border-radius: 6px;
+  margin-right: 5px;
+  transition: all 0.3s ease;
+}
+
+.math-mode-selector .btn-group .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 數學繪圖模式 */
+.math-drawing-mode {
+  margin-top: 0;
+}
+
+.math-drawing-area {
+  padding: 1rem;
+}
+
+.math-drawing-canvas-container {
+  text-align: center;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 2px dashed #dee2e6;
+  margin-bottom: 1rem;
+}
+
+.math-drawing-canvas {
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  cursor: crosshair;
+  display: block;
+  margin: 0 auto;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.math-drawing-canvas:hover {
+  border-color: #0056b3;
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
+}
+
+.math-drawing-controls {
+  padding: 0.5rem 1rem;
+  background-color: #f8f9fa;
+  border-radius: 0 0 8px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 數學公式編輯模式 */
+.math-formula-mode {
+  margin-top: 0;
+}
+
+.math-formula-editor {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #dee2e6;
+}
+
+.math-formula-input {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px;
+  resize: vertical;
+  min-height: 100px;
+  transition: all 0.3s ease;
+}
+
+.math-formula-input:focus {
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+/* 公式預覽區域 */
+.math-preview {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #dee2e6;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+}
+
+.math-preview-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* 數學符號工具列 */
+.math-symbols-toolbar {
+  margin-top: 0;
+}
+
+.symbols-container {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+.symbols-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 0.5rem;
+}
+
+.symbol-btn {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+
+.symbol-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 公式模板 */
+.math-templates {
+  margin-top: 0;
+}
+
+.templates-container {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+.templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+}
+
+.template-btn {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  padding: 5px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.template-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 響應式設計 - 手機 */
+@media (max-width: 768px) {
+  .exam-page-layout {
+    height: calc(100vh - 80px);
+    flex-direction: column;
+  }
+  
+  .question-nav-panel {
+    height: auto;
+    max-height: 120px;
+    border-right: none;
+    border-bottom: 1px solid #eee;
+    overflow-y: auto;
+  }
+  
+  .question-grid {
+    gap: 4px;
+    justify-content: center;
+  }
+  
+  .question-nav-btn {
+    width: 35px;
+    height: 35px;
+    font-size: 12px;
+  }
+  
+  .legend {
+    display: none; /* 在小螢幕上隱藏圖例以節省空間 */
+  }
+  
+  .col-md-9.col-lg-10 {
+    height: calc(100vh - 200px);
+    overflow-y: auto;
+    padding: 10px;
+  }
+  
+  .exam-container {
+    padding: 10px;
+  }
+  
+  .question-text {
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  
+  .math-drawing-canvas {
+    width: 100%;
+    height: 250px;
+  }
+  
+  /* 繪圖工具欄響應式 */
+  .drawing-toolbar {
+    padding: 10px;
+  }
+  
+  .toolbar-row {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .toolbar-section {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  
+  .color-picker-group {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  
+  .brush-size-slider {
+    width: 100px !important;
+  }
+  
+  .canvas-container {
+    padding: 10px;
+  }
+  
+  .drawing-canvas {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  .symbols-grid,
+  .templates-grid {
+    max-height: 80px;
+  }
+  
+  .math-answer-section {
+    padding: 15px;
+  }
+  
+  /* 數學編輯器響應式調整 */
+  .math-editor-layout {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .math-input-section,
+  .math-preview-section {
+    border-right: none;
+    border-bottom: 1px solid #e9ecef;
+  }
+  
+  .math-input-section {
+    min-height: 200px;
+  }
+  
+  .math-preview-section {
+    min-height: 150px;
+  }
+  
+  .math-latex-input {
+    min-height: 150px;
+  }
+  
+  .math-preview-content {
+    min-height: 100px;
+    font-size: 1rem;
+  }
+  
+  .math-tools-above-preview {
+    max-height: 200px;
+    padding: 10px 15px;
+  }
+  
+  .symbols-grid {
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    max-height: 100px;
+  }
+  
+  .templates-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    max-height: 120px;
+  }
+  
+  /* 下拉選單響應式調整 */
+  .math-tools-select {
+    font-size: 0.8rem;
+    padding: 8px 12px;
+  }
+  
+  .quick-tools-grid {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    max-height: 150px;
+  }
+  
+  .quick-tool-btn {
+    min-height: 50px;
+    padding: 6px;
+  }
+  
+  .tool-preview {
+    font-size: 1rem;
+  }
+  
+  .tool-name {
+    font-size: 0.6rem;
+  }
+  
+  /* 手機端答題區域調整 */
+  .answer-section,
+  .text-answer-section,
+  .fill-blank-section,
+  .draw-answer-section,
+  .coding-answer-section,
+  .choice-answer-section,
+  .group-question-section,
+  .math-answer-section {
+    padding: 10px;
+    min-height: 120px;
+  }
+  
+  /* 確保題目內容在小螢幕上可見 */
+  .question-area {
+    margin-bottom: 15px;
+  }
+  
+  .question-header {
+    margin-bottom: 15px;
+  }
+  
+  .question-info {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .question-actions {
+    margin-top: 10px;
+  }
+}
+
+/* 響應式設計 - 超小螢幕 */
+@media (max-width: 576px) {
+  .exam-page-layout {
+    height: calc(100vh - 60px);
+  }
+  
+  .col-md-9.col-lg-10 {
+    height: calc(100vh - 180px);
+    padding: 5px;
+  }
+  
+  .exam-container {
+    padding: 5px;
+  }
+  
+  .question-text {
+    font-size: 0.9rem;
+  }
+  
+  .math-drawing-canvas {
+    height: 200px;
+  }
+  
+  .answer-section,
+  .text-answer-section,
+  .fill-blank-section,
+  .draw-answer-section,
+  .coding-answer-section,
+  .choice-answer-section,
+  .group-question-section,
+  .math-answer-section {
+    padding: 8px;
+    min-height: 100px;
+  }
+}
+
+/* KaTeX 樣式調整 */
+.katex {
+  font-size: 1.1em;
+  line-height: 1.2;
+}
+
+.katex-display {
+  margin: 1em 0;
+}
+
+/* 改善分數顯示 */
+.katex .frac-line {
+  border-bottom-width: 0.04em;
+}
+
+.katex .frac-num {
+  padding: 0 0.1em;
+}
+
+.katex .frac-den {
+  padding: 0 0.1em;
+}
+
+/* 改善上標下標顯示 */
+.katex .msupsub {
+  text-align: left;
+}
+
+.katex .msubsup {
+  text-align: left;
+}
+
+/* 改善根號顯示 */
+.katex .sqrt {
+  display: inline-block;
+  border-top: 0.08em solid;
+  border-right: 0.08em solid;
+  margin-right: 0.15em;
+  margin-left: 0.15em;
+}
+
+/* 數學公式預覽區域樣式 */
+.math-preview-content .katex {
+  font-size: 1.2em;
+  line-height: 1.3;
+}
+
+/* 工具按鈕中的數學符號樣式 */
+.quick-tool-btn .katex,
+.template-btn .katex {
+  font-size: 0.9em;
+  line-height: 1.1;
+}
+
+/* 數學公式答題區域的動畫效果 */
+.math-answer-section {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -1,8 +1,8 @@
-<!-- Web AI 助手 - 懸浮窗口 -->
-<div class="web-ai-container" [class.expanded]="isExpanded">
+<!-- Web AI 助手 - 側邊框 -->
+<div class="web-ai-sidebar" [class.expanded]="isExpanded" (click)="toggleExpanded()">
   
-  <!-- 聊天窗口標題欄 -->
-  <div class="chat-header" (click)="toggleExpanded()">
+  <!-- 側邊框標題欄 -->
+  <div class="sidebar-header">
     <div class="header-content">
       <div class="ai-avatar">
         <!-- 使用 misHelper.jpg 頭像，通過 CSS 背景圖片顯示 -->
@@ -23,8 +23,8 @@
     </div>
   </div>
 
-  <!-- 聊天窗口內容 -->
-  <div class="chat-content" *ngIf="isExpanded">
+  <!-- 側邊框內容 -->
+  <div class="sidebar-content" *ngIf="isExpanded">
     
     <!-- 快速操作區 -->
     <div class="quick-actions-bar">
@@ -36,7 +36,6 @@
         [title]="item.label">
         {{ item.label }}
       </button>
-
     </div>
 
     <!-- 訊息區域 -->
@@ -94,6 +93,45 @@
             </div>
           </div>
         </div>
+
+        <!-- AI處理提示 -->
+        <div *ngIf="isAiTakingOver" class="ai-processing-overlay">
+          <div class="processing-content">
+            <div class="processing-icon">
+              <svg cIcon name="cilSettings" class="rotating-icon"></svg>
+            </div>
+            <div class="processing-text">
+              <h5>AI正在處理中...</h5>
+              <p>請稍候</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 開始測驗按鈕 -->
+    <div class="quiz-action-container" *ngIf="showStartQuizButton">
+      <div class="quiz-info">
+        <h6 class="quiz-title">{{ currentQuizData?.quiz_info?.title }}</h6>
+        <p class="quiz-details">
+          {{ currentQuizData?.quiz_info?.question_count }} 題 • 
+          {{ currentQuizData?.quiz_info?.time_limit }} 分鐘
+        </p>
+      </div>
+      <div class="quiz-actions">
+        <button
+          type="button"
+          class="btn btn-success btn-lg start-quiz-btn"
+          (click)="startQuiz()">
+          <svg cIcon name="cilPlay" class="me-2"></svg>
+          開始測驗
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          (click)="hideStartQuizButton()">
+          關閉
+        </button>
       </div>
     </div>
 
@@ -121,8 +159,8 @@
   </div>
 </div>
 
-<!-- 懸浮按鈕提示 -->
-<div class="floating-hint" *ngIf="!isExpanded && messages.length === 1">
+<!-- 側邊框提示 -->
+<div class="sidebar-hint" *ngIf="!isExpanded && messages.length === 1">
   <div class="hint-bubble">
     <span>💬 有問題嗎？點我開始對話！</span>
   </div>

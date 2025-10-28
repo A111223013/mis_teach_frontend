@@ -1,11 +1,12 @@
 import { bootstrapApplication } from '@angular/platform-browser';
+import 'zone.js';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { AppComponent } from './app/app.component';
 import { provideRouter } from '@angular/router';
 import { routes } from './app/app.routes';
 import { importProvidersFrom } from '@angular/core';
 import { HttpClientModule } from '@angular/common/http';
-import { IconSetService } from '@coreui/icons-angular';
+import { IconSetService, IconModule } from '@coreui/icons-angular';
 import { MarkdownModule } from 'ngx-markdown';
 import {
   cilBook,
@@ -41,8 +42,27 @@ import {
   cilCalendar,
   cilEducation,
   cilArrowRight,
-  cilReload
+  cilReload,
+  cilNewspaper,
+  cilQrCode,
+  cilTag,
+  cilImage,
+  cilSchool,
+  cilSettings,
+  cilMediaPlay,
+  cilUser,
+  cilClock,
+  cilBell,
+  cilX,
+  cilTask,
+  cilWarning,
+  cilCommentBubble,
+  cilChevronLeft,
+  cilChevronRight
 } from '@coreui/icons';
+import { register as registerSwiperElements } from 'swiper/element/bundle';
+
+registerSwiperElements();
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -86,7 +106,23 @@ bootstrapApplication(AppComponent, {
           cilCalendar,
           cilEducation,
           cilArrowRight,
-          cilReload
+          cilReload,
+          cilNewspaper,
+          cilQrCode,
+          cilTag,
+          cilImage,
+          cilSchool,
+          cilSettings,
+          cilMediaPlay,
+          cilUser,
+          cilClock,
+          cilBell,
+          cilX,
+          cilTask,
+          cilWarning,
+          cilCommentBubble,
+          cilChevronLeft,
+          cilChevronRight
         };
         return iconSetService;
       }

@@ -80,16 +80,18 @@
                 <div class="message-text" [innerHTML]="message.content | markdown"></div>
                 
                 <!-- 考卷生成後的開始測驗按鈕 -->
-                <div *ngIf="isQuizGenerationMessage(message.content)" class="quiz-actions mt-3">
+                <div *ngIf="message.content && isQuizGenerationMessage(message.content)" class="quiz-actions mt-3">
                   <button 
                     class="btn btn-primary btn-lg"
-                    (click)="startQuizFromMessage(message.content)">
+                    (click)="startQuizFromMessage(message.content)"
+                    [disabled]="!message.content">
                     <i class="cil-media-play me-2"></i>
                     開始測驗
                   </button>
                   <button 
                     class="btn btn-outline-secondary ms-2"
-                    (click)="viewQuizDetails(message.content)">
+                    (click)="viewQuizDetails(message.content)"
+                    [disabled]="!message.content">
                     <i class="cil-eye me-2"></i>
                     查看詳情
                   </button>
@@ -124,6 +126,24 @@
                   </div>
                   <small class="text-muted ms-2">AI正在思考中...</small>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI接管畫面提示 -->
+        <div *ngIf="isAiTakingOver" class="ai-takeover-overlay">
+          <div class="takeover-content">
+            <div class="takeover-icon">
+              <svg cIcon name="cilSettings" class="rotating-icon"></svg>
+            </div>
+            <div class="takeover-text">
+              <h5>AI正在接管畫面...</h5>
+              <p>請稍候，AI正在為您操作介面</p>
+            </div>
+            <div class="takeover-progress">
+              <div class="progress-bar">
+                <div class="progress-fill"></div>
               </div>
             </div>
           </div>

@@ -17,6 +17,7 @@ import {
 } from '@coreui/angular';
 import { IconModule } from '@coreui/icons-angular';
 import { AiTutoringService, QuestionData } from '../../../service/ai-tutoring.service';
+import { AiQuizService, QuestionAnalysis, LearningPath, LearningSession } from '../../../service/ai-quiz.service';
 
 interface Note {
   id: string;
@@ -73,6 +74,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   showQuestionDetailModal = false;
   showUserAnswerDetailModal = false;
   showCorrectAnswerDetailModal = false;
+  currentQuestionAnswerAnalysis: string | null = null;
 
   // 筆記功能
   notes: Note[] = [];
@@ -140,10 +142,17 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 新增：學習完成狀態
   currentQuestionCompleted: boolean = false;
 
+  // 新增：AI測驗服務相關屬性
+  questionAnalysis: QuestionAnalysis | null = null;
+  aiLearningPath: LearningPath | null = null;
+  learningSession: LearningSession | null = null;
+  learningSuggestions: string[] = [];
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private aiTutoringService: AiTutoringService
+    private aiTutoringService: AiTutoringService,
+    private aiQuizService: AiQuizService
   ) {
     this.checkMobile();
   }
@@ -160,6 +169,15 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.route.queryParams.subscribe(queryParams => {
       if (queryParams['source'] === 'quiz_result') {
         this.initializeFromQuizResult(queryParams);
+      } else if (queryParams['mode'] === 'guided_learning') {
+        // 新增：處理引導學習模式
+        this.initializeGuidedLearning(queryParams);
+      } else if (queryParams['mode'] === 'mistake_review') {
+        // 處理單題錯題複習模式
+        this.initializeMistakeReview(queryParams);
+      } else if (queryParams['mode'] === 'batch_review') {
+        // 處理批量複習模式
+        this.initializeBatchReview(queryParams);
       }
     });
     
@@ -209,6 +227,199 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       }
     } catch (error) {
       this.addMessage('ai', '載入測驗結果時發生錯誤，請重試。');
+    }
+  }
+
+  // 新增：初始化引導學習模式
+  async initializeGuidedLearning(queryParams: any): Promise<void> {
+    const questionId = queryParams.questionId;
+    
+    if (!questionId) {
+      this.addMessage('ai', '缺少題目ID，無法開始引導學習。');
+      return;
+    }
+
+    try {
+      // 使用AI測驗服務開始引導學習
+      this.addMessage('ai', '🎯 正在分析題目，生成個性化學習計劃...');
+      
+      const questionData = {
+        question_id: questionId,
+        question_text: queryParams.questionText || '題目載入中...',
+        user_answer: queryParams.studentAnswer || '未作答',
+        correct_answer: queryParams.correctAnswer || '答案載入中...',
+        topic: queryParams.topic || '',
+        chapter: queryParams.chapter || ''
+      };
+
+      this.aiQuizService.startGuidedLearning(questionData).subscribe({
+        next: (response) => {
+          if (response.success) {
+            // 保存AI分析結果
+            this.questionAnalysis = response.analysis;
+            this.aiLearningPath = response.learning_path;
+            this.learningSession = response.session_data;
+            this.learningSuggestions = response.suggestions;
+            
+            // 設置sessionId
+            this.sessionId = response.session_data.session_id;
+            
+            // 創建引導學習的題目數據結構
+            const guidedQuestion: QuestionData = {
+              question_id: questionId,
+              question_text: queryParams.questionText || '題目載入中...',
+              user_answer: queryParams.studentAnswer || '未作答',
+              correct_answer: queryParams.correctAnswer || '答案載入中...',
+              is_correct: queryParams.isCorrect === 'true',
+              score: parseInt(queryParams.score) || 0,
+              feedback: {
+                explanation: '',
+                strengths: '',
+                weaknesses: '',
+                suggestions: ''
+              },
+              subject: '計算機概論',
+              difficulty: this.getDifficultyFromParams(queryParams.difficulty),
+              topic: queryParams.topic || '',
+              options: [],
+              image_file: '',
+              question_type: queryParams.examType || 'general',
+              is_marked: false
+            };
+
+            // 設置學習路徑為單題
+            this.learningPath = [guidedQuestion];
+            this.currentQuestionIndex = 0;
+            this.currentQuestion = guidedQuestion;
+
+            // 設置引導學習的特定配置
+            this.setupGuidedLearningConfig(queryParams);
+
+            // 顯示AI分析結果
+            this.displayAIAnalysisResults();
+
+            // 開始引導學習會話
+            this.startGuidedLearningSession(queryParams);
+            
+          } else {
+            this.addMessage('ai', '❌ AI分析失敗，請重試。');
+          }
+        },
+        error: (error) => {
+          console.error('❌ AI引導學習初始化失敗:', error);
+          this.addMessage('ai', 'AI引導學習初始化失敗，請重試。');
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ 初始化引導學習失敗:', error);
+      this.addMessage('ai', '初始化引導學習時發生錯誤，請重試。');
+    }
+  }
+
+  // 新增：初始化單題錯題複習模式
+  async initializeMistakeReview(queryParams: any): Promise<void> {
+    const questionId = queryParams.questionId;
+    
+    if (!questionId) {
+      this.addMessage('ai', '缺少題目ID，無法開始錯題複習。');
+      return;
+    }
+
+    try {
+      // 使用AI測驗服務開始錯題複習
+      this.addMessage('ai', '🔍 正在分析錯題，生成複習計劃...');
+      
+      const questionData = {
+        question_id: questionId,
+        question_text: queryParams.questionText || '題目載入中...',
+        user_answer: queryParams.studentAnswer || '未作答',
+        correct_answer: queryParams.correctAnswer || '答案載入中...',
+        topic: queryParams.topic || '',
+        chapter: queryParams.chapter || ''
+      };
+
+      this.aiQuizService.startMistakeReview(questionData).subscribe({
+        next: (response) => {
+          if (response.success) {
+            // 保存AI分析結果
+            this.questionAnalysis = response.analysis;
+            this.aiLearningPath = response.learning_path;
+            this.learningSession = response.session_data;
+            this.learningSuggestions = response.suggestions;
+            
+            // 設置sessionId
+            this.sessionId = response.session_data.session_id;
+            
+            // 創建錯題複習的題目數據結構
+            const reviewQuestion: QuestionData = {
+              question_id: questionId,
+              question_text: queryParams.questionText || '題目載入中...',
+              user_answer: queryParams.studentAnswer || '未作答',
+              correct_answer: queryParams.correctAnswer || '答案載入中...',
+              is_correct: false, // 錯題複習模式
+              score: parseInt(queryParams.score) || 0,
+              feedback: {
+                explanation: '',
+                strengths: '',
+                weaknesses: '',
+                suggestions: ''
+              },
+              subject: '計算機概論',
+              difficulty: 2, // 中等難度
+              topic: queryParams.topic || '',
+              options: [],
+              image_file: '',
+              question_type: queryParams.examType || 'general',
+              is_marked: false
+            };
+
+            this.learningPath = [reviewQuestion];
+            this.currentQuestionIndex = 0;
+            this.currentQuestion = reviewQuestion;
+
+            // 顯示AI分析結果
+            this.displayAIAnalysisResults();
+
+            // 開始錯題複習會話
+            this.startMistakeReviewSession();
+            
+          } else {
+            this.addMessage('ai', '❌ AI錯題分析失敗，請重試。');
+          }
+        },
+        error: (error) => {
+          console.error('❌ AI錯題複習初始化失敗:', error);
+          this.addMessage('ai', 'AI錯題複習初始化失敗，請重試。');
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ 初始化錯題複習失敗:', error);
+      this.addMessage('ai', '初始化錯題複習時發生錯誤，請重試。');
+    }
+  }
+
+  // 新增：初始化批量複習模式
+  async initializeBatchReview(queryParams: any): Promise<void> {
+    const questionIds = queryParams.questionIds;
+    
+    if (!questionIds) {
+      this.addMessage('ai', '缺少題目ID列表，無法開始批量複習。');
+      return;
+    }
+
+    try {
+      // 這裡可以從後端獲取批量題目數據
+      // 暫時顯示提示信息
+      this.addMessage('ai', `準備開始批量複習 ${questionIds.split(',').length} 道題目...`);
+      
+      // TODO: 實現批量題目載入邏輯
+      this.addMessage('ai', '批量複習功能正在開發中，請稍後使用。');
+      
+    } catch (error) {
+      console.error('❌ 初始化批量複習失敗:', error);
+      this.addMessage('ai', '初始化批量複習時發生錯誤，請重試。');
     }
   }
 
@@ -467,6 +678,32 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   
   showCorrectAnswerModal(): void {
     this.showCorrectAnswerDetailModal = true;
+    this.generateAnswerAnalysis();
+  }
+
+  async generateAnswerAnalysis() {
+    if (!this.currentQuestion) return;
+
+    try {
+      this.currentQuestionAnswerAnalysis = null; // 重置分析內容
+      
+      const analysisMessage = `請分析這道題目：${this.currentQuestion.question_text}\n\n正確答案：${this.currentQuestion.correct_answer}\n\n請提供詳細的答案分析，包括：\n1. 題目考察的知識點\n2. 解題思路和步驟\n3. 相關概念說明\n4. 常見錯誤和注意事項`;
+
+      const response = await this.aiTutoringService.sendTutoringMessage(
+        analysisMessage, 
+        this.sessionId, 
+        this.currentQuestion
+      ).toPromise();
+      
+      if (response?.success && response.response) {
+        this.currentQuestionAnswerAnalysis = response.response;
+      } else {
+        this.currentQuestionAnswerAnalysis = '無法生成答案分析，請重試。';
+      }
+    } catch (error) {
+      console.error('生成答案分析失敗:', error);
+      this.currentQuestionAnswerAnalysis = '生成答案分析時發生錯誤，請重試。';
+    }
   }
 
   saveNote(): void {
@@ -526,6 +763,35 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     
     // 更新階段開始時間
     this.currentStageStartTime = new Date();
+    
+    // 同步更新到AI測驗服務
+    this.syncProgressToAIService(stage, level);
+  }
+
+  // 新增：同步進度到AI服務
+  private syncProgressToAIService(stage: string, level: number): void {
+    if (this.sessionId && this.currentQuestion) {
+      const learningTime = this.getStageLearningTime();
+      
+      this.aiQuizService.updateProgress(
+        this.sessionId,
+        this.currentQuestion.question_id,
+        level,
+        stage,
+        learningTime
+      ).subscribe({
+        next: (success) => {
+          if (success) {
+            console.log('✅ 學習進度已同步到AI服務');
+          } else {
+            console.warn('⚠️ 學習進度同步失敗');
+          }
+        },
+        error: (error) => {
+          console.error('❌ 學習進度同步錯誤:', error);
+        }
+      });
+    }
   }
 
   getLearningStageDisplayName(stage: string): string {
@@ -670,6 +936,211 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     } else {
       console.warn('⚠️ 題目數據未正確載入，顯示預設訊息');
       this.addMessage('ai', '🎓 歡迎來到 AI 智能教學！\n\n請稍等，我正在載入您的錯題數據...');
+    }
+  }
+
+  // 新增：輔助方法 - 從參數獲取難度等級
+  private getDifficultyFromParams(difficulty: string): number {
+    switch (difficulty) {
+      case 'easy': return 1;
+      case 'medium': return 2;
+      case 'hard': return 3;
+      case 'very_hard': return 4;
+      default: return 2;
+    }
+  }
+
+  // 新增：設置引導學習配置
+  private setupGuidedLearningConfig(queryParams: any): void {
+    // 根據參數設置學習配置
+    if (queryParams.learningPath === 'progressive') {
+      this.learningStage = 'core_concept_confirmation';
+    }
+    
+    if (queryParams.adaptiveLearning === 'true') {
+      // 啟用自適應學習
+      this.understandingLevel = 0;
+    }
+    
+    if (queryParams.stepByStep === 'true') {
+      // 啟用逐步引導
+      this.learningProgress = [];
+    }
+  }
+
+  // 新增：開始引導學習會話
+  private startGuidedLearningSession(queryParams: any): void {
+    // 重置學習狀態
+    this.learningStage = 'core_concept_confirmation';
+    this.understandingLevel = 0;
+    this.learningProgress = [];
+    this.chatMessages = [];
+    
+    // 開始階段計時
+    this.startStageTimer();
+    
+    // 根據引導學習模式發送特定的初始化訊息
+    this.initializeGuidedAITutoring(queryParams);
+  }
+
+  // 新增：開始錯題複習會話
+  private startMistakeReviewSession(): void {
+    // 重置學習狀態
+    this.learningStage = 'core_concept_confirmation';
+    this.understandingLevel = 0;
+    this.learningProgress = [];
+    this.chatMessages = [];
+    
+    // 開始階段計時
+    this.startStageTimer();
+    
+    // 發送錯題複習的初始化訊息
+    this.initializeMistakeReviewAITutoring();
+  }
+
+  // 新增：初始化引導學習的AI教學
+  private async initializeGuidedAITutoring(queryParams: any): Promise<void> {
+    if (!this.currentQuestion) return;
+
+    try {
+      this.isLoading = true;
+      
+      // 使用簡單的初始化訊息，避免後端不支援的格式
+      const initMessage = `請幫我分析這道題目：${this.currentQuestion.question_text}`;
+
+      // 發送初始化訊息給後端
+      const response = await this.aiTutoringService.sendTutoringMessage(
+        initMessage, 
+        this.sessionId, 
+        this.currentQuestion
+      ).toPromise();
+      
+      if (response?.success) {
+        this.processAIResponse(response);
+        
+        // 如果AI回應成功，再發送一個引導學習的具體請求
+        setTimeout(() => {
+          this.sendGuidedLearningRequest(queryParams);
+        }, 1000);
+      } else {
+        console.error('❌ 引導學習AI初始化失敗:', response?.error);
+        this.addMessage('ai', '抱歉，引導學習初始化失敗，請重試。');
+      }
+    } catch (error) {
+      console.error('❌ 初始化引導學習AI教學失敗:', error);
+      this.addMessage('ai', '初始化引導學習AI教學時發生錯誤，請重試。');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // 新增：發送引導學習的具體請求
+  private async sendGuidedLearningRequest(queryParams: any): Promise<void> {
+    if (!this.currentQuestion) return;
+
+    try {
+      this.isLoading = true;
+      
+      // 構建引導學習的具體請求
+      const focusAreas = queryParams.focusAreas ? queryParams.focusAreas.split(',') : [];
+      const difficulty = queryParams.difficulty || 'medium';
+      
+      let guidedMessage = `這道題目涉及${queryParams.topic}領域的${queryParams.chapter}章節，`;
+      guidedMessage += `難度等級為${difficulty}。`;
+      
+      if (focusAreas.length > 0) {
+        guidedMessage += `請重點幫助我理解：${focusAreas.join('、')}等概念。`;
+      }
+      
+      guidedMessage += `請為我提供個性化的學習指導，幫助我掌握相關知識。`;
+
+      // 發送引導學習請求
+      const response = await this.aiTutoringService.sendTutoringMessage(
+        guidedMessage, 
+        this.sessionId, 
+        this.currentQuestion
+      ).toPromise();
+      
+      if (response?.success) {
+        this.processAIResponse(response);
+      } else {
+        console.error('❌ 引導學習請求失敗:', response?.error);
+        this.addMessage('ai', '抱歉，引導學習請求失敗，請重試。');
+      }
+    } catch (error) {
+      console.error('❌ 發送引導學習請求失敗:', error);
+      this.addMessage('ai', '發送引導學習請求時發生錯誤，請重試。');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // 新增：初始化錯題複習的AI教學
+  private async initializeMistakeReviewAITutoring(): Promise<void> {
+    if (!this.currentQuestion) return;
+
+    try {
+      this.isLoading = true;
+      
+      // 使用簡單的初始化訊息
+      const initMessage = `請幫我分析這道題目：${this.currentQuestion.question_text}`;
+
+      // 發送初始化訊息給後端
+      const response = await this.aiTutoringService.sendTutoringMessage(
+        initMessage, 
+        this.sessionId, 
+        this.currentQuestion
+      ).toPromise();
+      
+      if (response?.success) {
+        this.processAIResponse(response);
+        
+        // 如果AI回應成功，再發送錯題分析的具體請求
+        setTimeout(() => {
+          this.sendMistakeAnalysisRequest();
+        }, 1000);
+      } else {
+        console.error('❌ 錯題複習AI初始化失敗:', response?.error);
+        this.addMessage('ai', '抱歉，錯題複習初始化失敗，請重試。');
+      }
+    } catch (error) {
+      console.error('❌ 初始化錯題複習AI教學失敗:', error);
+      this.addMessage('ai', '初始化錯題複習AI教學時發生錯誤，請重試。');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // 新增：發送錯題分析的具體請求
+  private async sendMistakeAnalysisRequest(): Promise<void> {
+    if (!this.currentQuestion) return;
+
+    try {
+      this.isLoading = true;
+      
+      // 構建錯題分析的具體請求
+      let analysisMessage = `我的答案是：${this.currentQuestion.user_answer}，`;
+      analysisMessage += `正確答案是：${this.currentQuestion.correct_answer}。`;
+      analysisMessage += `請幫我分析錯誤原因，並提供改進建議。`;
+
+      // 發送錯題分析請求
+      const response = await this.aiTutoringService.sendTutoringMessage(
+        analysisMessage, 
+        this.sessionId, 
+        this.currentQuestion
+      ).toPromise();
+      
+      if (response?.success) {
+        this.processAIResponse(response);
+      } else {
+        console.error('❌ 錯題分析請求失敗:', response?.error);
+        this.addMessage('ai', '抱歉，錯題分析請求失敗，請重試。');
+      }
+    } catch (error) {
+      console.error('❌ 發送錯題分析請求失敗:', error);
+      this.addMessage('ai', '發送錯題分析請求時發生錯誤，請重試。');
+    } finally {
+      this.isLoading = false;
     }
   }
 
@@ -882,6 +1353,30 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     setTimeout(() => {
       this.nextQuestion();
     }, 2000);
+  }
+
+  // 新增：顯示AI分析結果
+  private displayAIAnalysisResults(): void {
+    if (this.questionAnalysis && this.aiLearningPath && this.learningSuggestions.length > 0) {
+      let analysisMessage = '🎯 **AI題目分析結果**\n\n';
+      
+      // 顯示難度分析
+      analysisMessage += `**難度等級：** ${this.questionAnalysis.difficulty_level}\n`;
+      analysisMessage += `**重點領域：** ${this.questionAnalysis.focus_areas.join('、')}\n\n`;
+      
+      // 顯示學習建議
+      analysisMessage += '**學習建議：**\n';
+      this.learningSuggestions.forEach((suggestion, index) => {
+        analysisMessage += `${index + 1}. ${suggestion}\n`;
+      });
+      
+      analysisMessage += '\n**學習路徑：**\n';
+      this.aiLearningPath.stages.forEach((stage, index) => {
+        analysisMessage += `${index + 1}. ${stage.description} (預計${stage.estimated_time}分鐘)\n`;
+      });
+      
+      this.addMessage('ai', analysisMessage);
+    }
   }
 
   // 新增：安全處理AI回應，防止[object Object]錯誤

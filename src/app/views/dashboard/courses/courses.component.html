@@ -1,21 +1,31 @@
-<section class="menu">
-  <header class="menu__header">
-    <h1 class="menu__title">課程選單</h1>
-    <p class="menu__subtitle">先選一個想學的科目，之後進入對應課程頁面。</p>
-  </header>
+<section class="courses-swiper">
+  <!-- ✅ Web Components 版本 -->
+  <swiper-container
+    navigation="true"
+    pagination="true"
+    effect="coverflow"
+    grab-cursor="true"
+    centered-slides="true"
+    slides-per-view="auto"
+    parallax="true"
+    class="mySwiper"
+    loop="true"
+  >
+    <swiper-slide *ngFor="let c of courses">
+      <div class="card-wrapper">
+        <div class="course-card" (click)="goToMaterial(c)">
+          <!-- 上層圖片 -->
+          <div class="image-container" data-swiper-parallax="-100">
+            <img [src]="c.image" [alt]="c.name" />
+          </div>
 
-  <div class="menu__grid" role="list">
-    <div
-        *ngFor="let c of courses"
-        class="menu__card"
-        role="listitem"
-        (click)="goToMaterial()"
-        [attr.aria-label]="c.name"
-      >
-        <div class="menu__icon" aria-hidden="true">{{ c.icon }}</div>
-        <h2 class="menu__name">{{ c.name }}</h2>
-        <p class="menu__desc">{{ c.description }}</p>
-        <span class="menu__cta">開始學習 →</span>
+          <!-- 下層文字 -->
+          <div class="text-container" data-swiper-parallax="-200">
+            <h3>{{ c.name }}</h3>
+            <p>{{ c.description }}</p>
+          </div>
+        </div>
       </div>
-  </div>
+    </swiper-slide>
+  </swiper-container>
 </section>

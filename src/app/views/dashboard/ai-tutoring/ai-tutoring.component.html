@@ -698,14 +698,17 @@
       <div class="mb-3">
         <h6>答案分析</h6>
         <div class="bg-light p-3 rounded">
-          <p>這道題目主要考察網路拓樸的基本概念，包括：</p>
-          <ul>
-            <li>各種網路拓樸的定義和特點</li>
-            <li>連結示意圖的繪製</li>
-            <li>資料傳輸方式的說明</li>
-            <li>各種拓樸的優缺點分析</li>
-          </ul>
-          <p>完整回答應該涵蓋所有主要網路拓樸類型，並提供清晰的說明和比較。</p>
+          <div *ngIf="currentQuestionAnswerAnalysis; else loadingAnalysis">
+            <div [innerHTML]="currentQuestionAnswerAnalysis"></div>
+          </div>
+          <ng-template #loadingAnalysis>
+            <div class="text-center">
+              <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">載入中...</span>
+              </div>
+              正在生成答案分析...
+            </div>
+          </ng-template>
         </div>
       </div>
     </div>

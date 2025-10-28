@@ -1,21 +1,34 @@
-<h2>教材清單</h2>
+<div *ngIf="domain; else noDomain">
+  <div class="row justify-content-center">
+    <div class="col-md-5 mb-4" *ngFor="let b of blocks">
+      <c-card class="h-100 c-card-hover">
+        
+        <!-- 標題 -->
+        <c-card-header class="text-center fw-bold bg-primary text-white">
+          {{ b.title }}
+        </c-card-header>
 
-<!-- 列出所有教材檔案 -->
-<ul>
-  <li *ngFor="let file of files" (click)="loadFile(file)" style="cursor:pointer">
-    {{ file }}
-  </li>
-</ul>
+        <!-- 內容帶動畫 -->
+        <c-card-body class="text-center">
+          <ul 
+            class="list-unstyled mt-3"
+            [@expandCollapse]="b.expanded ? 'expanded' : 'collapsed'">
+            <li *ngFor="let mc of getMicroConceptsByBlock(b)">
+              <a [routerLink]="['/dashboard/material-view', mc.name]">
+                {{ mc.name }}
+              </a>
+              <span *ngIf="mc.dependencies?.length">
+                （依賴：{{ mc.dependencies.join(', ') }}）
+              </span>
+            </li>
+          </ul>
+        </c-card-body>
 
-<hr />
-
-<!-- 顯示選中的教材 -->
-<div *ngIf="selectedFile">
-  <h3>{{ selectedFile }}</h3>
-  <markdown [data]="content"></markdown>
+      </c-card>
+    </div>
+  </div>
 </div>
 
-<!-- 沒選檔案時提示 -->
-<div *ngIf="!selectedFile">
-  <p>請從清單中選擇一份教材。</p>
-</div>
+<ng-template #noDomain>
+  <p class="text-center">查無此知識點</p>
+</ng-template>

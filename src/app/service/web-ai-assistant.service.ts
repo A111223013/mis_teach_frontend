@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { AuthService } from './auth.service';
 
 export interface WebChatMessage {
   id: string;
@@ -33,63 +34,62 @@ export interface MemoryAction {
 export class WebAiAssistantService {
   private readonly API_BASE_URL = `${environment.apiUrl}/web-ai`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private authService: AuthService) {}
 
   /**
    * 發送聊天訊息到後端
    */
   sendMessage(message: string): Observable<ChatResponse> {
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/json'
+    return this.authService.authenticatedRequest((headers) => {
+      const payload = { message };
+      return this.http.post<ChatResponse>(`${this.API_BASE_URL}/chat`, payload, { headers });
     });
-    
-    const payload = { message };
-    return this.http.post<ChatResponse>(`${this.API_BASE_URL}/chat`, payload, { headers });
   }
 
   /**
    * 執行快速操作
    */
   quickAction(action: string): Observable<ChatResponse> {
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/json'
+    return this.authService.authenticatedRequest((headers) => {
+      const payload = { action };
+      return this.http.post<ChatResponse>(`${this.API_BASE_URL}/quick-action`, payload, { headers });
     });
-    
-    const payload = { action };
-    return this.http.post<ChatResponse>(`${this.API_BASE_URL}/quick-action`, payload, { headers });
   }
 
   /**
    * 獲取助手狀態
    */
   getStatus(): Observable<any> {
-    return this.http.get(`${this.API_BASE_URL}/status`);
+    return this.authService.authenticatedRequest((headers) => 
+      this.http.get(`${this.API_BASE_URL}/status`, { headers })
+    );
   }
 
   /**
    * 健康檢查
    */
   healthCheck(): Observable<any> {
-    return this.http.get(`${this.API_BASE_URL}/health`);
+    return this.authService.authenticatedRequest((headers) => 
+      this.http.get(`${this.API_BASE_URL}/health`, { headers })
+    );
   }
 
   /**
    * 記憶管理
    */
   manageMemory(action: MemoryAction): Observable<ChatResponse> {
-    const headers = new HttpHeaders({
-      'Content-Type': 'application/json'
-    });
-    
-    return this.http.post<ChatResponse>(`${this.API_BASE_URL}/memory`, action, { headers });
+    return this.authService.authenticatedRequest((headers) => 
+      this.http.post<ChatResponse>(`${this.API_BASE_URL}/memory`, action, { headers })
+    );
   }
-
 
   /**
    * 獲取記憶統計
    */
   getMemoryStats(): Observable<any> {
-    return this.http.get(`${this.API_BASE_URL}/memory/stats`);
+    return this.authService.authenticatedRequest((headers) => 
+      this.http.get(`${this.API_BASE_URL}/memory/stats`, { headers })
+    );
   }
 
   /**

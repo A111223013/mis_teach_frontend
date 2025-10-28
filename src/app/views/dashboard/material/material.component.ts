@@ -1,47 +1,110 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MarkdownModule } from 'ngx-markdown';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MaterialService } from '../../../service/material.service';
+import { 
+  CardBodyComponent,
+  CardComponent,
+  CardModule   
+} from '@coreui/angular';
+import { 
+  trigger, 
+  state, 
+  style, 
+  transition, 
+  animate 
+} from '@angular/animations';
 
 @Component({
   selector: 'app-material',
-  standalone: true,   // ✅ Standalone component
-  imports: [CommonModule, MarkdownModule],  // ✅ 匯入 markdown
+  standalone: true,
+  imports: [
+    CommonModule, 
+    MarkdownModule,
+    CardModule,
+    CardComponent,
+    CardBodyComponent,
+    RouterModule
+  ],
   templateUrl: './material.component.html',
-  styleUrls: ['./material.component.scss']  // ✅ 改成複數
+  styleUrls: ['./material.component.scss'],
+  animations: [   // 👈 加入動畫設定
+    trigger('expandCollapse', [
+      state('collapsed', style({ height: '0px', opacity: 0, overflow: 'hidden' })),
+      state('expanded', style({ height: '*', opacity: 1, overflow: 'hidden' })),
+      transition('collapsed <=> expanded', animate('300ms ease-in-out'))
+    ])
+  ]
 })
 export class MaterialComponent {
-  files: string[] = [];         // 存放教材檔案清單
-  content: string = '';         // 顯示的教材內容
-  selectedFile: string = '';    // 目前選中的檔案
+  keypoint: string = '';
+  domain: any = null;
+  blocks: any[] = [];
+  microConcepts: any[] = [];
+  selectedMaterialContent: string | null = null;  // ✅ 用來存教材內容
 
-  constructor(private materialService: MaterialService) {}
+  constructor(
+    private materialService: MaterialService,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit(): void {
-    // 初始化時讀取教材清單
-    this.materialService.getMaterials().subscribe({
-      next: (res) => {
-        this.files = res.files || [];
-      },
-      error: (err) => {
-        console.error('讀取教材列表失敗:', err);
+    this.route.paramMap.subscribe(params => {
+      const keypoint = params.get('keypoint');
+      if (keypoint) {
+        this.keypoint = keypoint;
+        console.log('keypoint:', keypoint);
+        this.loadDomainAndChildren();
       }
     });
   }
 
-  loadFile(filename: string): void {
-    this.selectedFile = filename;
+  loadDomainAndChildren() {
+    this.materialService.getDomains().subscribe(domains => {
+      this.domain = domains.find((d: any) => d.name.includes(this.keypoint));
+      if (!this.domain) return;
+
+      this.materialService.getBlocks().subscribe(allBlocks => {
+        this.blocks = allBlocks
+          .filter((b: any) => b.domain_id === this.domain._id)  // ✅ 過濾出該 domain 的 blocks
+          .map((b: any) => ({
+            ...b,
+            expanded: true,
+            mcs: []
+          }));
+
+        this.materialService.getMicroConcepts().subscribe(allMCs => {
+          this.microConcepts = allMCs;
+          this.blocks.forEach(b => {
+            b.mcs = this.microConcepts.filter(mc => mc.block_id === b._id);
+          });
+
+          console.log('blocks with micro concepts:', this.blocks);
+        });
+      });
+    });
+  }
+
+  // ✅ 點擊卡片切換展開/收起
+  toggleBlock(block: any) {
+    block.expanded = !block.expanded;
+  }
+
+  getMicroConceptsByBlock(block: any) {
+    return block.mcs || [];
+  }
+
+  // ✅ 點擊 micro concept 時，載入教材
+  loadMaterial(filename: string) {
     this.materialService.getMaterial(filename).subscribe({
       next: (res) => {
-        this.content = res.content;
+        this.selectedMaterialContent = res.content;
       },
       error: (err) => {
-        console.error(`讀取教材 ${filename} 失敗:`, err);
+        console.error('讀取教材失敗:', err);
+        this.selectedMaterialContent = '讀取教材失敗';
       }
     });
   }
-
-  
-
 }
-

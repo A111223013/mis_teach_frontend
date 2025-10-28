@@ -30,6 +30,12 @@ interface QuizAnswer {
   options?: string[];
   image_file?: string;
   key_points?: string;
+  feedback?: {
+    explanation?: string;
+    strengths?: string;
+    suggestions?: string;
+    weaknesses?: string;
+  };
 }
 
 interface QuizResult {
@@ -108,7 +114,7 @@ export class QuizResultComponent implements OnInit {
       next: (response) => {
         if (response?.success) {
           this.quizResult = response.data;
-          
+          console.log(this.quizResult);
           // 確保題目資料存在
           if (this.quizResult) {
             if (!this.quizResult.questions || this.quizResult.questions.length === 0) {

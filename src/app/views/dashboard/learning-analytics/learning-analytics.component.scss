@@ -1,0 +1,1238 @@
+// 學習成效分析頁面樣式
+.learning-analytics-container {
+  padding: 1rem;
+  position: relative;
+  
+  // 平滑滾動
+  scroll-behavior: smooth;
+  
+  // 錨點導航樣式
+  a[href^="#"] {
+    text-decoration: none;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: translateY(-2px);
+    }
+  }
+  
+  // Loading 狀態
+  &.loading {
+    pointer-events: none;
+    opacity: 0.7;
+  }
+}
+
+// Loading 覆蓋層
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(5px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  .loading-content {
+    text-align: center;
+    
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+      border-width: 0.3em;
+    }
+    
+    h5 {
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    
+    p {
+      margin-bottom: 0;
+      font-size: 0.9rem;
+    }
+  }
+}
+
+// AI教練總結卡片
+.ai-coach-summary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  
+  .ai-avatar {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// 統一卡片樣式
+.card, c-card {
+  display: flex;
+  flex-direction: column;
+  
+  .card-body, c-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+// 核心指標卡片
+.metric-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid #e9ecef;
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  }
+  
+  .metric-icon {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+  }
+  
+  .metric-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #6c757d;
+  }
+  
+  .metric-trend {
+    margin: 0.5rem 0;
+  }
+}
+
+// 排名顯示
+.ranking-display {
+  .rank-number {
+    font-size: 4rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+}
+
+.comparison-stats {
+  .stat-item {
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    
+    .stat-label {
+      font-size: 0.8rem;
+      color: #6c757d;
+    }
+  }
+}
+
+// 知識點列表
+.knowledge-point-list {
+  .knowledge-item {
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    &.item-improvement {
+      border-left: 4px solid #28a745;
+    }
+    
+    &.item-attention {
+      border-left: 4px solid #ffc107;
+    }
+    
+    .item-content {
+      cursor: pointer;
+      padding: 1rem;
+      
+      .item-name {
+        font-size: 0.95rem;
+      }
+      
+      .improvement-value {
+        color: #28a745;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+      
+      .decline-value {
+        color: #dc3545;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+      
+      .toggle-icon {
+        transition: transform 0.2s ease;
+        
+        &.rotated {
+          transform: rotate(90deg);
+        }
+      }
+    }
+    
+    .expanded-content {
+      padding: 0 1rem 1rem 1rem;
+      
+      .action-buttons {
+        .btn {
+          font-size: 0.85rem;
+          padding: 0.375rem 0.75rem;
+        }
+      }
+    }
+  }
+}
+
+// 知識樹
+.knowledge-tree {
+  .knowledge-node {
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    
+    .node-header {
+      background: #f8f9fa;
+      padding: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      
+      &:hover {
+        background: #e9ecef;
+      }
+      
+      .toggle-icon {
+        transition: transform 0.2s ease;
+        
+        &.rotated {
+          transform: rotate(90deg);
+        }
+      }
+    }
+    
+    .node-content {
+      padding: 1rem;
+      background: white;
+      
+      .sub-concepts, .error-analysis {
+        .sub-concept-item, .error-type-item {
+          padding: 0.5rem;
+          background: #f8f9fa;
+          border-radius: 0.25rem;
+        }
+      }
+    }
+  }
+}
+
+// 優先級建議卡片
+.priority-suggestions {
+  .suggestion-card {
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    height: 100%;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    &.priority-high {
+      border-left: 4px solid #dc3545;
+    }
+    
+    &.priority-medium {
+      border-left: 4px solid #ffc107;
+    }
+    
+    &.priority-low {
+      border-left: 4px solid #28a745;
+    }
+    
+    .card-header {
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+      padding: 0.75rem 1rem;
+    }
+    
+    .card-body {
+      padding: 1rem;
+      
+      .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      
+      .card-text {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 0.75rem;
+      }
+      
+      .basis-info {
+        font-size: 0.8rem;
+      }
+    }
+    
+    .card-footer {
+      background: white;
+      border-top: 1px solid #e9ecef;
+      padding: 0.75rem 1rem;
+    }
+  }
+}
+
+// 知識圖譜
+.knowledge-graph-section {
+  .graph-container {
+    height: 500px !important;
+    min-height: 500px !important;
+    width: 100% !important;
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    background: #fafafa;
+    position: relative;
+    overflow: hidden;
+    
+    // 確保Cytoscape容器可見
+    ::ng-deep .cy-container {
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 500px !important;
+    }
+  }
+  
+  .graph-legend {
+    .legend-items {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      
+      .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+      }
+      
+      .legend-line {
+        width: 20px;
+        height: 2px;
+        
+        &.solid {
+          border-top: 2px solid #2196F3;
+        }
+        
+        &.dashed {
+          border-top: 2px dashed #666;
+        }
+      }
+    }
+  }
+}
+
+// 圖表容器
+.chart-container {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+// 小區塊雷達圖樣式
+.radar-chart-small {
+  min-height: 500px; // 確保雷達圖有固定最小高度，不受右邊影響
+  display: flex;
+  flex-direction: column;
+  
+  .chart-container {
+    height: 400px; // 增加圖表高度
+    position: relative;
+    flex: 1;
+  }
+  
+  .card-header {
+    padding: 0.75rem 1rem; // 減少header padding
+    h5 {
+      font-size: 1rem; // 減小標題字體
+      margin-bottom: 0;
+    }
+  }
+  
+  .card-body {
+    padding: 1rem; // 減少body padding
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+// 深度分析圖表樣式
+.card:has(.cil-analytics) {
+  .form-select {
+    z-index: 10; // 提高z-index，確保下拉選單在最上層
+    position: relative;
+  }
+  
+  .chart-container {
+    height: 400px; // 與雷達圖保持一致的高度
+    position: relative;
+  }
+}
+
+// 確保所有下拉選單都有正確的層級
+.form-select {
+  z-index: 10 !important;
+  position: relative;
+}
+
+// 防止下拉選單影響其他元素
+select.form-select {
+  z-index: 1000;
+  position: relative;
+}
+
+// 知識診斷中心樣式
+#knowledge {
+  .card {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .form-select {
+    z-index: 1000;
+    position: relative;
+  }
+}
+
+// 知識點卡片樣式 - 確保完全獨立
+.knowledge-card {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 1rem;
+  border: 1px solid #e9ecef;
+  border-radius: 0.375rem;
+  background: #fff;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  
+  &:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  }
+  
+  .card-header {
+    cursor: pointer;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    padding: 1rem;
+    
+    &:hover {
+      background-color: #e9ecef;
+    }
+  }
+  
+  .card-body {
+    padding: 1rem;
+    background-color: #fff;
+  }
+}
+
+// 確保知識點之間完全隔離
+.knowledge-tree {
+  .row {
+    margin: 0;
+    
+    .col-12 {
+      padding: 0;
+      margin-bottom: 1rem;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+}
+
+// 學習統計樣式
+.learning-stats {
+  .stats-overview {
+    .stat-card {
+      transition: all 0.3s ease;
+      background: #f8f9fa;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      
+      .stat-icon {
+        opacity: 0.8;
+      }
+      
+      .stat-value {
+        font-weight: 700;
+        color: #333;
+      }
+      
+      .stat-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+  }
+  
+  .domain-mastery {
+    .domain-item {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f0f0f0;
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      .domain-name {
+        font-weight: 500;
+        color: #333;
+      }
+      
+      .domain-progress {
+        .progress {
+          border-radius: 4px;
+          background-color: #e9ecef;
+        }
+      }
+    }
+  }
+  
+  .activity-indicator {
+    .activity-bar {
+      height: 12px;
+      background-color: #e9ecef;
+      border-radius: 6px;
+      overflow: hidden;
+      
+      .activity-fill {
+        height: 100%;
+        border-radius: 6px;
+        transition: width 0.5s ease;
+        position: relative;
+        
+        &::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+          animation: shimmer 2s infinite;
+        }
+      }
+    }
+    
+    .activity-text {
+      font-weight: 500;
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+// 學習效率指標樣式
+.efficiency-metrics {
+  .efficiency-card {
+    transition: all 0.3s ease;
+    background: #fff;
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .efficiency-icon { opacity: 0.8; }
+    .efficiency-value { 
+      font-weight: 700; 
+      color: #333; 
+    }
+    .efficiency-label { 
+      font-size: 0.75rem; 
+      text-transform: uppercase; 
+      letter-spacing: 0.5px; 
+    }
+    .efficiency-tooltip {
+      margin-top: 0.5rem;
+      small {
+        font-size: 0.7rem;
+        opacity: 0.8;
+      }
+    }
+  }
+}
+
+// 診斷Modal樣式優化
+.diagnosis-conclusion {
+  border-left: 4px solid #007bff;
+  .text-primary { color: #007bff !important; }
+}
+
+.evidence-card, .insights-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+}
+
+.practice-package {
+  transition: all 0.3s ease;
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  .package-details {
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+}
+
+.step-number {
+  flex-shrink: 0;
+  font-weight: bold;
+}
+
+.ai-confidence-badge {
+  margin-top: 0.5rem;
+}
+
+// 學習計劃Modal樣式
+.learning-plan-overview {
+  border-left: 4px solid #28a745;
+  .text-primary { color: #28a745 !important; }
+}
+
+.time-options, .intensity-options {
+  .form-check {
+    padding: 0.5rem;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background-color: #f8f9fa;
+      border-color: #007bff;
+    }
+    
+    .form-check-input:checked + .form-check-label {
+      color: #007bff;
+      font-weight: 600;
+    }
+  }
+}
+
+.reminder-settings {
+  .form-check {
+    padding: 0.75rem;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    background-color: #f8f9fa;
+  }
+}
+
+.learning-goals {
+  .goals-list {
+    .goal-item {
+      padding: 0.5rem;
+      border: 1px solid #e9ecef;
+      border-radius: 0.375rem;
+      background-color: #f8f9fa;
+      margin-bottom: 0.5rem;
+      
+      .form-check-input:checked + .form-check-label {
+        text-decoration: line-through;
+        opacity: 0.6;
+      }
+    }
+  }
+}
+
+// Modal樣式
+.modal-body {
+  .diagnosis-overview {
+    .diagnosis-text {
+      font-size: 1.1rem;
+      line-height: 1.6;
+    }
+    
+    .root-cause {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 0.25rem;
+      border-left: 4px solid #007bff;
+    }
+  }
+  
+  .confidence-chart {
+    height: 150px;
+  }
+  
+  .trend-chart {
+    height: 200px;
+  }
+  
+  .action-buttons {
+    .btn {
+      margin-bottom: 0.5rem;
+    }
+  }
+  
+  .step-number {
+    width: 24px;
+    height: 24px;
+    background: #007bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  
+  .practice-question-card {
+    .card {
+      border: 1px solid #e9ecef;
+      border-radius: 0.5rem;
+      
+      .card-body {
+        padding: 1rem;
+        
+        .card-title {
+          font-size: 1rem;
+          font-weight: 600;
+          margin-bottom: 0.5rem;
+        }
+        
+        .question-meta {
+          margin-bottom: 0.75rem;
+          
+          .badge {
+            font-size: 0.75rem;
+          }
+        }
+      }
+    }
+  }
+}
+
+// 學習路徑時間線
+.timeline {
+  position: relative;
+  padding-left: 2rem;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+  }
+  
+  .timeline-item {
+    position: relative;
+    
+    .timeline-marker {
+      position: absolute;
+      left: -2rem;
+      top: 0.5rem;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 0 2px #e9ecef;
+    }
+    
+    .timeline-content {
+      padding-left: 1rem;
+      
+      h6 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      
+      p {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+      }
+    }
+  }
+}
+
+// 練習信息
+.practice-info {
+  h6 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.practice-options {
+  .form-check {
+    padding-left: 1.5rem;
+    
+    .form-check-input {
+      margin-left: -1.5rem;
+    }
+    
+    .form-check-label {
+      font-weight: 500;
+    }
+  }
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .learning-analytics-container {
+    padding: 0.5rem;
+  }
+  
+  .metric-card {
+    margin-bottom: 1rem;
+  }
+  
+  .knowledge-graph-section {
+    .graph-container {
+      height: 300px;
+    }
+  }
+  
+  .chart-container {
+    height: 250px;
+  }
+  
+  .priority-suggestions {
+    .suggestion-card {
+      margin-bottom: 1rem;
+    }
+  }
+}
+
+// 動畫效果
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.knowledge-item,
+.suggestion-card,
+.metric-card {
+  animation: fadeIn 0.3s ease-out;
+}
+
+// 工具提示樣式
+::ng-deep .cytoscape-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1000;
+  max-width: 200px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+// 圖表樣式覆蓋
+::ng-deep .cy-container {
+  width: 100%;
+  height: 100%;
+  
+  .cy-node {
+    cursor: pointer;
+    
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+  
+  .cy-edge {
+    cursor: pointer;
+    
+    &:hover {
+      opacity: 0.6;
+    }
+  }
+}
+
+// 任務清單樣式
+.task-checklist {
+  .task-item {
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background-color: #f8f9fa;
+      transform: translateX(5px);
+    }
+    
+    .form-check-input:checked {
+      background-color: #28a745;
+      border-color: #28a745;
+    }
+  }
+}
+
+// 進度追蹤樣式
+.progress-tracking {
+  .progress-item {
+    .progress {
+      height: 8px;
+      border-radius: 4px;
+    }
+    
+    .progress-title {
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .progress-percentage {
+      font-weight: 600;
+      color: #007bff;
+    }
+  }
+}
+
+// 雷達圖容器
+.chart-container {
+  position: relative;
+  height: 400px;
+  
+  canvas {
+    max-height: 100%;
+  }
+}
+
+// 同儕比較樣式
+.ranking-display {
+  .ranking-number {
+    font-weight: 700;
+    color: #007bff;
+  }
+  
+  .ranking-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+  }
+}
+
+.comparison-stats {
+  .stat-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f8f9fa;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+
+// Skeleton Loading 樣式
+.skeleton-text {
+  .skeleton-line {
+    height: 1rem;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    
+    &.short {
+      width: 60%;
+    }
+  }
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+// 無數據佔位符
+.no-data-placeholder {
+  background-color: #f8f9fa;
+  border-radius: 0.375rem;
+  border: 2px dashed #dee2e6;
+}
+
+// 動態數據樣式
+.metric-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+// 數據驅動的顏色變化
+.text-success {
+  color: #28a745 !important;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+}
+
+.text-warning {
+  color: #ffc107 !important;
+}
+
+// 學習統計樣式
+.learning-stats {
+  .stat-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f0f0;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    .stat-label {
+      font-weight: 500;
+      color: #6c757d;
+    }
+    
+    .stat-value {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+  }
+}
+
+// 深度分析區域樣式
+.mastery-summary {
+  .summary-card {
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .summary-title {
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .summary-value {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    
+    .summary-concept {
+      color: #6c757d;
+      font-weight: 500;
+    }
+  }
+}
+
+.review-reminder {
+  .reminder-item {
+    padding: 0.25rem 0;
+    border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    strong {
+      color: #856404;
+    }
+  }
+}
+
+// 學習路徑樣式
+.learning-path {
+  .learning-path-visual {
+    .path-container {
+      padding: 1rem 0;
+      background: #f8f9fa;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .path-node {
+      min-width: 120px;
+      padding: 0.5rem;
+      
+      .node-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+        
+        &.completed {
+          background: #28a745;
+          color: white;
+        }
+        
+        &.current {
+          background: #ffc107;
+          color: #212529;
+        }
+        
+        &.pending {
+          background: #6c757d;
+          color: white;
+        }
+      }
+      
+      .node-label {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.25rem;
+      }
+      
+      .node-readiness {
+        font-size: 0.8rem;
+        color: #6c757d;
+      }
+    }
+    
+    .path-connector {
+      .connector-line {
+        width: 40px;
+        height: 2px;
+        background: #dee2e6;
+        position: relative;
+        
+        &::after {
+          content: '';
+          position: absolute;
+          right: -5px;
+          top: -3px;
+          width: 0;
+          height: 0;
+          border-left: 8px solid #dee2e6;
+          border-top: 4px solid transparent;
+          border-bottom: 4px solid transparent;
+        }
+      }
+    }
+  }
+  
+  .learning-path-details {
+    .path-step {
+      .card {
+        border: 1px solid #e9ecef;
+        border-radius: 0.5rem;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        &.completed {
+          border-left: 4px solid #28a745;
+          background: #f8fff9;
+        }
+        
+        &.current {
+          border-left: 4px solid #ffc107;
+          background: #fffdf5;
+        }
+      }
+      
+      .step-number {
+        .badge {
+          font-size: 0.9rem;
+          padding: 0.5rem 0.75rem;
+        }
+      }
+      
+      .step-content {
+        .step-title {
+          color: #333;
+          margin-bottom: 0.25rem;
+        }
+        
+        .step-description {
+          color: #6c757d;
+          font-size: 0.9rem;
+        }
+        
+        .step-meta {
+          .badge {
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+          }
+        }
+      }
+      
+      .step-actions {
+        .btn {
+          font-size: 0.85rem;
+          padding: 0.375rem 0.75rem;
+          
+          &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+  }
+}

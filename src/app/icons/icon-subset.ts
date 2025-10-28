@@ -27,7 +27,6 @@ import {
     cilArrowRight,
     cilArrowTop,
     cilCog,
-    cilHelp,
     cilLightbulb,
     cilMinus,
     cilBasket,
@@ -77,6 +76,7 @@ import {
     cilMediaRecord,
     cilMenu,
     cilMoon,
+    cilNewspaper,
     cilNotes,
     cilOptions,
     cilPaperclip,
@@ -109,7 +109,11 @@ import {
     cilUserFemale,
     cilUserFollow,
     cilUserUnfollow,
-    cilZoom
+    cilZoom,
+    cilQrCode,
+    cilTag,
+    cilImage,
+    cilSchool
   } from '@coreui/icons';
   
   export const iconSubset = {
@@ -141,7 +145,6 @@ import {
     cilArrowTop,
     cilBasket,
     cilCog,
-    cilHelp,
     cilLightbulb,
     cilMinus,
     cilBell,
@@ -190,6 +193,7 @@ import {
     cilMediaRecord,
     cilMenu,
     cilMoon,
+    cilNewspaper,
     cilNotes,
     cilOptions,
     cilPaperclip,
@@ -223,6 +227,10 @@ import {
     cilUserFollow,
     cilUserUnfollow,
     cilZoom,
+    cilQrCode,
+    cilTag,
+    cilImage,
+    cilSchool
   };
   
   export enum IconSubset {
@@ -254,7 +262,6 @@ import {
     cilArrowTop = 'cilArrowTop',
     cilBasket = 'cilBasket',
     cilCog = 'cilCog',
-    cilHelp = 'cilHelp',
     cilLightbulb = 'cilLightbulb',
     cilMinus = 'cilMinus',
     cilBell = 'cilBell',
@@ -304,6 +311,7 @@ import {
     cilMediaRecord = 'cilMediaRecord',
     cilMenu = 'cilMenu',
     cilMoon = 'cilMoon',
+    cilNewspaper = 'cilNewspaper',
     cilNotes = 'cilNotes',
     cilOptions = 'cilOptions',
     cilPaperclip = 'cilPaperclip',
@@ -337,6 +345,10 @@ import {
     cilUserFollow = 'cilUserFollow',
     cilUserUnfollow = 'cilUserUnfollow',
     cilZoom = 'cilZoom',
+    cilQrCode = 'cilQrCode',
+    cilTag = 'cilTag',
+    cilImage = 'cilImage',
+    cilSchool = 'cilSchool',
     logo = 'logo',
     signet = 'signet'
   }

@@ -50,7 +50,7 @@ export class DashboardService {
   // 從 MongoDB submissions 集合獲取完整測驗數據進行分析
   getUserSubmissionsAnalysis(): Observable<any> {
     return this.authService.authenticatedRequest((headers) =>
-      this.http.post(`${environment.apiBaseUrl}/quiz/get-user-submissions-analysis`, {}, { headers })
+      this.http.post(`${environment.apiBaseUrl}/ai_quiz/get-user-submissions-analysis`, {}, { headers })
     ).pipe(catchError(this.handleError));
   }
 

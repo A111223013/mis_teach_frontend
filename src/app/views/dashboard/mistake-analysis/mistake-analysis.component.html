@@ -38,15 +38,7 @@
                 </select>
               </div>
             </c-col>
-            <c-col xs="12" md="6" xl="2">
-              <div class="mb-3">
-                <label class="form-label">章節</label>
-                <select class="form-select" [(ngModel)]="filters.chapter" (change)="applyFilters()">
-                  <option value="">全部章節</option>
-                  <option *ngFor="let chapter of chapterOptions" [value]="chapter">{{ chapter }}</option>
-                </select>
-              </div>
-            </c-col>
+
             <c-col xs="12" md="6" xl="2">
               <div class="mb-3">
                 <label class="form-label">時間範圍</label>
@@ -106,13 +98,13 @@
             <c-col xs="6" md="2">
               <div class="stat-card bg-light p-3 rounded text-center">
                 <h2 class="text-warning">{{ getUnansweredCount() }}</h2>
-                <p class="text-muted mb-0">未答題數</p>
+                <p class="text-muted mb-0">跳過題數</p>
               </div>
             </c-col>
             <c-col xs="6" md="2">
               <div class="stat-card bg-light p-3 rounded text-center">
-                <h2 class="text-info">{{ filteredQuestions.length }}</h2>
-                <p class="text-muted mb-0">篩選題數</p>
+                <h2 class="text-info">{{ recentMistakes }}</h2>
+                <p class="text-muted mb-0">本週錯題</p>
               </div>
             </c-col>
             <c-col xs="6" md="2">
@@ -147,39 +139,43 @@
                   </div>
                   <small class="text-muted">{{ formatDate(question.timestamp) }}</small>
                 </c-card-header>
-                <c-card-body>
-                  <p class="question-text mb-3">{{ question.question_text }}</p>
-                  
-                  <div class="answers mb-3" *ngIf="question.status !== 'unanswered'">
-                    <div class="mb-2">
-                      <small class="text-muted d-block">您的答案：</small>
-                      <div class="p-2 rounded" 
-                           [class]="question.status === 'correct' ? 'bg-success-subtle' : 'bg-danger-subtle'">
-                        <span [class]="question.status === 'correct' ? 'text-success' : 'text-danger'">
-                          {{ question.student_answer || '未作答' }}
-                        </span>
-                      </div>
-                    </div>
-                    <div *ngIf="question.status === 'wrong'">
-                      <small class="text-muted d-block">正確答案：</small>
-                      <div class="p-2 bg-success-subtle rounded">
-                        <span class="text-success">{{ question.correct_answer }}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div class="answers mb-3" *ngIf="question.status === 'unanswered'">
-                    <div class="p-2 bg-warning-subtle rounded">
-                      <span class="text-warning">此題未作答</span>
-                    </div>
-                  </div>
-                </c-card-body>
-                <c-card-footer class="bg-light d-flex justify-content-between">
-                  <small class="text-muted">章節：{{ question.chapter }}</small>
-                  <button class="btn btn-sm btn-primary" (click)="reviewMistake(question)">
-                    <c-icon name="cilBook" class="me-1"></c-icon> 查看詳情
-                  </button>
-                </c-card-footer>
+                                 <c-card-body>
+                   <p class="question-text mb-3">{{ getShortQuestionText(question.question_text) }}</p>
+                   
+                   <div class="answers mb-3" *ngIf="question.status !== 'unanswered'">
+                     <div class="mb-2">
+                       <small class="text-muted d-block">您的答案：</small>
+                       <div class="p-2 rounded" 
+                            [class]="question.status === 'correct' ? 'bg-success-subtle' : 'bg-danger-subtle'">
+                         <span [class]="question.status === 'correct' ? 'text-success' : 'text-danger'">
+                           {{ getShortAnswer(question.student_answer) }}
+                         </span>
+                       </div>
+                     </div>
+                     <div *ngIf="question.status === 'wrong'">
+                       <small class="text-muted d-block">正確答案：</small>
+                       <div class="p-2 bg-success-subtle rounded">
+                         <span class="text-success">{{ getShortAnswer(question.correct_answer) }}</span>
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <div class="answers mb-3" *ngIf="question.status === 'unanswered'">
+                     <div class="p-2 bg-warning-subtle rounded">
+                       <span class="text-warning">此題未作答</span>
+                     </div>
+                   </div>
+                 </c-card-body>
+                                 <c-card-footer class="bg-light d-flex justify-content-end align-items-center">
+                   <div class="d-flex gap-2">
+                     <button class="btn btn-sm btn-primary" (click)="reviewMistake(question)">
+                       <c-icon name="cilBook" class="me-1"></c-icon> 查看詳情
+                     </button>
+                     <button class="btn btn-sm btn-success" (click)="startGuidedLearning(question)">
+                       <c-icon name="cilLightbulb" class="me-1"></c-icon> 引導學習
+                     </button>
+                   </div>
+                 </c-card-footer>
               </c-card>
             </c-col>
           </c-row>
@@ -229,10 +225,9 @@
       </div>
 
       <div class="mt-4">
-        <h6 class="text-muted">知識點和章節</h6>
+        <h6 class="text-muted">題目信息</h6>
         <div class="d-flex flex-wrap gap-2">
           <c-badge color="info">知識點: {{ selectedQuestion.topic }}</c-badge>
-          <c-badge color="secondary">章節: {{ selectedQuestion.chapter }}</c-badge>
           <c-badge color="primary" *ngIf="selectedQuestion.exam_type">
             {{ selectedQuestion.exam_type === 'knowledge' ? '知識點測驗' : '考古題測驗' }}
           </c-badge>
@@ -254,19 +249,22 @@
       </div>
     </div>
   </c-modal-body>
-  <c-modal-footer>
-    <button cButton color="secondary" (click)="showDetailModal = false">
-      關閉
-    </button>
-    <button 
-      cButton 
-      color="info" 
-      *ngIf="selectedQuestion && selectedQuestion.status === 'wrong' && !aiExplanation && !loadingExplanation"
-      (click)="getAIExplanation()">
-      <c-icon name="cilLightbulb" class="me-1"></c-icon> 獲取 AI 解析
-    </button>
-    <button cButton color="primary" (click)="startSingleReview()">
-      <c-icon name="cilBook" class="me-1"></c-icon> 開始複習此題
-    </button>
-  </c-modal-footer>
+     <c-modal-footer>
+     <button cButton color="secondary" (click)="showDetailModal = false">
+       關閉
+     </button>
+     <button 
+       cButton 
+       color="info" 
+       *ngIf="selectedQuestion && selectedQuestion.status === 'wrong' && !aiExplanation && !loadingExplanation"
+       (click)="getAIExplanation()">
+       <c-icon name="cilLightbulb" class="me-1"></c-icon> 獲取 AI 解析
+     </button>
+     <button cButton color="primary" (click)="startSingleReview()">
+       <c-icon name="cilBook" class="me-1"></c-icon> 開始複習此題
+     </button>
+     <button cButton color="success" (click)="startGuidedLearning(selectedQuestion!)">
+       <c-icon name="cilLightbulb" class="me-1"></c-icon> 引導學習
+     </button>
+   </c-modal-footer>
 </c-modal> 
