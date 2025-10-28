@@ -384,11 +384,11 @@
                     [height]="canvasHeight" 
                     class="drawing-canvas"
                     [class.eraser-cursor]="isEraserMode"
-                    (mousedown)="startDrawing($event)"
-                    (mousemove)="draw($event); updateCursorPosition($event)"
-                    (mouseup)="stopDrawing()"
-                    (mouseleave)="stopDrawing(); hideCursor()"
-                    (mouseenter)="updateCursorPosition($event)">
+                    (pointerdown)="startDrawing($event)"
+                    (pointermove)="draw($event); updateCursorPosition($event)"
+                    (pointerup)="stopDrawing()"
+                    (pointerleave)="stopDrawing(); hideCursor()"
+                    (pointerenter)="updateCursorPosition($event)">
                   </canvas>
                 </div>
                 
@@ -458,11 +458,11 @@
                           [height]="canvasHeight" 
                           class="drawing-canvas"
                           [class.eraser-cursor]="isEraserMode"
-                          (mousedown)="startMathDrawing($event)"
-                          (mousemove)="drawMath($event); updateCursorPosition($event)"
-                          (mouseup)="stopMathDrawing()"
-                          (mouseleave)="stopMathDrawing(); hideCursor()"
-                          (mouseenter)="updateCursorPosition($event)">
+                          (pointerdown)="startMathDrawing($event)"
+                          (pointermove)="drawMath($event); updateCursorPosition($event)"
+                          (pointerup)="stopMathDrawing()"
+                          (pointerleave)="stopMathDrawing(); hideCursor()"
+                          (pointerenter)="updateCursorPosition($event)">
                         </canvas>
                       </div>
                       <!-- 數學繪圖工具欄 -->

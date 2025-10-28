@@ -1717,14 +1717,18 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   canvasHeight = 500;
   showCanvasSizeModal = false;
   private cursorCircle?: HTMLElement;
+  private activePointerId?: number;
 
-  startDrawing(event: MouseEvent): void {
+  startDrawing(event: PointerEvent): void {
+    event.preventDefault();
     if (!this.canvas || !this.ctx) {
       this.setupCanvas();
     }
     
     if (this.ctx) {
       this.isDrawing = true;
+      this.activePointerId = event.pointerId;
+      try { this.canvas?.setPointerCapture(event.pointerId); } catch {}
       const rect = this.canvas!.getBoundingClientRect();
       this.ctx.beginPath();
       this.ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
@@ -1737,21 +1741,44 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
   }
 
-  draw(event: MouseEvent): void {
+  private getPointerDynamics(event: PointerEvent): { pressure: number; tilt: number; type: string } {
+    const type = (event.pointerType || 'mouse').toString();
+    let pressure = typeof event.pressure === 'number' ? event.pressure : 0;
+    if (!pressure || pressure === 0) {
+      pressure = type === 'mouse' ? 0.5 : 1.0;
+    }
+    const tiltX = (event as any).tiltX ?? 0;
+    const tiltY = (event as any).tiltY ?? 0;
+    const tilt = Math.min(1, Math.sqrt(tiltX * tiltX + tiltY * tiltY) / 90);
+    return { pressure, tilt, type };
+  }
+
+  draw(event: PointerEvent): void {
+    if (this.activePointerId !== undefined && event.pointerId !== this.activePointerId) {
+      return;
+    }
+    event.preventDefault();
     if (!this.isDrawing || !this.ctx || !this.canvas) {
       return;
     }
     
     const rect = this.canvas.getBoundingClientRect();
-    this.ctx.lineWidth = this.brushSize;
+    const dyn = this.getPointerDynamics(event);
+    const pressureFactor = 0.2 + dyn.pressure * 0.8;
+    const tiltFactor = 1 + dyn.tilt * 0.2;
+    const dynamicLineWidth = Math.max(0.5, this.brushSize * pressureFactor * tiltFactor);
+    this.ctx.lineWidth = dynamicLineWidth;
     this.ctx.lineCap = 'round';
     
     // 根據模式設置樣式
     if (this.isEraserMode) {
       this.ctx.globalCompositeOperation = 'destination-out';
       this.ctx.strokeStyle = 'rgba(0,0,0,1)';
+      this.ctx.globalAlpha = 1;
     } else {
       this.ctx.globalCompositeOperation = 'source-over';
+      const alpha = 0.4 + dyn.pressure * 0.6;
+      this.ctx.globalAlpha = alpha;
       this.ctx.strokeStyle = this.brushColor;
     }
     
@@ -1773,6 +1800,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (this.ctx) {
       this.isDrawing = false;
       this.ctx.beginPath();
+      try { if (this.activePointerId !== undefined) { this.canvas?.releasePointerCapture(this.activePointerId); } } catch {}
+      this.activePointerId = undefined;
       
       // 結束繪圖時最後儲存一次
       this.autoSaveDrawing();
@@ -1994,6 +2023,14 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
         this.ctx.strokeStyle = this.brushColor;
         this.ctx.lineWidth = this.brushSize;
         this.ctx.lineCap = 'round';
+        
+        // 禁用瀏覽器在畫布上的捲動/雙指縮放/橫向拖曳等預設行為
+        try {
+          (this.canvas as any).style.touchAction = 'none';
+          (this.canvas as any).style.msTouchAction = 'none';
+          (this.canvas as any).style.userSelect = 'none';
+          (this.canvas as any).oncontextmenu = (e: Event) => { e.preventDefault(); return false; };
+        } catch {}
         
         // 創建游標圓圈
         this.createCursorCircle();
@@ -2624,12 +2661,12 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   ];
 
   // 數學繪圖相關方法 - 使用統一的繪圖邏輯
-  startMathDrawing(event: MouseEvent): void {
+  startMathDrawing(event: PointerEvent): void {
     // 使用統一的繪圖邏輯
     this.startDrawing(event);
   }
 
-  drawMath(event: MouseEvent): void {
+  drawMath(event: PointerEvent): void {
     // 使用統一的繪圖邏輯
     this.draw(event);
   }
