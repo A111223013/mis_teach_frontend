@@ -40,17 +40,26 @@ export class CoursesComponent implements OnInit, AfterViewInit  {
     const swiperEl = document.querySelector('swiper-container') as any;
 
     if (swiperEl) {
-      // ✅ 確保 Swiper 元件已經準備好
       swiperEl.addEventListener('swiperinit', () => {
-        swiperEl.swiper.update(); // ✅ 更新 swiper 狀態
+        const totalSlides = this.courses.length;
+        const middleSlide = Math.floor(totalSlides / 2);
+        
+        // 滾動到中間位置
+        swiperEl.swiper.slideTo(middleSlide, 0);
+        swiperEl.swiper.update();
       });
 
-      // ✅ 如果已經初始化過，也可以強制更新
-      if (swiperEl.swiper) {
-        swiperEl.swiper.update();
-      }
+      // 延遲設置初始幻燈片
+      setTimeout(() => {
+        const totalSlides = this.courses.length;
+        const middleSlide = Math.floor(totalSlides / 2);
+        
+        if (swiperEl.swiper) {
+          swiperEl.swiper.slideTo(middleSlide, 0);
+          swiperEl.swiper.update();
+        }
+      }, 100);
     }
-
   }
 
   loadCourses() {

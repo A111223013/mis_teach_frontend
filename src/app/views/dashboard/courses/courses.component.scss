@@ -1,29 +1,46 @@
-// ✅ 移除舊的 .card-container / c-card 樣式
-// ✅ 改成針對 Swiper Web Component
-
+// 優化的課程選擇頁面 - 更大、更吸引人
 .card-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-bottom: 40px; // ✅ 預留空間給 pagination
+  padding: 20px;
 }
 
 .courses-swiper {
   width: 100%;
-  height: 100%;
-  padding: 40px 0;
+  min-height: 600px;
+  padding: 60px 40px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
 
-  // Swiper container 基本樣式
   swiper-container {
     width: 100%;
     height: 100%;
+    padding-bottom: 80px;
   }
 
   swiper-slide {
     display: flex;
     justify-content: center;
     align-items: center;
-    transition: transform 0.3s ease;
+    width: 90% !important;
+    max-width: 500px;
+    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    
+    // 未選中的卡片縮小
+    &:not(.swiper-slide-active) {
+      transform: scale(0.75);
+      opacity: 0.6;
+    }
+    
+    // 選中的卡片正常大小
+    &.swiper-slide-active {
+      transform: scale(1);
+      opacity: 1;
+      
+      .course-card {
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
+      }
+    }
   }
 
   .course-card {
@@ -31,61 +48,168 @@
     flex-direction: column;
     align-items: center;
     cursor: pointer;
+    background: white;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    position: relative;
+    width: 100%;
+
+    &:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
 
     .image-container {
-      width: 300px;
-      height: 200px;
+      width: 100%;
+      height: 380px;
       overflow: hidden;
+      position: relative;
 
       img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        transition: transform 0.3s ease;
+        transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
       }
+    }
 
-      &:hover img {
-        transform: scale(1.05);
-      }
+    &:hover .image-container img {
+      transform: scale(1.08);
     }
 
     .text-container {
-      margin-top: 12px;
+      padding: 40px 32px 48px;
       text-align: center;
-      max-width: 280px;
+      width: 100%;
 
       h3 {
-        font-size: 1.2rem;
-        font-weight: bold;
-        margin-bottom: 6px;
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 16px;
+        color: #1e293b;
+        line-height: 1.25;
       }
 
       p {
-        font-size: 0.9rem;
-        color: #555;
+        font-size: 1.15rem;
+        color: #64748b;
+        line-height: 1.7;
+        margin-bottom: 0;
       }
     }
   }
 }
 
-// ✅ Swiper Navigation & Pagination 樣式微調
+// 優化導航箭頭
 ::ng-deep .swiper-button-next,
 ::ng-deep .swiper-button-prev {
-  color: #333; // 箭頭顏色
+  width: 60px;
+  height: 60px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  color: #3b82f6;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
   &:hover {
-    color: #000;
+    background: #3b82f6;
+    color: white;
+    transform: scale(1.15);
+  }
+
+  &::after {
+    font-size: 24px;
+    font-weight: bold;
   }
 }
 
+// 優化分頁點
+::ng-deep .swiper-pagination {
+  bottom: 20px !important;
+}
 
 ::ng-deep .swiper-pagination-bullet {
-  background: #999;
-  opacity: 0.7;
+  width: 14px;
+  height: 14px;
+  background: #cbd5e1;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: scale(1.4);
+    background: #94a3b8;
+  }
 }
 
 ::ng-deep .swiper-pagination-bullet-active {
-  background: #333;
+  background: #3b82f6;
   opacity: 1;
+  width: 40px;
+  border-radius: 7px;
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .courses-swiper {
+    padding: 30px 15px;
+    min-height: 500px;
+
+    .course-card {
+      .image-container {
+        height: 280px;
+      }
+
+      .text-container {
+        padding: 28px 24px 36px;
+
+        h3 {
+          font-size: 1.6rem;
+        }
+
+        p {
+          font-size: 1rem;
+        }
+      }
+    }
+
+    swiper-slide {
+      width: 85% !important;
+    }
+  }
+
+  ::ng-deep .swiper-button-next,
+  ::ng-deep .swiper-button-prev {
+    width: 44px;
+    height: 44px;
+
+    &::after {
+      font-size: 18px;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .courses-swiper {
+    padding: 20px 10px;
+
+    .course-card {
+      .image-container {
+        height: 220px;
+      }
+
+      .text-container {
+        padding: 24px 20px 32px;
+
+        h3 {
+          font-size: 1.4rem;
+        }
+
+        p {
+          font-size: 0.95rem;
+        }
+      }
+    }
+  }
 }
