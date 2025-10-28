@@ -32,6 +32,11 @@ export class MaterialViewComponent implements AfterViewChecked {
   showButtons: boolean = false;
   buttonPosition: { x: number, y: number } = { x: 0, y: 0 };
   
+  // 顏色選擇相關屬性
+  showColorPicker: boolean = false;
+  colorPickerPosition: { x: number, y: number } = { x: 0, y: 0 };
+  selectedRange: Range | null = null;
+  
   // 螢光筆相關屬性
   highlighterMode: boolean = false;
   sidebarVisible: boolean = false;
@@ -274,7 +279,9 @@ export class MaterialViewComponent implements AfterViewChecked {
   // 隱藏按鈕
   private hideButtons(): void {
     this.showButtons = false;
+    this.showColorPicker = false;
     this.selectedText = '';
+    this.selectedRange = null;
   }
 
   // 詢問功能
@@ -457,8 +464,26 @@ export class MaterialViewComponent implements AfterViewChecked {
     const selectedText = selection.toString().trim();
     const range = selection.getRangeAt(0);
     
-    this.createHighlight(range, selectedText);
-    this.hideButtons();
+    // 顯示顏色選擇器
+    this.showColorPicker = true;
+    this.colorPickerPosition = {
+      x: this.buttonPosition.x + 100,
+      y: this.buttonPosition.y
+    };
+    
+    // 儲存選中的範圍和文字
+    this.selectedText = selectedText;
+    this.selectedRange = range;
+  }
+
+  // 選擇顏色並劃記
+  selectColorAndHighlight(color: string): void {
+    if (this.selectedRange && this.selectedText) {
+      this.selectedColor = color;
+      this.createHighlight(this.selectedRange, this.selectedText);
+      this.hideButtons();
+      this.showColorPicker = false;
+    }
   }
 
   // 顯示劃記右鍵選單

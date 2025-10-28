@@ -1,13 +1,8 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MarkdownModule } from 'ngx-markdown';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MaterialService } from '../../../service/material.service';
-import { 
-  CardBodyComponent,
-  CardComponent,
-  CardModule   
-} from '@coreui/angular';
 import { 
   trigger, 
   state, 
@@ -22,9 +17,6 @@ import {
   imports: [
     CommonModule, 
     MarkdownModule,
-    CardModule,
-    CardComponent,
-    CardBodyComponent,
     RouterModule
   ],
   templateUrl: './material.component.html',
@@ -46,7 +38,8 @@ export class MaterialComponent {
 
   constructor(
     private materialService: MaterialService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -87,8 +80,12 @@ export class MaterialComponent {
   }
 
   // ✅ 點擊卡片切換展開/收起
-  toggleBlock(block: any) {
+  toggleChapter(block: any) {
     block.expanded = !block.expanded;
+  }
+
+  goBack() {
+    this.router.navigate(['/dashboard/courses']);
   }
 
   getMicroConceptsByBlock(block: any) {

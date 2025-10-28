@@ -1,6 +1,5 @@
-import { Component, OnInit, CUSTOM_ELEMENTS_SCHEMA, AfterViewInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CardModule } from '@coreui/angular';
 import { RouterModule, Router  } from '@angular/router';
 import { MaterialService } from '../../../service/material.service';
 
@@ -18,14 +17,12 @@ interface CourseData {
   imports: [
     CommonModule, 
     RouterModule,
-    CardModule,
   ],
   templateUrl: './courses.component.html',
   styleUrls: ['./courses.component.scss'],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 
-export class CoursesComponent implements OnInit, AfterViewInit  {
+export class CoursesComponent implements OnInit {
   keyPoints: string[] = [];
   courses: CourseData[] = [];
 
@@ -34,32 +31,6 @@ export class CoursesComponent implements OnInit, AfterViewInit  {
   ngOnInit() {
     this.loadCourses();
     this.loadKeyPoints();
-  }
-
-  ngAfterViewInit(): void {
-    const swiperEl = document.querySelector('swiper-container') as any;
-
-    if (swiperEl) {
-      swiperEl.addEventListener('swiperinit', () => {
-        const totalSlides = this.courses.length;
-        const middleSlide = Math.floor(totalSlides / 2);
-        
-        // 滾動到中間位置
-        swiperEl.swiper.slideTo(middleSlide, 0);
-        swiperEl.swiper.update();
-      });
-
-      // 延遲設置初始幻燈片
-      setTimeout(() => {
-        const totalSlides = this.courses.length;
-        const middleSlide = Math.floor(totalSlides / 2);
-        
-        if (swiperEl.swiper) {
-          swiperEl.swiper.slideTo(middleSlide, 0);
-          swiperEl.swiper.update();
-        }
-      }, 100);
-    }
   }
 
   loadCourses() {

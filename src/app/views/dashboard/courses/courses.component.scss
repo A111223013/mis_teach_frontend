@@ -1,214 +1,205 @@
-// 優化的課程選擇頁面 - 更大、更吸引人
-.card-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
+// 課程書架頁面樣式 - 簡潔網格設計
+.course-bookshelf-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 2rem 1.5rem;
 }
 
-.courses-swiper {
-  width: 100%;
-  min-height: 600px;
-  padding: 60px 40px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+// 頂部區域
+.header-section {
+  text-align: center;
+  margin-bottom: 3rem;
 
-  swiper-container {
-    width: 100%;
-    height: 100%;
-    padding-bottom: 80px;
+  .page-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
+}
 
-  swiper-slide {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 90% !important;
-    max-width: 500px;
-    transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    
-    // 未選中的卡片縮小
-    &:not(.swiper-slide-active) {
-      transform: scale(0.75);
-      opacity: 0.6;
-    }
-    
-    // 選中的卡片正常大小
-    &.swiper-slide-active {
-      transform: scale(1);
+// 課程網格
+.courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+// 課程卡片
+.course-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  position: relative;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+    .course-overlay {
       opacity: 1;
-      
-      .course-card {
-        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
-      }
+    }
+
+    .course-cover img {
+      transform: scale(1.05);
     }
   }
 
-  .course-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-    background: white;
-    border-radius: 28px;
-    overflow: hidden;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
-    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  .course-cover {
     position: relative;
     width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
 
-    &:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease;
     }
 
-    .image-container {
+    .course-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
-      height: 380px;
+      height: 100%;
+      background: rgba(59, 130, 246, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+
+      .view-course {
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+  }
+
+  .course-info {
+    padding: 1.25rem;
+
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      position: relative;
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-      }
     }
 
-    &:hover .image-container img {
-      transform: scale(1.08);
-    }
-
-    .text-container {
-      padding: 40px 32px 48px;
-      text-align: center;
-      width: 100%;
-
-      h3 {
-        font-size: 2rem;
-        font-weight: 800;
-        margin-bottom: 16px;
-        color: #1e293b;
-        line-height: 1.25;
-      }
-
-      p {
-        font-size: 1.15rem;
-        color: #64748b;
-        line-height: 1.7;
-        margin-bottom: 0;
-      }
+    p {
+      font-size: 0.9rem;
+      color: #64748b;
+      line-height: 1.5;
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
   }
-}
-
-// 優化導航箭頭
-::ng-deep .swiper-button-next,
-::ng-deep .swiper-button-prev {
-  width: 60px;
-  height: 60px;
-  background: white;
-  border-radius: 50%;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-  color: #3b82f6;
-  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-
-  &:hover {
-    background: #3b82f6;
-    color: white;
-    transform: scale(1.15);
-  }
-
-  &::after {
-    font-size: 24px;
-    font-weight: bold;
-  }
-}
-
-// 優化分頁點
-::ng-deep .swiper-pagination {
-  bottom: 20px !important;
-}
-
-::ng-deep .swiper-pagination-bullet {
-  width: 14px;
-  height: 14px;
-  background: #cbd5e1;
-  opacity: 0.6;
-  transition: all 0.3s ease;
-
-  &:hover {
-    transform: scale(1.4);
-    background: #94a3b8;
-  }
-}
-
-::ng-deep .swiper-pagination-bullet-active {
-  background: #3b82f6;
-  opacity: 1;
-  width: 40px;
-  border-radius: 7px;
 }
 
 // 響應式設計
-@media (max-width: 768px) {
-  .courses-swiper {
-    padding: 30px 15px;
-    min-height: 500px;
+@media (max-width: 1024px) {
+  .courses-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.5rem;
+  }
 
-    .course-card {
-      .image-container {
-        height: 280px;
-      }
-
-      .text-container {
-        padding: 28px 24px 36px;
-
-        h3 {
-          font-size: 1.6rem;
-        }
-
-        p {
-          font-size: 1rem;
-        }
-      }
+  .course-card {
+    .course-cover {
+      height: 180px;
     }
+  }
+}
 
-    swiper-slide {
-      width: 85% !important;
+@media (max-width: 768px) {
+  .course-bookshelf-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .header-section {
+    margin-bottom: 2rem;
+
+    .page-title {
+      font-size: 1.8rem;
     }
   }
 
-  ::ng-deep .swiper-button-next,
-  ::ng-deep .swiper-button-prev {
-    width: 44px;
-    height: 44px;
+  .courses-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.25rem;
+  }
 
-    &::after {
-      font-size: 18px;
+  .course-card {
+    .course-cover {
+      height: 160px;
+    }
+
+    .course-info {
+      padding: 1rem;
+
+      h3 {
+        font-size: 1.1rem;
+      }
+
+      p {
+        font-size: 0.85rem;
+      }
     }
   }
 }
 
 @media (max-width: 480px) {
-  .courses-swiper {
-    padding: 20px 10px;
+  .course-bookshelf-container {
+    padding: 1rem 0.75rem;
+  }
 
-    .course-card {
-      .image-container {
-        height: 220px;
+  .header-section {
+    .page-title {
+      font-size: 1.6rem;
+    }
+  }
+
+  .courses-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .course-card {
+    .course-cover {
+      height: 140px;
+    }
+
+    .course-info {
+      padding: 0.875rem;
+
+      h3 {
+        font-size: 1rem;
       }
 
-      .text-container {
-        padding: 24px 20px 32px;
-
-        h3 {
-          font-size: 1.4rem;
-        }
-
-        p {
-          font-size: 0.95rem;
-        }
+      p {
+        font-size: 0.8rem;
       }
     }
   }

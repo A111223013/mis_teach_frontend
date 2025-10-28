@@ -1,34 +1,252 @@
-.card {
-  min-height: 200px; // 卡片高度大一些
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  transition: transform 0.2s;
+// 課程目錄頁面樣式
+.course-detail-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 2rem 1.5rem;
 }
 
-.c-card-hover {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 .125rem .25rem rgba(0,0,0,.075);
+// 頂部區域
+.header-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
 
-  &:hover {
-    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
-    background-color: #f8f9fa;
+  .back-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+    }
+
+    i {
+      font-size: 1.2rem;
+    }
+  }
+
+  .course-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 
-
-
-.card-title {
-  font-size: 1.25rem;
-  font-weight: bold;
+// 章節容器
+.chapters-container {
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
-ul {
-  padding-left: 0;
+// 章節卡片
+.chapter-card {
+  background: white;
+  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  }
+
+  .chapter-header {
+    padding: 1.5rem 2rem;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    }
+
+    h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 0;
+    }
+
+    i {
+      font-size: 1.25rem;
+      color: #64748b;
+      transition: transform 0.3s ease;
+    }
+  }
+
+  .chapter-content {
+    padding: 0 2rem;
+    background: white;
+
+    .concepts-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      .concept-item {
+        border-bottom: 1px solid #f1f5f9;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        a {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 1rem 0;
+          text-decoration: none;
+          color: #475569;
+          transition: all 0.3s ease;
+
+          &:hover {
+            color: #3b82f6;
+            background: #f8fafc;
+            margin: 0 -2rem;
+            padding-left: 2rem;
+            padding-right: 2rem;
+          }
+
+          i {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            width: 20px;
+            text-align: center;
+          }
+
+          span {
+            font-size: 0.95rem;
+            font-weight: 500;
+          }
+        }
+      }
+    }
+  }
 }
 
-li {
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
+// 無內容狀態
+.no-content {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #64748b;
+  font-size: 1.2rem;
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .course-detail-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .header-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+
+    .course-title {
+      font-size: 2rem;
+    }
+  }
+
+  .chapter-card {
+    .chapter-header {
+      padding: 1.25rem 1.5rem;
+
+      h2 {
+        font-size: 1.3rem;
+      }
+    }
+
+    .chapter-content {
+      padding: 0 1.5rem;
+
+      .concepts-list {
+        .concept-item {
+          a {
+            padding: 0.875rem 0;
+
+            &:hover {
+              margin: 0 -1.5rem;
+              padding-left: 1.5rem;
+              padding-right: 1.5rem;
+            }
+
+            span {
+              font-size: 1rem;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .header-section {
+    .back-button {
+      padding: 0.65rem 1.25rem;
+      font-size: 0.95rem;
+
+      span {
+        display: none;
+      }
+    }
+
+    .course-title {
+      font-size: 1.75rem;
+    }
+  }
+
+  .chapter-card {
+    .chapter-header {
+      padding: 1rem 1.25rem;
+
+      h2 {
+        font-size: 1.2rem;
+      }
+    }
+
+    .chapter-content {
+      padding: 0 1.25rem;
+
+      .concepts-list {
+        .concept-item {
+          a {
+            padding: 0.75rem 0;
+
+            &:hover {
+              margin: 0 -1.25rem;
+              padding-left: 1.25rem;
+              padding-right: 1.25rem;
+            }
+
+            span {
+              font-size: 0.95rem;
+            }
+          }
+        }
+      }
+    }
+  }
 }

@@ -1,31 +1,26 @@
-<section class="courses-swiper">
-  <!-- ✅ Web Components 版本 -->
-  <swiper-container
-    navigation="true"
-    pagination="true"
-    effect="coverflow"
-    grab-cursor="true"
-    centered-slides="true"
-    slides-per-view="auto"
-    parallax="true"
-    class="mySwiper"
-    loop="true"
-  >
-    <swiper-slide *ngFor="let c of courses">
-      <div class="card-wrapper">
-        <div class="course-card" (click)="goToMaterial(c)">
-          <!-- 上層圖片 -->
-          <div class="image-container" data-swiper-parallax="-100">
-            <img [src]="c.image" [alt]="c.name" />
-          </div>
+<div class="course-bookshelf-container">
+  <!-- 頁面標題 -->
+  <div class="header-section">
+    <h1 class="page-title">課程書架</h1>
+  </div>
 
-          <!-- 下層文字 -->
-          <div class="text-container" data-swiper-parallax="-200">
-            <h3>{{ c.name }}</h3>
-            <p>{{ c.description }}</p>
-          </div>
+  <!-- 課程網格 -->
+  <div class="courses-grid">
+    <div 
+      class="course-card" 
+      *ngFor="let c of courses"
+      (click)="goToMaterial(c)"
+    >
+      <div class="course-cover">
+        <img [src]="c.image" [alt]="c.name" />
+        <div class="course-overlay">
+          <span class="view-course">查看課程</span>
         </div>
       </div>
-    </swiper-slide>
-  </swiper-container>
-</section>
+      <div class="course-info">
+        <h3>{{ c.name }}</h3>
+        <p>{{ c.description }}</p>
+      </div>
+    </div>
+  </div>
+</div>
