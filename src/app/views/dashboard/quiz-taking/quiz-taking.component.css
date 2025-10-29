@@ -643,6 +643,13 @@ img[src=""]:after {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   transition: box-shadow 0.2s ease;
   position: relative;
+  /* 改善觸控體驗 */
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .drawing-canvas:hover {
@@ -1599,6 +1606,13 @@ img[src=""]:after {
   .drawing-canvas {
     max-width: 100%;
     height: auto;
+    /* 改善觸控體驗 */
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
   }
   
   .symbols-grid,

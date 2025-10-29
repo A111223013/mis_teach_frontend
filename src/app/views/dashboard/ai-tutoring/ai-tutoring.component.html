@@ -10,7 +10,7 @@
         <c-card-body class="p-2">
           <div class="original-question">
             <div class="question-text p-2 bg-light rounded cursor-pointer" (click)="showQuestionModal()">
-              <strong>題目：</strong>{{ getSafeText(safeCurrentQuestion.question_text, 30) }}
+              <strong>題目：</strong><span [innerHTML]="renderQuestionText(getSafeText(safeCurrentQuestion.question_text, 30))"></span>
               <c-icon name="cilExpand" class="ms-2 text-muted"></c-icon>
             </div>
           </div>
@@ -26,7 +26,18 @@
                 <div class="answer-box user-answer">
                   <small class="text-muted">您的答案</small>
                   <div class="p-1 bg-danger-subtle rounded answer-content cursor-pointer" (click)="showUserAnswerModal()">
-                    <span class="text-danger">{{ getSafeText(safeCurrentQuestion.user_answer, 20) || '未作答' }}</span>
+                    <!-- 畫圖答案顯示 -->
+                    <div *ngIf="isDrawingAnswer(safeCurrentQuestion.user_answer, safeCurrentQuestion.type)">
+                      <img [src]="safeCurrentQuestion.user_answer" 
+                           alt="用戶畫圖答案" 
+                           class="img-fluid rounded border"
+                           style="max-width: 100px; max-height: 60px;">
+                    </div>
+                    <!-- 文字答案顯示 -->
+                    <span *ngIf="!isDrawingAnswer(safeCurrentQuestion.user_answer, safeCurrentQuestion.type)" 
+                          class="text-danger">
+                      {{ getAnswerDisplay(safeCurrentQuestion.user_answer, safeCurrentQuestion.type) || '未作答' }}
+                    </span>
                     <c-icon name="cilExpand" class="ms-2 text-muted"></c-icon>
                   </div>
                 </div>
@@ -35,7 +46,7 @@
                 <div class="answer-box correct-answer">
                   <small class="text-muted">正確答案</small>
                   <div class="p-1 bg-success-subtle rounded answer-content cursor-pointer" (click)="showCorrectAnswerModal()">
-                    <span class="text-success">{{ getSafeText(safeCurrentQuestion.correct_answer, 20) || '答案載入中...' }}</span>
+                    <span class="text-success" [innerHTML]="renderQuestionText(getSafeText(safeCurrentQuestion.correct_answer, 20)) || '答案載入中...'"></span>
                     <c-icon name="cilExpand" class="ms-2 text-muted"></c-icon>
                   </div>
                 </div>
@@ -267,7 +278,7 @@
           </h6>
         </c-card-header>
         <c-card-body>
-          <div class="question-list">
+          <div class="question-list" style="max-height: 500px; overflow-y: auto; padding-right: 8px;">
             <div 
               *ngFor="let question of learningPath; let i = index"
               class="question-item mb-2 p-2 rounded cursor-pointer"
@@ -284,8 +295,7 @@
                   </c-badge>
                 </div>
                 <div class="question-info flex-grow-1">
-                  <div class="small text-truncate question-text">
-                    {{ question.question_text ? (question.question_text.length > 10 ? question.question_text.substring(0, 10) + '...' : question.question_text) : '題目載入中...' }}
+                  <div class="small text-truncate question-text" [innerHTML]="renderQuestionText(question.question_text ? (question.question_text.length > 10 ? question.question_text.substring(0, 10) + '...' : question.question_text) : '題目載入中...')">
                   </div>
                   <small class="text-muted">{{ question.topic || '未分類' }}</small>
                   <!-- 未作答標識 -->
@@ -567,7 +577,8 @@
       <div class="mb-3">
         <h6>題目內容</h6>
         <div class="bg-light p-3 rounded">
-          {{ safeCurrentQuestion.question_text }}
+          <div class="question-text" [innerHTML]="renderQuestionText(safeCurrentQuestion.question_text)">
+          </div>
         </div>
       </div>
       
@@ -619,7 +630,20 @@
       <div class="mb-3">
         <h6>您的回答</h6>
         <div class="bg-danger-subtle p-3 rounded border border-danger">
-          {{ safeCurrentQuestion.user_answer || '未作答' }}
+          <!-- 畫圖答案顯示 -->
+          <div *ngIf="isDrawingAnswer(safeCurrentQuestion.user_answer, safeCurrentQuestion.type)">
+            <div class="mb-2">
+              <strong>畫圖答案：</strong>
+            </div>
+            <img [src]="safeCurrentQuestion.user_answer" 
+                 alt="用戶畫圖答案" 
+                 class="img-fluid rounded border"
+                 style="max-width: 100%; max-height: 300px;">
+          </div>
+          <!-- 文字答案顯示 -->
+          <div *ngIf="!isDrawingAnswer(safeCurrentQuestion.user_answer, safeCurrentQuestion.type)">
+            {{ getAnswerDisplay(safeCurrentQuestion.user_answer, safeCurrentQuestion.type) || '未作答' }}
+          </div>
         </div>
       </div>
       
@@ -691,7 +715,8 @@
       <div class="mb-3">
         <h6>標準答案</h6>
         <div class="bg-success-subtle p-3 rounded border border-success">
-          {{ safeCurrentQuestion.correct_answer || '答案載入中...' }}
+          <div class="question-text" [innerHTML]="renderQuestionText(safeCurrentQuestion.correct_answer || '答案載入中...')">
+          </div>
         </div>
       </div>
       

@@ -15,7 +15,7 @@ export interface QuestionData {
   difficulty: number;
   options: string[];
   image_file: string;
-  question_type: string;
+  type: string;
   subject?: string;
   score?: number;
   feedback?: {

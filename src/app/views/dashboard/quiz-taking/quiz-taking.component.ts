@@ -1131,6 +1131,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   submitQuiz(): void {
     console.debug('[submitQuiz] 進入 submitQuiz 方法');
     
+    // 關閉確認 modal
+    this.showSubmitConfirmation = false;
+    
     // 清除session數據，因為測驗即將完成
     this.clearQuizSession();
     
@@ -1729,9 +1732,11 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       this.isDrawing = true;
       this.activePointerId = event.pointerId;
       try { this.canvas?.setPointerCapture(event.pointerId); } catch {}
-      const rect = this.canvas!.getBoundingClientRect();
+      
+      // 改善觸控座標計算
+      const coords = this.getCanvasCoordinates(event);
       this.ctx.beginPath();
-      this.ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+      this.ctx.moveTo(coords.x, coords.y);
       
       // 更新游標位置
       this.updateCursorPosition(event);
@@ -1753,6 +1758,46 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     return { pressure, tilt, type };
   }
 
+  // 改善觸控座標計算，考慮畫布縮放和設備像素比
+  private getCanvasCoordinates(event: PointerEvent): { x: number; y: number } {
+    if (!this.canvas) {
+      return { x: 0, y: 0 };
+    }
+
+    const rect = this.canvas.getBoundingClientRect();
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    
+    // 獲取觸控點座標
+    let clientX: number, clientY: number;
+    
+    if ((event as any).touches && (event as any).touches.length > 0) {
+      // 觸控事件
+      clientX = (event as any).touches[0].clientX;
+      clientY = (event as any).touches[0].clientY;
+    } else if ((event as any).changedTouches && (event as any).changedTouches.length > 0) {
+      // 觸控變化事件
+      clientX = (event as any).changedTouches[0].clientX;
+      clientY = (event as any).changedTouches[0].clientY;
+    } else {
+      // 滑鼠或筆事件
+      clientX = event.clientX;
+      clientY = event.clientY;
+    }
+    
+    // 計算相對於畫布的座標
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    // 考慮畫布的實際尺寸和顯示尺寸的比例
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    
+    return {
+      x: x * scaleX,
+      y: y * scaleY
+    };
+  }
+
   draw(event: PointerEvent): void {
     if (this.activePointerId !== undefined && event.pointerId !== this.activePointerId) {
       return;
@@ -1762,7 +1807,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       return;
     }
     
-    const rect = this.canvas.getBoundingClientRect();
+    // 改善觸控座標計算
+    const coords = this.getCanvasCoordinates(event);
     const dyn = this.getPointerDynamics(event);
     const pressureFactor = 0.2 + dyn.pressure * 0.8;
     const tiltFactor = 1 + dyn.tilt * 0.2;
@@ -1782,10 +1828,10 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       this.ctx.strokeStyle = this.brushColor;
     }
     
-    this.ctx.lineTo(event.clientX - rect.left, event.clientY - rect.top);
+    this.ctx.lineTo(coords.x, coords.y);
     this.ctx.stroke();
     this.ctx.beginPath();
-    this.ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+    this.ctx.moveTo(coords.x, coords.y);
     
     // 更新游標位置
     this.updateCursorPosition(event);
@@ -1910,14 +1956,28 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   // 更新游標圓圈位置
-  private updateCursorPosition(event: MouseEvent): void {
+  private updateCursorPosition(event: PointerEvent): void {
     if (!this.cursorCircle || !this.canvas) return;
 
     const rect = this.canvas.getBoundingClientRect();
     const containerRect = this.canvas.parentElement!.getBoundingClientRect();
     
-    const x = event.clientX - containerRect.left;
-    const y = event.clientY - containerRect.top;
+    // 使用統一的座標計算方法
+    let clientX: number, clientY: number;
+    
+    if ((event as any).touches && (event as any).touches.length > 0) {
+      clientX = (event as any).touches[0].clientX;
+      clientY = (event as any).touches[0].clientY;
+    } else if ((event as any).changedTouches && (event as any).changedTouches.length > 0) {
+      clientX = (event as any).changedTouches[0].clientX;
+      clientY = (event as any).changedTouches[0].clientY;
+    } else {
+      clientX = event.clientX;
+      clientY = event.clientY;
+    }
+    
+    const x = clientX - containerRect.left;
+    const y = clientY - containerRect.top;
 
     this.cursorCircle.style.left = x + 'px';
     this.cursorCircle.style.top = y + 'px';
@@ -2334,6 +2394,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     
     // **關鍵：確保 Canvas 始終有白色背景**
     this.ensureCanvasWhiteBackground();
+    
+    // 調整 textarea 高度
+    this.adjustAllTextareas();
   }
   
   private ensureCanvasWhiteBackground(): void {
@@ -2954,4 +3017,29 @@ mathTemplates = [
     '\\hbar', '\\ell', '\\wp', '\\Re', '\\Im', '\\aleph', '\\beth', '\\gimel',
     '\\daleth', '\\backslash', '\\setminus', '\\smallsetminus'
   ];
+
+  // 自動調整 textarea 高度
+  autoResizeTextarea(event: Event): void {
+    const textarea = event.target as HTMLTextAreaElement;
+    if (textarea) {
+      // 重置高度以計算正確的 scrollHeight
+      textarea.style.height = 'auto';
+      // 設置新高度
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+  }
+
+  // 初始化時調整所有 textarea 高度
+  private adjustAllTextareas(): void {
+    setTimeout(() => {
+      const textareas = document.querySelectorAll('.auto-resize-textarea');
+      textareas.forEach((textarea: Element) => {
+        const htmlTextarea = textarea as HTMLTextAreaElement;
+        if (htmlTextarea.value) {
+          htmlTextarea.style.height = 'auto';
+          htmlTextarea.style.height = htmlTextarea.scrollHeight + 'px';
+        }
+      });
+    }, 100);
+  }
 }

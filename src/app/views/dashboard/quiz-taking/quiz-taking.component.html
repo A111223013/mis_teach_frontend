@@ -224,22 +224,24 @@
             <div *ngIf="getQuestionType(currentQuestion) === 'short-answer' && !shouldShowMathAnswerMode()" class="text-answer-section">
               <label class="form-label">簡答：</label>
               <textarea 
-                class="form-control" 
-                rows="4" 
+                class="form-control auto-resize-textarea" 
+                rows="3" 
                 [value]="getTextAnswer()"
-                (input)="updateTextAnswer($any($event).target.value)"
-                placeholder="請輸入簡答..."></textarea>
+                (input)="updateTextAnswer($any($event).target.value); autoResizeTextarea($event)"
+                placeholder="請輸入簡答..."
+                style="min-height: 80px; resize: none; overflow: hidden;"></textarea>
             </div>
 
             <!-- 長答題 -->
             <div *ngIf="getQuestionType(currentQuestion) === 'long-answer' && !shouldShowMathAnswerMode()" class="text-answer-section">
               <label class="form-label">申論題：</label>
               <textarea 
-                class="form-control" 
-                rows="8" 
+                class="form-control auto-resize-textarea" 
+                rows="4" 
                 [value]="getTextAnswer()"
-                (input)="updateTextAnswer($any($event).target.value)"
-                placeholder="請輸入詳細答案..."></textarea>
+                (input)="updateTextAnswer($any($event).target.value); autoResizeTextarea($event)"
+                placeholder="請輸入詳細答案..."
+                style="min-height: 120px; resize: none; overflow: hidden;"></textarea>
             </div>
 
             <!-- 選填題 -->
@@ -270,8 +272,8 @@
               </div>
             </div>
 
-            <!-- 畫圖題 -->
-            <div *ngIf="getQuestionType(currentQuestion) === 'draw-answer'" class="draw-answer-section">
+            <!-- 畫圖題 - 移除，統一使用數學公式答題模式 -->
+            <div *ngIf="false" class="draw-answer-section">
               <label class="form-label fw-bold mb-3">畫圖答案：</label>
               
               <!-- 狀態提示 -->
@@ -388,7 +390,11 @@
                     (pointermove)="draw($event); updateCursorPosition($event)"
                     (pointerup)="stopDrawing()"
                     (pointerleave)="stopDrawing(); hideCursor()"
-                    (pointerenter)="updateCursorPosition($event)">
+                    (pointerenter)="updateCursorPosition($event)"
+                    (touchstart)="startDrawing($event)"
+                    (touchmove)="draw($event); updateCursorPosition($event)"
+                    (touchend)="stopDrawing()"
+                    (touchcancel)="stopDrawing()">
                   </canvas>
                 </div>
                 
@@ -413,12 +419,15 @@
                 </span>
               </div>
               
-              <div class="math-mode-selector mb-4">
+              <!-- 簡化的模式選擇器 -->
+              <div class="math-mode-selector mb-3">
                 <div class="d-flex align-items-center justify-content-between">
                   <h6 class="mb-0 text-primary">
-                    <i class="cil-calculator me-2"></i>數學公式答題
+                    <i class="cil-brush me-2" *ngIf="getQuestionType(currentQuestion) === 'draw-answer'"></i>
+                    <i class="cil-calculator me-2" *ngIf="getQuestionType(currentQuestion) !== 'draw-answer'"></i>
+                    {{ getQuestionType(currentQuestion) === 'draw-answer' ? '畫圖答題' : '數學公式答題' }}
                   </h6>
-                  <div class="btn-group" role="group">
+                  <div class="btn-group" role="group" *ngIf="getQuestionType(currentQuestion) !== 'draw-answer'">
                     <button 
                       type="button" 
                       class="btn btn-sm" 
@@ -436,135 +445,135 @@
                       <i class="cil-calculator me-1"></i> 公式模式
                     </button>
                   </div>
+                  <div class="btn-group" role="group" *ngIf="getQuestionType(currentQuestion) === 'draw-answer'">
+                    <button 
+                      type="button" 
+                      class="btn btn-sm btn-primary"
+                      disabled>
+                      <i class="cil-brush me-1"></i> 繪圖模式
+                    </button>
+                  </div>
                 </div>
-                <small class="text-muted">選擇適合的答題方式來輸入數學公式或繪製圖形</small>
+                <small class="text-muted">
+                  {{ getQuestionType(currentQuestion) === 'draw-answer' ? '在下方畫布中繪製圖形或圖表' : '選擇適合的答題方式來輸入數學公式或繪製圖形' }}
+                </small>
               </div>
 
               <!-- 繪圖模式 -->
-              <div *ngIf="mathAnswerMode === 'drawing'" class="math-drawing-mode">
-                <div class="card border-primary">
-                  <div class="card-header bg-light">
-                    <h6 class="mb-0">
-                      <i class="cil-brush me-2"></i>數學公式繪圖
-                    </h6>
-                    <small class="text-muted">在下方畫布中繪製數學公式、圖形或圖表</small>
-                  </div>
-                  <div class="card-body">
-                    <div class="math-drawing-area">
-                      <div class="canvas-container">
-                        <canvas 
-                          #mathCanvas
-                          [width]="canvasWidth" 
-                          [height]="canvasHeight" 
-                          class="drawing-canvas"
-                          [class.eraser-cursor]="isEraserMode"
-                          (pointerdown)="startMathDrawing($event)"
-                          (pointermove)="drawMath($event); updateCursorPosition($event)"
-                          (pointerup)="stopMathDrawing()"
-                          (pointerleave)="stopMathDrawing(); hideCursor()"
-                          (pointerenter)="updateCursorPosition($event)">
-                        </canvas>
-                      </div>
-                      <!-- 數學繪圖工具欄 -->
-                      <div class="drawing-toolbar mb-3">
-                        <div class="toolbar-header mb-2">
-                          <h6 class="mb-0">數學繪圖工具</h6>
-                        </div>
-                        <div class="toolbar-content">
-                          <!-- 第一行：工具和顏色 -->
-                          <div class="toolbar-row mb-2">
-                            <!-- 工具選擇 -->
-                            <div class="toolbar-section">
-                              <label class="toolbar-label">工具：</label>
-                              <div class="btn-group" role="group">
-                                <button 
-                                  class="btn btn-sm"
-                                  [class.btn-primary]="!isEraserMode"
-                                  [class.btn-outline-primary]="isEraserMode"
-                                  (click)="isEraserMode = false">
-                                  畫筆
-                                </button>
-                                <button 
-                                  class="btn btn-sm"
-                                  [class.btn-primary]="isEraserMode"
-                                  [class.btn-outline-primary]="!isEraserMode"
-                                  (click)="toggleEraser()">
-                                  橡皮擦
-                                </button>
-                              </div>
-                            </div>
-                            
-                            <!-- 顏色選擇 -->
-                            <div class="toolbar-section" *ngIf="!isEraserMode">
-                              <label class="toolbar-label">顏色：</label>
-                              <div class="color-picker-group">
-                                <button 
-                                  *ngFor="let color of ['#000000', '#FF0000', '#0000FF', '#00AA00', '#FFA500', '#800080']"
-                                  class="color-btn"
-                                  [style.background-color]="color"
-                                  [class.active]="brushColor === color && !isEraserMode"
-                                  (click)="setBrushColor(color)">
-                                </button>
-                                <input 
-                                  type="color" 
-                                  [(ngModel)]="brushColor"
-                                  (change)="setBrushColor(brushColor)"
-                                  class="custom-color-picker"
-                                  title="自訂顏色">
-                              </div>
-                            </div>
-                            
-                            <!-- 筆刷大小 -->
-                            <div class="toolbar-section">
-                              <label class="toolbar-label">
-                                {{ isEraserMode ? '橡皮擦大小' : '筆刷大小' }}：
-                              </label>
-                              <div class="d-flex align-items-center">
-                                <input 
-                                  type="range" 
-                                  min="1" 
-                                  max="30" 
-                                  [(ngModel)]="brushSize" 
-                                  (input)="onBrushSizeChange()"
-                                  class="form-range brush-size-slider me-2"
-                                  style="width: 120px;">
-                                <span class="badge bg-secondary">{{ brushSize }}px</span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <!-- 第二行：操作按鈕 -->
-                          <div class="toolbar-row">
-                            <div class="btn-group" role="group">
-                              <button 
-                                class="btn btn-sm btn-outline-secondary" 
-                                (click)="openCanvasSizeModal()">
-                                調整畫布
-                              </button>
-                              <button 
-                                class="btn btn-sm btn-outline-danger" 
-                                (click)="clearMathCanvas()">
-                                清除
-                              </button>
-                              <button 
-                                class="btn btn-sm btn-success" 
-                                (click)="saveMathDrawing()">
-                                儲存
-                              </button>
-                            </div>
-                          </div>
+              <div *ngIf="mathAnswerMode === 'drawing' || getQuestionType(currentQuestion) === 'draw-answer'" class="math-drawing-mode">
+                <!-- 簡化的繪圖工具欄 -->
+                <div class="drawing-toolbar mb-3">
+                  <div class="toolbar-content">
+                    <!-- 工具和顏色 -->
+                    <div class="toolbar-row mb-2">
+                      <!-- 工具選擇 -->
+                      <div class="toolbar-section">
+                        <label class="toolbar-label">工具：</label>
+                        <div class="btn-group" role="group">
+                          <button 
+                            class="btn btn-sm"
+                            [class.btn-primary]="!isEraserMode"
+                            [class.btn-outline-primary]="isEraserMode"
+                            (click)="isEraserMode = false">
+                            畫筆
+                          </button>
+                          <button 
+                            class="btn btn-sm"
+                            [class.btn-primary]="isEraserMode"
+                            [class.btn-outline-primary]="!isEraserMode"
+                            (click)="toggleEraser()">
+                            橡皮擦
+                          </button>
                         </div>
                       </div>
                       
-                      <div class="math-drawing-controls mt-3 d-flex justify-content-between align-items-center">
-                        <div class="drawing-info">
-                          <small class="text-muted">
-                            <i class="cil-info me-1"></i>使用滑鼠在畫布上繪製
-                          </small>
+                      <!-- 顏色選擇 -->
+                      <div class="toolbar-section" *ngIf="!isEraserMode">
+                        <label class="toolbar-label">顏色：</label>
+                        <div class="color-picker-group">
+                          <button 
+                            *ngFor="let color of ['#000000', '#FF0000', '#0000FF', '#00AA00', '#FFA500', '#800080']"
+                            class="color-btn"
+                            [style.background-color]="color"
+                            [class.active]="brushColor === color && !isEraserMode"
+                            (click)="setBrushColor(color)">
+                          </button>
+                          <input 
+                            type="color" 
+                            [(ngModel)]="brushColor"
+                            (change)="setBrushColor(brushColor)"
+                            class="custom-color-picker"
+                            title="自訂顏色">
+                        </div>
+                      </div>
+                      
+                      <!-- 筆刷大小 -->
+                      <div class="toolbar-section">
+                        <label class="toolbar-label">
+                          {{ isEraserMode ? '橡皮擦大小' : '筆刷大小' }}：
+                        </label>
+                        <div class="d-flex align-items-center">
+                          <input 
+                            type="range" 
+                            min="1" 
+                            max="30" 
+                            [(ngModel)]="brushSize" 
+                            (input)="onBrushSizeChange()"
+                            class="form-range brush-size-slider me-2"
+                            style="width: 120px;">
+                          <span class="badge bg-secondary">{{ brushSize }}px</span>
                         </div>
                       </div>
                     </div>
+                    
+                    <!-- 操作按鈕 -->
+                    <div class="toolbar-row">
+                      <div class="btn-group" role="group">
+                        <button 
+                          class="btn btn-sm btn-outline-secondary" 
+                          (click)="openCanvasSizeModal()">
+                          調整畫布
+                        </button>
+                        <button 
+                          class="btn btn-sm btn-outline-danger" 
+                          (click)="clearMathCanvas()">
+                          清除
+                        </button>
+                        <button 
+                          class="btn btn-sm btn-success" 
+                          (click)="saveMathDrawing()">
+                          儲存
+                        </button>
+                      </div>
+                    </div>
                   </div>
+                </div>
+                
+                <!-- 畫布區域 -->
+                <div class="canvas-container">
+                  <canvas 
+                    #mathCanvas
+                    [width]="canvasWidth" 
+                    [height]="canvasHeight" 
+                    class="drawing-canvas"
+                    [class.eraser-cursor]="isEraserMode"
+                    (pointerdown)="startMathDrawing($event)"
+                    (pointermove)="drawMath($event); updateCursorPosition($event)"
+                    (pointerup)="stopMathDrawing()"
+                    (pointerleave)="stopMathDrawing(); hideCursor()"
+                    (pointerenter)="updateCursorPosition($event)"
+                    (touchstart)="startMathDrawing($event)"
+                    (touchmove)="drawMath($event); updateCursorPosition($event)"
+                    (touchend)="stopMathDrawing()"
+                    (touchcancel)="stopMathDrawing()">
+                  </canvas>
+                </div>
+                
+                <!-- 底部提示 -->
+                <div class="drawing-info mt-2">
+                  <small class="text-muted">
+                    <i class="cil-info me-1"></i>{{ getQuestionType(currentQuestion) === 'draw-answer' ? '使用滑鼠在畫布上繪製圖形或圖表' : '使用滑鼠在畫布上繪製' }}
+                  </small>
                 </div>
               </div>
 
@@ -785,7 +794,9 @@
 <c-modal 
   [visible]="showCanvasSizeModal" 
   (visibleChange)="showCanvasSizeModal = $event"
-  alignment="center">
+  alignment="center"
+  [backdrop]="true"
+  [keyboard]="false">
   <c-modal-header>
     <h5 cModalTitle>調整畫布大小</h5>
   </c-modal-header>
@@ -829,7 +840,9 @@
 <c-modal 
   [visible]="showSubmitConfirmation" 
   (visibleChange)="showSubmitConfirmation = $event"
-  alignment="center">
+  alignment="center"
+  [backdrop]="true"
+  [keyboard]="false">
   <c-modal-header>
     <h5 cModalTitle>確認提交</h5>
   </c-modal-header>
@@ -874,7 +887,9 @@
 <c-modal 
   [visible]="isProgressModalVisible" 
   (visibleChange)="isProgressModalVisible = $event"
-  alignment="center">
+  alignment="center"
+  [backdrop]="true"
+  [keyboard]="false">
   <c-modal-header>
     <h5 cModalTitle>測驗批改中</h5>
   </c-modal-header>

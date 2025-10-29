@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -121,7 +121,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       topic: '',
       options: [],
       image_file: '',
-      question_type: '',
+      type: 'single-choice',
       is_marked: false
     };
   }
@@ -152,7 +152,8 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     private route: ActivatedRoute,
     private router: Router,
     private aiTutoringService: AiTutoringService,
-    private aiQuizService: AiQuizService
+    private aiQuizService: AiQuizService,
+    private cdr: ChangeDetectorRef
   ) {
     this.checkMobile();
   }
@@ -195,6 +196,8 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   ngAfterViewChecked(): void {
     this.scrollToBottom();
+    // 自動觸發 LaTeX 渲染
+    this.renderMathInElement();
   }
 
   checkMobile(): void {
@@ -283,7 +286,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
               topic: queryParams.topic || '',
               options: [],
               image_file: '',
-              question_type: queryParams.examType || 'general',
+              type: queryParams.examType || 'general',
               is_marked: false
             };
 
@@ -370,7 +373,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
               topic: queryParams.topic || '',
               options: [],
               image_file: '',
-              question_type: queryParams.examType || 'general',
+              type: queryParams.examType || 'general',
               is_marked: false
             };
 
@@ -696,7 +699,20 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       ).toPromise();
       
       if (response?.success && response.response) {
-        this.currentQuestionAnswerAnalysis = response.response;
+        // 確保 response.response 是字符串
+        if (typeof response.response === 'string') {
+          this.currentQuestionAnswerAnalysis = response.response;
+        } else if (typeof response.response === 'object') {
+          // 如果是對象，嘗試提取文本內容
+          const responseObj = response.response as any;
+          const responseText = responseObj.text || 
+                               responseObj.message || 
+                               responseObj.content ||
+                               JSON.stringify(response.response);
+          this.currentQuestionAnswerAnalysis = responseText;
+        } else {
+          this.currentQuestionAnswerAnalysis = String(response.response);
+        }
       } else {
         this.currentQuestionAnswerAnalysis = '無法生成答案分析，請重試。';
       }
@@ -1410,5 +1426,124 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       console.error('❌ 處理AI回應時發生錯誤:', error);
       return 'AI回應處理失敗，請重試';
     }
+  }
+
+  // ==================== LaTeX 渲染相關方法 ====================
+  
+  // 渲染題目文本中的 LaTeX 數學公式
+  renderQuestionText(questionText: string): string {
+    if (!questionText) {
+      return '';
+    }
+
+    // 將 LaTeX 語法轉換為 HTML 格式供 KaTeX 渲染
+    return questionText
+      .replace(/\$\$(.*?)\$\$/g, '<div class="math-display">$$$1$$</div>')
+      .replace(/\$(.*?)\$/g, '<span class="math-inline">$$$1$$</span>')
+      .replace(/\\\((.*?)\\\)/g, '<span class="math-inline">$$$1$$</span>')
+      .replace(/\\\[(.*?)\\\]/g, '<div class="math-display">$$$1$$</div>');
+  }
+
+  // 渲染數學公式
+  renderMathFormula(formula: string): string {
+    if (!formula) return '';
+    
+    try {
+      // 使用 KaTeX 渲染數學公式
+      if ((window as any).katex) {
+        const rendered = (window as any).katex.renderToString(formula, {
+          throwOnError: false,
+          displayMode: false
+        });
+        return rendered;
+      }
+      // 如果KaTeX未載入，返回原始公式
+      return formula;
+    } catch (error) {
+      console.warn('KaTeX rendering error:', error);
+      return formula;
+    }
+  }
+
+  // 渲染元素中的數學公式
+  renderMathInElement(): void {
+    // 檢查 KaTeX 是否載入
+    if (!(window as any).renderMathInElement) {
+      return;
+    }
+    
+    // 使用 KaTeX 的 auto-render 功能
+    setTimeout(() => {
+      try {
+        (window as any).renderMathInElement(document.body, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '\\[', right: '\\]', display: true }
+          ],
+          throwOnError: false
+        });
+        
+        // 觸發變更檢測以確保所有數學公式都正確渲染
+        this.cdr.detectChanges();
+      } catch (error) {
+        console.error('❌ LaTeX 渲染失敗:', error);
+      }
+    }, 100);
+  }
+
+  // ==================== 圖片顯示相關方法 ====================
+  
+  // 檢查是否為畫圖答案
+  isDrawingAnswer(answer: string, questionType?: string): boolean {
+    // 如果題目類型是 draw-answer 且答案是 base64 圖片
+    if (questionType === 'draw-answer' && !!answer && answer.startsWith('data:image/')) {
+      return true;
+    }
+    
+    // 如果答案本身是 base64 圖片，也應該顯示為圖片
+    if (!!answer && answer.startsWith('data:image/')) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  // 獲取答案顯示內容
+  getAnswerDisplay(answer: string, questionType?: string): string {
+    if (!answer || answer === '') {
+      return '未作答';
+    }
+    
+    // 檢查是否為畫圖答案
+    if (this.isDrawingAnswer(answer, questionType)) {
+      return '[畫圖答案]';
+    }
+    
+    // 處理其他類型的答案
+    if (typeof answer === 'string') {
+      // 處理 LONG_ANSWER_ 引用
+      if (answer.startsWith('LONG_ANSWER_')) {
+        return '[長答案載入中...]';
+      }
+      
+      // 處理 JSON 格式
+      if (answer.startsWith('[') || answer.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(answer);
+          if (Array.isArray(parsed)) {
+            return parsed.join(', ');
+          }
+          return parsed.toString();
+        } catch (e) {
+          return answer;
+        }
+      }
+      
+      return answer;
+    }
+    
+    return String(answer);
   }
 }
