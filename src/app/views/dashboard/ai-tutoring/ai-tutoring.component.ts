@@ -675,13 +675,25 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.showQuestionDetailModal = true;
   }
   
+  closeQuestionModal(): void {
+    this.showQuestionDetailModal = false;
+  }
+  
   showUserAnswerModal(): void {
     this.showUserAnswerDetailModal = true;
+  }
+  
+  closeUserAnswerModal(): void {
+    this.showUserAnswerDetailModal = false;
   }
   
   showCorrectAnswerModal(): void {
     this.showCorrectAnswerDetailModal = true;
     this.generateAnswerAnalysis();
+  }
+  
+  closeCorrectAnswerModal(): void {
+    this.showCorrectAnswerDetailModal = false;
   }
 
   async generateAnswerAnalysis() {

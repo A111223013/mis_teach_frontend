@@ -277,8 +277,8 @@
             題目選擇
           </h6>
         </c-card-header>
-        <c-card-body>
-          <div class="question-list" style="max-height: 500px; overflow-y: auto; padding-right: 8px;">
+        <c-card-body style="display: flex; flex-direction: column; padding: 1rem; flex: 1; min-height: 0;">
+          <div class="question-list" style="flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding-right: 8px; touch-action: pan-y;">
             <div 
               *ngFor="let question of learningPath; let i = index"
               class="question-item mb-2 p-2 rounded cursor-pointer"
@@ -359,7 +359,8 @@
 <!-- 筆記模態框 -->
 <c-modal 
   [visible]="showNotesModal" 
-  (visibleChange)="showNotesModal = $event"
+  [backdrop]="true"
+  [keyboard]="false"
   size="lg">
   <c-modal-header>
     <h4 c-modal-title>學習筆記</h4>
@@ -422,7 +423,8 @@
 <!-- 繪圖模態框 -->
 <c-modal 
   [visible]="showDrawingModal" 
-  (visibleChange)="showDrawingModal = $event"
+  [backdrop]="true"
+  [keyboard]="false"
   size="xl">
   <c-modal-header>
     <h4 c-modal-title>草稿板</h4>
@@ -467,7 +469,8 @@
 <!-- 學習報告模態框 -->
 <c-modal 
   [visible]="showLearningReport" 
-  (visibleChange)="showLearningReport = $event"
+  [backdrop]="true"
+  [keyboard]="false"
   size="lg">
   <c-modal-header>
     <h4 c-modal-title>
@@ -558,7 +561,8 @@
 <!-- 題目詳情 Modal -->
 <c-modal 
   [visible]="showQuestionDetailModal" 
-  (visibleChange)="showQuestionDetailModal = $event"
+  [backdrop]="true"
+  [keyboard]="false"
   size="lg">
   <c-modal-header>
     <h4 c-modal-title>
@@ -568,7 +572,7 @@
     <button 
       type="button" 
       class="btn-close" 
-      (click)="showQuestionDetailModal = false">
+      (click)="closeQuestionModal()">
     </button>
   </c-modal-header>
   
@@ -602,7 +606,7 @@
     <button 
       type="button" 
       class="btn btn-secondary"
-      (click)="showQuestionDetailModal = false">
+      (click)="closeQuestionModal()">
       關閉
     </button>
   </c-modal-footer>
@@ -611,7 +615,8 @@
 <!-- 用戶答案詳情 Modal -->
 <c-modal 
   [visible]="showUserAnswerDetailModal" 
-  (visibleChange)="showUserAnswerDetailModal = $event"
+  [backdrop]="true"
+  [keyboard]="false"
   size="lg">
   <c-modal-header>
     <h4 c-modal-title>
@@ -621,7 +626,7 @@
     <button 
       type="button" 
       class="btn-close" 
-      (click)="showUserAnswerDetailModal = false">
+      (click)="closeUserAnswerModal()">
     </button>
   </c-modal-header>
   
@@ -687,7 +692,7 @@
     <button 
       type="button" 
       class="btn btn-secondary"
-      (click)="showUserAnswerDetailModal = false">
+      (click)="closeUserAnswerModal()">
       關閉
     </button>
   </c-modal-footer>
@@ -696,7 +701,8 @@
 <!-- 正確答案詳情 Modal -->
 <c-modal 
   [visible]="showCorrectAnswerDetailModal" 
-  (visibleChange)="showCorrectAnswerDetailModal = $event"
+  [backdrop]="true"
+  [keyboard]="false"
   size="lg">
   <c-modal-header>
     <h4 c-modal-title>
@@ -706,7 +712,7 @@
     <button 
       type="button" 
       class="btn-close" 
-      (click)="showCorrectAnswerDetailModal = false">
+      (click)="closeCorrectAnswerModal()">
     </button>
   </c-modal-header>
   
@@ -743,7 +749,7 @@
     <button 
       type="button" 
       class="btn btn-secondary"
-      (click)="showCorrectAnswerDetailModal = false">
+      (click)="closeCorrectAnswerModal()">
       關閉
     </button>
   </c-modal-footer>

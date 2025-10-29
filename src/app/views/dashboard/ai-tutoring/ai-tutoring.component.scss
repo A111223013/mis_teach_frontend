@@ -30,7 +30,25 @@
   background: white;
   border-left: 1px solid #dee2e6;
   padding: 1rem;
-  overflow-y: auto;
+  overflow-y: auto !important; // 允許右側邊欄自己滾動
+  overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: calc(100vh - 120px); // 確保不超出視窗高度
+  min-height: 0; // 允許 flex 子元素縮小
+  
+  // 確保卡片能夠正確排列
+  c-card {
+    flex-shrink: 0; // 防止卡片被壓縮
+  }
+  
+  // 題目選擇卡片特殊處理
+  .question-selector-card {
+    flex: 1; // 讓題目選擇卡片佔用剩餘空間
+    min-height: 0; // 允許縮小
+    display: flex !important;
+    flex-direction: column !important;
+  }
 }
 
 /* 對話區域 */
@@ -401,12 +419,85 @@
 }
 
 // 題目選擇列表的滾動條樣式
+.question-selector-card {
+  flex: 1; // 讓卡片佔用剩餘空間
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0; // 重要：允許 flex 子元素縮小
+  
+  .card-header {
+    flex-shrink: 0; // 防止標題被壓縮
+  }
+  
+  .card-body {
+    // 確保父元素使用 flex 布局
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 1rem;
+    flex: 1; // 佔用可用空間
+    min-height: 0; // 重要：允許 flex 子元素縮小
+    overflow: hidden !important; // 防止卡片本身滾動
+  }
+  
+  .question-list {
+    scrollbar-width: thin;
+    scrollbar-color: #6c757d #f8f9fa;
+    
+    // 使用 flex 來佔用剩餘空間，而不是固定高度
+    flex: 1;
+    min-height: 200px;
+    max-height: none !important;
+    height: 0; // flex: 1 的配合，讓元素可以正確縮放
+    
+    // 確保可以滾動
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    display: block !important;
+    position: relative;
+    padding-right: 8px;
+    margin-bottom: 0;
+    
+    // 確保能夠滾動
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    
+    // 確保內容可以超出容器
+    box-sizing: border-box;
+    
+    // 確保內部內容可以正常顯示
+    & > * {
+      box-sizing: border-box;
+    }
+  }
+  
+  .question-actions {
+    flex-shrink: 0; // 防止操作按鈕被壓縮
+    margin-top: 1rem;
+    width: 100%;
+  }
+}
+
+// 通用 question-list 樣式（確保在所有情況下都生效）
 .question-list {
   scrollbar-width: thin;
   scrollbar-color: #6c757d #f8f9fa;
   
-  // 確保滾動條總是可見
+  // 使用 flex 或確保最小高度
+  min-height: 200px;
   overflow-y: auto !important;
+  overflow-x: hidden !important;
+  display: block !important;
+  position: relative;
+  padding-right: 8px !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  box-sizing: border-box !important;
+  
+  // 確保內容不會被截斷
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .question-list::-webkit-scrollbar {
