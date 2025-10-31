@@ -2,11 +2,6 @@ import { INavData } from '@coreui/angular';
 
 export const navItems: INavData[] = [
   {
-    name: '概覽',
-    url: '/dashboard/overview',
-    iconComponent: { name: 'cilSpeedometer' },
-  },
-  {
     name: '課程',
     url: '/dashboard/courses',
     iconComponent: { name: 'cilBook' }
