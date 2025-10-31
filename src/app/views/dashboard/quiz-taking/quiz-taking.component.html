@@ -261,15 +261,7 @@
                   </label>
                 </div>
               </div>
-              <div class="mt-3">
-                <label class="form-label">或填入自訂答案：</label>
-                <input 
-                  type="text" 
-                  class="form-control" 
-                  [value]="getCustomAnswer()"
-                  (input)="updateCustomAnswer($any($event).target.value)"
-                  placeholder="請輸入自訂答案...">
-              </div>
+        
             </div>
 
             <!-- 畫圖題 - 移除，統一使用數學公式答題模式 -->

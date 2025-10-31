@@ -142,6 +142,26 @@
                 </div>
               </div>
             </div>
+            
+            <!-- 完成提示和下一題按鈕 -->
+            <div *ngIf="currentQuestionCompleted && understandingLevel >= 99" class="completion-banner mt-3 mb-3">
+              <c-card class="border-success">
+                <c-card-body class="text-center p-4">
+                  <div class="completion-icon mb-3">
+                    <c-icon name="cilCheckCircle" size="3xl" class="text-success"></c-icon>
+                  </div>
+                  <h4 class="text-success mb-2">🎉 恭喜完成！</h4>
+                  <p class="text-muted mb-4">您已經完全理解這道題目，理解程度達到 99 分！</p>
+                  <button 
+                    type="button"
+                    class="btn btn-success btn-lg px-5"
+                    (click)="nextQuestion()">
+                    <c-icon name="cilArrowRight" class="me-2"></c-icon>
+                    進入下一題
+                  </button>
+                </c-card-body>
+              </c-card>
+            </div>
           </div>
           
           <!-- 輸入區 -->
@@ -489,39 +509,68 @@
       <!-- 題目資訊 -->
       <div class="question-info mb-3">
         <h6>當前題目</h6>
-        <div class="bg-light p-2 rounded">
-          {{ learningReport.currentQuestion?.question_text || '題目載入中...' }}
+        <div class="bg-light p-2 rounded question-text">
+          <div [innerHTML]="renderQuestionText(learningReport.currentQuestion?.question_text || '題目載入中...')"></div>
         </div>
       </div>
 
-      <!-- 學習狀態 -->
-      <div class="learning-status mb-3">
-        <h6>學習狀態</h6>
-        <div class="row">
-          <div class="col-6">
-            <small class="text-muted">學習階段</small>
-            <div class="fw-bold">{{ getLearningStageDisplayName(learningReport.learningStage) }}</div>
+      <!-- 學習狀態 - 使用進度條和圖標 -->
+      <div class="learning-status mb-4">
+        <h6 class="mb-3">
+          <c-icon name="cilChartLine" class="me-2"></c-icon>
+          學習狀態
+        </h6>
+        <div class="row g-3">
+          <div class="col-12">
+            <small class="text-muted d-block mb-2">理解程度</small>
+            <div class="progress" style="height: 30px;">
+              <div 
+                class="progress-bar progress-bar-striped progress-bar-animated"
+                [class]="'bg-' + getUnderstandingLevelColor(learningReport.understandingLevel)"
+                [style.width.%]="learningReport.understandingLevel"
+                role="progressbar">
+                <strong>{{ learningReport.understandingLevel }}/100</strong>
+              </div>
+            </div>
           </div>
           <div class="col-6">
-            <small class="text-muted">理解程度</small>
-            <div class="fw-bold" [class]="'text-' + getUnderstandingLevelColor(learningReport.understandingLevel)">
-              {{ learningReport.understandingLevel }}/100
+            <small class="text-muted d-block mb-1">學習階段</small>
+            <div class="fw-bold text-primary">
+              <c-icon name="cilFlagAlt" class="me-1"></c-icon>
+              {{ getLearningStageDisplayName(learningReport.learningStage) }}
+            </div>
+          </div>
+          <div class="col-6">
+            <small class="text-muted d-block mb-1">總學習時間</small>
+            <div class="fw-bold text-info">
+              <c-icon name="cilClock" class="me-1"></c-icon>
+              {{ learningReport.totalLearningTime }} 分鐘
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 學習統計 -->
-      <div class="learning-stats mb-3">
-        <h6>學習統計</h6>
-        <div class="row">
-          <div class="col-6">
-            <small class="text-muted">總學習時間</small>
-            <div class="fw-bold text-info">{{ learningReport.totalLearningTime }} 分鐘</div>
-          </div>
-          <div class="col-6">
-            <small class="text-muted">階段進度</small>
-            <div class="fw-bold text-primary">{{ getStageProgressCount() }}/4</div>
+      <!-- 階段進度統計 - 使用視覺化 -->
+      <div class="learning-stats mb-4" *ngIf="learningReport.stageProgress">
+        <h6 class="mb-3">
+          <c-icon name="cilPieChart" class="me-2"></c-icon>
+          階段進度統計
+        </h6>
+        <div class="stage-progress-chart">
+          <div 
+            *ngFor="let stageEntry of getStageProgressEntries(learningReport.stageProgress)"
+            class="stage-progress-item mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="small">{{ stageEntry.stageName }}</span>
+              <span class="badge bg-primary">{{ stageEntry.count }} 次</span>
+            </div>
+            <div class="progress" style="height: 8px;">
+              <div 
+                class="progress-bar"
+                [style.width.%]="stageEntry.percentage"
+                role="progressbar">
+              </div>
+            </div>
           </div>
         </div>
       </div>

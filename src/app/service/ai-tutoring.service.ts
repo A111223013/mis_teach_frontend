@@ -28,8 +28,18 @@ export interface QuestionData {
 
 export interface TutoringResponse {
   success: boolean;
-  response?: string;
+  response?: string | TutoringResponseData;  // 可能是字符串或完整數據對象
   error?: string;
+}
+
+export interface TutoringResponseData {
+  response: string;              // AI 回應文字（已清理評分）
+  raw_score?: number;            // AI 原始評分（可能為 null）
+  smart_score: number;           // 智能評分後的結果
+  learning_stage: string;         // 學習階段
+  concept_progress: any[];        // 概念進度
+  conversation_count?: number;     // 對話次數
+  is_initial?: boolean;           // 是否為初始化
 }
 
 @Injectable({
