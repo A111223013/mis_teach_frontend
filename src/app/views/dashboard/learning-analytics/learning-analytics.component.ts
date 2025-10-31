@@ -19,6 +19,7 @@ import {
 // 服務導入
 import { LearningAnalyticsService, AIDiagnosisData } from '../../../service/learning-analytics.service';
 import { OverviewService, CreateEventRequest } from '../../../service/overview.service';
+import { SidebarService } from '../../../service/sidebar.service';
 // 暫時註釋掉不存在的模型
 // import { AIDiagnosis } from '../../../models/ai-diagnosis.model';
 // import { PracticeQuestion } from '../../../models/practice-question.model';
@@ -121,7 +122,8 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   constructor(
     private learningAnalyticsService: LearningAnalyticsService,
     private overviewService: OverviewService,
-    private router: Router
+    private router: Router,
+    private sidebarService: SidebarService
   ) {
     Chart.register(...registerables);
   }
@@ -689,18 +691,11 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     }
     
     if (this.currentConceptData) {
-      // 跳轉到網站助手頁面，預設問題
+      // 打開側邊欄並發送問題，不進行路由跳轉
       const question = `請教我關於${this.currentConceptData.name}的基礎概念：${action.detail}`;
-      this.router.navigate(['/dashboard/web-ai-assistant'], { 
-        queryParams: { 
-          question: question,
-          concept: this.currentConceptData.name,
-          domain: this.currentConceptData.domainName,
-          action: 'teaching',
-          detail: action.detail,
-          estMin: action.est_min || 15
-        } 
-      });
+      
+      // 使用側邊欄服務打開側邊欄並發送問題
+      this.sidebarService.openSidebar(question);
     } else {
       alert('無法獲取概念信息，請重新選擇');
     }

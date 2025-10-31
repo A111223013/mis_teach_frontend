@@ -2,7 +2,8 @@ import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
 
 import {
   CardModule,
@@ -17,6 +18,7 @@ import { DetailedGuideService } from '../../../service/detailed-guide.service';
 import { UserGuideStatusService } from '../../../service/user-guide-status.service';
 import { MessageBridgeService } from '../../../service/message-bridge.service';
 import { QuizService } from '../../../service/quiz.service';
+import { SidebarService } from '../../../service/sidebar.service';
 
 @Component({
   selector: 'app-web-ai-assistant',
@@ -39,11 +41,15 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
   @ViewChild('messageInput') messageInput!: ElementRef;
 
   // 組件狀態
-  isExpanded = false; // 側邊框預設收縮
+  isExpanded = true; // 側邊欄預設收合
   isTyping = false;
   isAiTakingOver = false;
   shouldScrollToBottom = false;
   currentMessage = '';
+  
+  // 側邊欄寬度
+  sidebarWidth = 380;
+  isResizing = false;
   
   // 聊天數據
   messages: WebChatMessage[] = [];
@@ -60,6 +66,10 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
     { label: '常見問題', action: 'faq', icon: 'cilHelp' }
   ];
 
+  private subscriptions: Subscription[] = [];
+  private resizeStartX = 0;
+  private resizeStartWidth = 0;
+
   constructor(
     private webAiService: WebAiAssistantService,
     private detailedGuideService: DetailedGuideService,
@@ -67,16 +77,92 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
     private messageBridgeService: MessageBridgeService,
     private quizService: QuizService,
     private router: Router,
-    private cdr: ChangeDetectorRef
+    private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef,
+    private sidebarService: SidebarService
   ) {}
 
   ngOnInit(): void {
+    // 先同步SidebarService的狀態
+    this.isExpanded = this.sidebarService.getIsOpen();
+    
     this.initializeWelcomeMessage();
     this.subscribeToMessageBridge();
+    this.subscribeToSidebarService();
+    this.checkRouteParams();
+    
+    // 確保側邊欄在初始化時打開（如果服務狀態為true）
+    if (this.isExpanded) {
+      setTimeout(() => {
+        this.focusInput();
+        this.scrollToBottom();
+      }, 100);
+    }
   }
 
   ngOnDestroy(): void {
     // 清理資源
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+  }
+
+  /**
+   * 訂閱側邊欄服務
+   */
+  private subscribeToSidebarService(): void {
+    // 訂閱側邊欄展開/收合狀態
+    const sidebarSub = this.sidebarService.isOpen$.subscribe(isOpen => {
+      if (isOpen !== this.isExpanded) {
+        this.isExpanded = isOpen;
+        if (isOpen) {
+          setTimeout(() => {
+            this.focusInput();
+            this.scrollToBottom();
+          }, 100);
+        }
+      }
+    });
+    this.subscriptions.push(sidebarSub);
+
+    // 訂閱側邊欄寬度
+    const widthSub = this.sidebarService.width$.subscribe(width => {
+      this.sidebarWidth = width;
+    });
+    this.subscriptions.push(widthSub);
+
+    // 初始化寬度
+    this.sidebarWidth = this.sidebarService.getWidth();
+
+    // 訂閱待發送的問題
+    const questionSub = this.sidebarService.pendingQuestion$.subscribe(question => {
+      if (question) {
+        this.currentMessage = question;
+        // 自動發送問題
+        setTimeout(() => {
+          this.sendMessage();
+          this.sidebarService.clearPendingQuestion();
+        }, 300);
+      }
+    });
+    this.subscriptions.push(questionSub);
+  }
+
+  /**
+   * 檢查路由參數（如果有問題參數，自動發送）
+   */
+  private checkRouteParams(): void {
+    this.route.queryParams.subscribe(params => {
+      const question = params['question'];
+      if (question) {
+        // 打開側邊欄
+        this.sidebarService.openSidebar(question);
+        // 清除路由參數（避免重複發送）
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: {},
+          replaceUrl: true
+        });
+      }
+    });
   }
 
   /**
@@ -154,16 +240,58 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
   /**
    * 切換展開狀態
    */
-  toggleExpanded(): void {
-    this.isExpanded = !this.isExpanded;
-    
-    if (this.isExpanded) {
-      setTimeout(() => {
-        this.focusInput();
-        this.scrollToBottom();
-      }, 100);
+  toggleExpanded(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
     }
+    
+    // 直接切換SidebarService的狀態
+    this.sidebarService.toggleSidebar();
   }
+
+  /**
+   * 開始調整側邊欄大小
+   */
+  startResize(event: MouseEvent): void {
+    if (!this.isExpanded) return;
+    
+    event.preventDefault();
+    event.stopPropagation();
+    this.isResizing = true;
+    this.resizeStartX = event.clientX;
+    this.resizeStartWidth = this.sidebarWidth;
+    
+    document.addEventListener('mousemove', this.onMouseMove);
+    document.addEventListener('mouseup', this.onMouseUp);
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  /**
+   * 鼠標移動時調整大小
+   */
+  private onMouseMove = (event: MouseEvent): void => {
+    if (!this.isResizing) return;
+    
+    const deltaX = this.resizeStartX - event.clientX; // 向右拖拽時 deltaX 為正
+    const newWidth = this.resizeStartWidth + deltaX;
+    
+    this.sidebarService.setWidth(newWidth);
+  };
+
+  /**
+   * 結束調整大小
+   */
+  private onMouseUp = (): void => {
+    if (!this.isResizing) return;
+    
+    this.isResizing = false;
+    document.removeEventListener('mousemove', this.onMouseMove);
+    document.removeEventListener('mouseup', this.onMouseUp);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  };
 
   /**
    * 發送訊息

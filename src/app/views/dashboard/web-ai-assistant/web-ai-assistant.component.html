@@ -1,25 +1,42 @@
-<!-- Web AI 助手 - 側邊框 -->
-<div class="web-ai-sidebar" [class.expanded]="isExpanded" (click)="toggleExpanded()">
+<!-- Web AI 助手 - 側邊欄 -->
+<div class="web-ai-sidebar" 
+     [class.expanded]="isExpanded"
+     [class.resizing]="isResizing"
+     [style.width.px]="sidebarWidth">
   
-  <!-- 側邊框標題欄 -->
-  <div class="sidebar-header">
+  <!-- 調整大小手柄 -->
+  <div class="resize-handle" 
+       *ngIf="isExpanded"
+       (mousedown)="startResize($event)"
+       title="拖拽調整寬度">
+  </div>
+  
+  <!-- 側邊欄標題欄 -->
+  <div class="sidebar-header" *ngIf="isExpanded">
     <div class="header-content">
       <div class="ai-avatar">
         <!-- 使用 misHelper.jpg 頭像，通過 CSS 背景圖片顯示 -->
       </div>
-      <div class="header-text" *ngIf="isExpanded">
+      <div class="header-text">
         <span class="title">網站助手</span>
         <span class="subtitle">智能導覽 • 學習規劃</span>
       </div>
     </div>
-    <div class="header-actions" *ngIf="isExpanded">
+    <div class="header-actions">
       <c-badge 
         *ngIf="messages.length > 0" 
         color="success" 
         shape="rounded-pill">
         {{ messages.length }}
       </c-badge>
-      <svg cIcon name="cilMinus" class="toggle-icon" (click)="toggleExpanded(); $event.stopPropagation()"></svg>
+      <button 
+        type="button" 
+        class="btn btn-link text-white p-0 border-0"
+        (click)="toggleExpanded($event)" 
+        title="關閉側邊欄"
+        aria-label="關閉側邊欄">
+        <svg cIcon name="cilChevronRight" class="toggle-icon" style="width: 20px; height: 20px;"></svg>
+      </button>
     </div>
   </div>
 
@@ -159,9 +176,13 @@
   </div>
 </div>
 
-<!-- 側邊框提示 -->
-<div class="sidebar-hint" *ngIf="!isExpanded && messages.length === 1">
-  <div class="hint-bubble">
-    <span>💬 有問題嗎？點我開始對話！</span>
-  </div>
-</div>
+<!-- 側邊打開按鈕（收合時顯示） -->
+<button 
+  *ngIf="!isExpanded"
+  type="button"
+  class="sidebar-toggle-button"
+  (click)="toggleExpanded($event)"
+  title="打開網站助手"
+  aria-label="打開網站助手">
+  <svg cIcon name="cilChevronLeft" class="toggle-icon"></svg>
+</button>
