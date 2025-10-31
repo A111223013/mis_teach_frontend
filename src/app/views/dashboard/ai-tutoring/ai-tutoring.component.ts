@@ -89,7 +89,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   currentQuestionIndex = 0;
 
   // 新增：學習進度追蹤
-  learningStage: 'core_concept_confirmation' | 'related_concept_guidance' | 'application_understanding' | 'understanding_verification' = 'core_concept_confirmation';
+  learningStage: 'core_concept_confirmation' | 'related_concept_guidance' | 'application_understanding' | 'understanding_verification' | 'completed' = 'core_concept_confirmation';
   understandingLevel: number = 0;
   learningProgress: Array<{
     stage: string;
@@ -195,7 +195,8 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   ngAfterViewChecked(): void {
-    this.scrollToBottom();
+    // 移除自動滾動，只在有新消息時才滾動
+    // this.scrollToBottom(); // 已移除，避免查看歷史對話時被強制滾到底部
     // 自動觸發 LaTeX 渲染
     this.renderMathInElement();
   }
@@ -433,14 +434,26 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       timestamp: new Date().toISOString()
     });
     
-    setTimeout(() => this.scrollToBottom(), 100);
+    // 添加新消息後才自動滾動到底部
+    setTimeout(() => this.scrollToBottom(true), 100);
   }
 
-  scrollToBottom(): void {
-    if (this.chatContainer) {
-      const element = this.chatContainer.nativeElement;
-      element.scrollTop = element.scrollHeight;
+  scrollToBottom(force: boolean = false): void {
+    if (!this.chatContainer) return;
+    
+    const element = this.chatContainer.nativeElement;
+    
+    // 如果用戶正在查看歷史消息（不在底部），且不是強制滾動，則不滾動
+    if (!force) {
+      const isNearBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 100;
+      if (!isNearBottom) {
+        // 用戶正在查看歷史對話，不自動滾動
+        return;
+      }
     }
+    
+    // 強制滾動或已經在底部附近，則滾動到底部
+    element.scrollTop = element.scrollHeight;
   }
 
   async sendMessage(): Promise<void> {
@@ -861,6 +874,35 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       'unknown': '未知階段'
     };
     return stageNames[stage] || stage;
+  }
+
+  // 獲取當前應該顯示的階段名稱（如果達到階段上限，顯示下一個階段）
+  getCurrentDisplayStage(): string {
+    const stageRanges: { [key: string]: { min: number; max: number } } = {
+      'core_concept_confirmation': { min: 0, max: 39 },
+      'related_concept_guidance': { min: 40, max: 69 },
+      'application_understanding': { min: 70, max: 89 },
+      'understanding_verification': { min: 90, max: 98 },
+      'completed': { min: 99, max: 99 }
+    };
+
+    const stageOrder = ['core_concept_confirmation', 'related_concept_guidance', 'application_understanding', 'understanding_verification', 'completed'];
+    
+    const currentRange = stageRanges[this.learningStage];
+    if (!currentRange) {
+      return this.getLearningStageDisplayName(this.learningStage);
+    }
+
+    // 如果當前分數達到階段上限，顯示下一個階段
+    if (this.understandingLevel >= currentRange.max && this.learningStage !== 'completed') {
+      const currentIndex = stageOrder.indexOf(this.learningStage);
+      if (currentIndex >= 0 && currentIndex < stageOrder.length - 1) {
+        const nextStage = stageOrder[currentIndex + 1];
+        return this.getLearningStageDisplayName(nextStage);
+      }
+    }
+
+    return this.getLearningStageDisplayName(this.learningStage);
   }
 
   // 新增：獲取題目完成度百分比（用於進度條）
@@ -1478,7 +1520,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
         }
         
         this.isLoading = false;
-        this.scrollToBottom();
+        this.scrollToBottom(true); // 強制滾動到底部（新消息）
         
       } else {
         this.handleError('AI回應格式錯誤');
@@ -1586,7 +1628,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     });
     
     this.isLoading = false;
-    this.scrollToBottom();
+    this.scrollToBottom(true); // 強制滾動（錯誤消息）
   }
   
   // 處理學習完成
@@ -1599,7 +1641,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     });
     
     // 不再自動進入下一題，讓用戶點擊按鈕
-    this.scrollToBottom();
+    this.scrollToBottom(true); // 強制滾動（完成消息）
   }
 
   // 新增：顯示AI分析結果

@@ -689,9 +689,9 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     }
     
     if (this.currentConceptData) {
-      // 跳轉到AI導師頁面，預設問題
+      // 跳轉到網站助手頁面，預設問題
       const question = `請教我關於${this.currentConceptData.name}的基礎概念：${action.detail}`;
-      this.router.navigate(['/dashboard/ai-chat'], { 
+      this.router.navigate(['/dashboard/web-ai-assistant'], { 
         queryParams: { 
           question: question,
           concept: this.currentConceptData.name,

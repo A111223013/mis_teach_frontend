@@ -26,17 +26,6 @@ export const navItems: INavData[] = [
     iconComponent: { name: 'cilChartPie' }
   },
   {
-    name: '智能學習系統',
-    iconComponent: { name: 'cilCog' },
-    children: [
-      {
-        name: 'AI 導師',
-        url: '/dashboard/ai-chat',
-        iconComponent: { name: 'cilSpeech' }
-      }
-    ]
-  },
-  {
     name: '科技趨勢',
     url: '/dashboard/news',
     iconComponent: { name: 'cilNewspaper' }
