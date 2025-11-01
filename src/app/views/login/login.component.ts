@@ -6,7 +6,6 @@ import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { LoginService } from '../../service/login.service';
-import { UserGuideStatusService } from '../../service/user-guide-status.service';
 import { DetailedGuideService } from '../../service/detailed-guide.service';
 import { AuthService } from '../../service/auth.service';
 
@@ -29,7 +28,6 @@ export class LoginComponent implements OnInit {
     private fb: FormBuilder,
     private router: Router,
     private loginService: LoginService,
-    private userGuideStatusService: UserGuideStatusService,
     private detailedGuideService: DetailedGuideService,
     private authService: AuthService
   ) { }
@@ -88,7 +86,7 @@ export class LoginComponent implements OnInit {
               guide_completed: response.guide_completed,
               last_login: new Date().toISOString()
             };
-            this.userGuideStatusService.updateLocalStatus(guideStatus);
+            this.detailedGuideService.updateLocalStatus(guideStatus);
 
             // 先導航到 dashboard
             this.router.navigate(['/dashboard']).then(() => {

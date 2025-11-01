@@ -8,7 +8,7 @@ import { CardModule, ButtonModule, FormModule, SpinnerModule, BadgeModule, Dropd
 import { IconModule } from '@coreui/icons-angular';
 
 import { AiChatService, ChatMessage } from '../../../service/ai-chat.service';
-import { MarkdownPipe } from '../../../service/markdown.pipe';
+import { MarkdownService } from '../../../service/markdown.service';
 import { QuizService } from '../../../service/quiz.service';
 
 @Component({
@@ -23,8 +23,7 @@ import { QuizService } from '../../../service/quiz.service';
     SpinnerModule,
     BadgeModule,
     DropdownModule,
-    IconModule,
-    MarkdownPipe
+    IconModule
   ],
   templateUrl: './ai-chat.component.html',
   styleUrls: ['./ai-chat.component.scss']
@@ -48,7 +47,8 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     private aiChatService: AiChatService,
     private quizService: QuizService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private markdownService: MarkdownService
   ) {}
 
   ngOnInit(): void {
@@ -867,6 +867,13 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     buttons.forEach(button => {
       button.disabled = true;
     });
+  }
+
+  /**
+   * 轉換 Markdown 為安全的 HTML
+   */
+  transformMarkdown(content: string): any {
+    return this.markdownService.transform(content);
   }
 
   /**

@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { CalendarEvent } from 'angular-calendar';
 import { AuthService } from './auth.service';
+import { environment } from '../../environments/environment';
 
 export interface CalendarEventResponse {
   events: any[];
@@ -29,7 +30,7 @@ export interface EventResponse {
   providedIn: 'root'
 })
 export class OverviewService {
-  private baseUrl = 'http://localhost:5000';
+  private readonly baseUrl = environment.apiBaseUrl;
 
   constructor(private http: HttpClient, private authService: AuthService) { }
 

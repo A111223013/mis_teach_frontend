@@ -79,7 +79,7 @@
                 <svg cIcon name="cilSpeech" class="category-icon"></svg>
               </div>
               <div class="assistant-content">
-                <div class="message-text" [innerHTML]="message.content | markdown"></div>
+                <div class="message-text" [innerHTML]="transformMarkdown(message.content)"></div>
                 <div class="message-meta">
                   <small class="text-muted">
                     {{ formatTime(message.timestamp) }}

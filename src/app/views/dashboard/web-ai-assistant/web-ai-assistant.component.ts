@@ -12,10 +12,9 @@ import {
   FormModule
 } from '@coreui/angular';
 import { IconDirective } from '@coreui/icons-angular';
-import { MarkdownPipe } from '../../../pipes/markdown.pipe';
+import { MarkdownService } from '../../../service/markdown.service';
 import { WebAiAssistantService, WebChatMessage, ChatResponse } from '../../../service/web-ai-assistant.service';
 import { DetailedGuideService } from '../../../service/detailed-guide.service';
-import { UserGuideStatusService } from '../../../service/user-guide-status.service';
 import { MessageBridgeService } from '../../../service/message-bridge.service';
 import { QuizService } from '../../../service/quiz.service';
 import { SidebarService } from '../../../service/sidebar.service';
@@ -30,8 +29,7 @@ import { SidebarService } from '../../../service/sidebar.service';
     ButtonModule,
     BadgeModule,
     FormModule,
-    IconDirective,
-    MarkdownPipe
+    IconDirective
   ],
   templateUrl: './web-ai-assistant.component.html',
   styleUrls: ['./web-ai-assistant.component.scss']
@@ -73,13 +71,13 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
   constructor(
     private webAiService: WebAiAssistantService,
     private detailedGuideService: DetailedGuideService,
-    private userGuideStatusService: UserGuideStatusService,
     private messageBridgeService: MessageBridgeService,
     private quizService: QuizService,
     private router: Router,
     private route: ActivatedRoute,
     private cdr: ChangeDetectorRef,
-    private sidebarService: SidebarService
+    private sidebarService: SidebarService,
+    private markdownService: MarkdownService
   ) {}
 
   ngOnInit(): void {
@@ -342,26 +340,25 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
    * 快速操作
    */
   quickAction(action: string): void {
-    let message = '';
-    
     switch (action) {
       case 'guide':
-        message = '請為我介紹網站的主要功能';
+        // 直接啟動互動式導覽
+        this.detailedGuideService.startDetailedGuide();
+        // 也添加一個訊息告知用戶
+        this.addMessage('assistant', '🚀 正在啟動網站導覽，我將帶您一步步了解系統的主要功能...');
         break;
       case 'progress':
-        message = '我想查看我的學習進度';
+        this.currentMessage = '我想查看我的學習進度';
+        this.sendMessage();
         break;
       case 'plan':
-        message = '請為我制定學習計畫';
+        this.currentMessage = '請為我制定學習計畫';
+        this.sendMessage();
         break;
       case 'faq':
-        message = '有什麼常見問題嗎？';
+        this.currentMessage = '有什麼常見問題嗎？';
+        this.sendMessage();
         break;
-    }
-    
-    if (message) {
-      this.currentMessage = message;
-      this.sendMessage();
     }
   }
 
@@ -455,8 +452,8 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
         this.showStartQuizButton = true;
       }
       
-      // 檢查是否包含測驗操作指令
-      this.checkForQuizAction(content);
+      // 檢查是否包含操作指令
+      this.checkForAction(content);
     } catch (error) {
       console.warn('解析考卷 ID 失敗:', error);
       this.showStartQuizButton = false;
@@ -466,63 +463,92 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
   /**
    * 檢查並執行 JavaScript 代碼
    */
-  private checkForQuizAction(content: string): void {
+  /**
+   * 檢查 AI 回應中是否包含操作指令
+   * AI 會返回標準格式：{ "action": "action_id", "params": {...}, "message": "..." }
+   */
+  private checkForAction(content: string): void {
     try {
-      console.log('🔍 開始檢查測驗操作指令...');
+      console.log('🔍 檢查 AI 回應中的操作指令...');
       
-      // 檢查是否為 JSON 格式的測驗指令
-      if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
+      // 從內容中提取 JSON 對象
+      let actionData: any = null;
+      
+      // 嘗試解析純 JSON
+      const trimmedContent = content.trim();
+      if (trimmedContent.startsWith('{') && trimmedContent.endsWith('}')) {
         try {
-          const quizData = JSON.parse(content);
-          console.log('🔍 找到測驗操作指令:', quizData);
-          
-          if (quizData.type === 'university_quiz') {
-            this.handleUniversityQuiz(quizData);
-          } else if (quizData.type === 'knowledge_quiz') {
-            this.handleKnowledgeQuiz(quizData);
-          }
+          actionData = JSON.parse(trimmedContent);
         } catch (e) {
-          console.log('🔍 JSON 解析失敗，不是測驗指令');
+          // 忽略解析錯誤
         }
       }
+      
+      // 如果沒有找到，嘗試從混合文本中提取
+      if (!actionData || !actionData.action) {
+        const jsonMatch = content.match(/\{[^{}]*"action"[^{}]*"params"[^{}]*\}/);
+        if (jsonMatch) {
+          try {
+            const startIndex = content.indexOf('{');
+            if (startIndex !== -1) {
+              let braceCount = 0;
+              let endIndex = -1;
+              for (let i = startIndex; i < content.length; i++) {
+                if (content[i] === '{') braceCount++;
+                if (content[i] === '}') braceCount--;
+                if (braceCount === 0) {
+                  endIndex = i;
+                  break;
+                }
+              }
+              if (endIndex !== -1) {
+                actionData = JSON.parse(content.substring(startIndex, endIndex + 1));
+              }
+          }
+        } catch (e) {
+            console.log('🔍 JSON 提取失敗:', e);
+        }
+        }
+      }
+      
+      // 如果找到操作指令，執行它
+      if (actionData && actionData.action) {
+        console.log('✅ 找到操作指令:', actionData);
+        this.executeAction(actionData.action, actionData.params || {});
+      }
     } catch (error) {
-      console.warn('檢查測驗操作失敗:', error);
+      console.warn('檢查操作指令失敗:', error);
     }
   }
 
-  private handleUniversityQuiz(data: any): void {
-    console.log('🎯 處理大學考古題測驗:', data);
-    const { university, department } = data.argument;
-    const year = data.number;
-    
-    // 將數據存儲到 localStorage，供目標頁面使用
-    localStorage.setItem('quiz_automation_data', JSON.stringify({
-      type: 'university_quiz',
-      university,
-      department,
-      year
-    }));
-    
-    // 導航到測驗中心
-    window.location.href = '/dashboard/quiz-center';
+  /**
+   * 執行操作
+   */
+  /**
+   * 轉換 Markdown 為安全的 HTML
+   */
+  transformMarkdown(content: string): any {
+    return this.markdownService.transform(content);
   }
 
-  private handleKnowledgeQuiz(data: any): void {
-    console.log('🎯 處理知識點測驗:', data);
-    const { knowledge_point, difficulty } = data.argument;
-    const questionCount = data.number;
-    
-    // 將數據存儲到 localStorage，供目標頁面使用
-    localStorage.setItem('quiz_automation_data', JSON.stringify({
-      type: 'knowledge_quiz',
-      knowledge_point,
-      difficulty,
-      questionCount
-    }));
-    
-    // 導航到測驗中心
-    window.location.href = '/dashboard/quiz-center';
+  private executeAction(actionId: string, params: any): void {
+    this.detailedGuideService.executeAction(actionId, params).then((result: any) => {
+      if (result.success) {
+        // 如果是創建測驗，創建成功後自動導航
+        if ((actionId === 'create_university_quiz' || actionId === 'create_knowledge_quiz') && result.data?.quiz_id) {
+          this.detailedGuideService.executeAction('navigate_to_quiz_taking', {
+            quiz_id: result.data.quiz_id,
+            quiz_type: actionId === 'create_university_quiz' ? 'pastexam' : 'knowledge',
+            template_id: result.data.template_id,
+            ...params
+          });
+        }
+      } else {
+        alert(result.error || '操作執行失敗');
   }
+    });
+  }
+
 
   
   

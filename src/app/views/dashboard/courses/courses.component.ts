@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router  } from '@angular/router';
 import { MaterialService } from '../../../service/material.service';
+import { environment } from '../../../../environments/environment';
 
 
 interface CourseData {
@@ -39,7 +40,7 @@ export class CoursesComponent implements OnInit {
         "AI與機器學習",
         "MIS",
         "作業系統",
-        "基本計概",
+        "數學與統計",
         "數位邏輯",
         "程式語言",
         "網路",
@@ -54,7 +55,7 @@ export class CoursesComponent implements OnInit {
         "AI與機器學習": "AI_and_ML.jpg",
         "MIS": "MIS.jpg",
         "作業系統": "OS.jpg",
-        "基本計概": "Computer_Science.jpg",
+        "數學與統計": "Math.jpg",
         "數位邏輯": "Digital_logic.jpg",
         "程式語言": "Programming_Language.jpg",
         "網路": "Computer_Science.jpg",
@@ -64,8 +65,6 @@ export class CoursesComponent implements OnInit {
         "軟體工程與系統開發": "Software_Engineering.jpg",
         "雲端與虛擬化": "Cloud_and_Virtualization.jpg"
       };
-
-      const API_BASE = 'http://localhost:5000';
 
       this.courses = keypoints.map(kp => {
         const domain = domains.find((d: any) =>
@@ -78,7 +77,7 @@ export class CoursesComponent implements OnInit {
           keypoint: kp,
           name: domain ? domain.name : kp,
           description: domain ? domain.description : "尚無描述",
-          image: `${API_BASE}/static/${imageMap[kp]}`
+          image: `${environment.apiBaseUrl}/static/${imageMap[kp]}`
         };
       });
     });

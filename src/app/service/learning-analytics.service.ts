@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 // 統一的數據接口
 export interface LearningAnalyticsData {
@@ -141,7 +142,7 @@ export interface PracticeQuestion {
   providedIn: 'root'
 })
 export class LearningAnalyticsService {
-  private baseUrl = 'http://localhost:5000/api/learning-analytics';
+  private readonly baseUrl = `${environment.apiBaseUrl}/api/learning-analytics`;
 
   constructor(private http: HttpClient) {}
 

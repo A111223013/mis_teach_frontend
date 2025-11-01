@@ -84,7 +84,7 @@
                 <div *ngIf="!userProfile.lineId && !showQRCode" class="py-3">
                   <span class="text-muted d-block mb-3">尚未綁定 Line 帳號</span>
                   <button 
-                    class="btn btn-primary"
+                    class="btn btn-primary" 
                     (click)="startLineBinding()">
                     <svg cIcon name="cilQrCode" class="me-2"></svg>
                     綁定 Line Bot
@@ -96,11 +96,12 @@
                   <div class="mb-3">
                     <h6 class="text-primary">掃描 QR Code 加入 Line Bot</h6>
                     <p class="text-muted small">掃描後會自動加入我們的 Line Bot 為好友</p>
-                    <div class="alert alert-warning small">
-                      <strong>綁定步驟：</strong><br>
+                    <div class="alert alert-info small">
+                      <strong>✨ 綁定步驟（推薦使用一鍵綁定）：</strong><br>
                       1. 掃描下方 QR Code 加入 Line Bot<br>
-                      2. 複製下方綁定碼<br>
-                      3. 在 Line Bot 中發送：<code>bind:綁定碼</code>
+                      2. <strong>點擊 LINE Bot 中的「✅ 一鍵綁定」按鈕</strong>（推薦）<br>
+                      或發送綁定碼：<code>{{ currentBindingToken }}</code><br>
+                      <small class="text-muted">💡 一鍵綁定無需手動輸入，更加方便快速！</small>
                     </div>
                     <div class="mb-2">
                       <label class="form-label small fw-bold">您的綁定碼：</label>
