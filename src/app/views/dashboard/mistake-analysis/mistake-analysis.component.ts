@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import {
   CardModule,
   ButtonModule,
@@ -12,16 +11,20 @@ import {
   DropdownModule,
   ModalModule
 } from '@coreui/angular';
-import { IconModule } from '@coreui/icons-angular';
+import { IconModule, IconDirective, IconSetService } from '@coreui/icons-angular';
+import { cilLockLocked, cilLockUnlocked, cilListRich, cilCheckCircle, cilBook, cilLightbulb } from '@coreui/icons';
 import { DashboardService } from '../../../service/dashboard.service';
+import { SidebarService } from '../../../service/sidebar.service';
 
 interface MistakeQuestion {
   id: string;
+  uniqueId: string; // 唯一標識（用於合併相同題目）
   question_text: string;
   student_answer: string;
   correct_answer: string;
   topic: string;
   chapter: string;
+  micro_concepts?: string[]; // 微概念數組
   timestamp: Date;
   exam_id?: string;
   exam_type?: string;
@@ -29,8 +32,9 @@ interface MistakeQuestion {
   is_correct: boolean;
   question_number?: string;
   type?: string;
-  feedback?: string;
-  status: 'correct' | 'wrong' | 'unanswered'; // 新增狀態分類
+  feedback?: string | object | null; // 可能是 JSON 字符串、對象或 null
+  status: 'correct' | 'wrong' | 'unanswered';
+  errorCount: number; // 錯誤次數
 }
 
 @Component({
@@ -47,37 +51,18 @@ interface MistakeQuestion {
     TooltipModule,
     DropdownModule,
     ModalModule,
-    IconModule
+    IconModule,
+    IconDirective
   ],
   templateUrl: './mistake-analysis.component.html',
   styleUrls: ['./mistake-analysis.component.scss']
 })
 export class MistakeAnalysisComponent implements OnInit {
-  // 篩選選項
-  filters = {
-    topic: '',
-    timeRange: '',
-    examType: '',
-    status: '' // 新增狀態篩選
-  };
-  
-  // 可選選項 - 動態從 API 數據生成
-  topicOptions: string[] = [];
-  statusOptions: string[] = ['correct', 'wrong', 'unanswered'];
-  
-  // 題目數據
-  allQuestions: MistakeQuestion[] = [];
-  filteredQuestions: MistakeQuestion[] = [];
-  
-  // 分類統計
-  correctQuestions: MistakeQuestion[] = [];
+  // 題目數據 - 只保留錯題（已合併相同題目並統計錯誤次數）
   wrongQuestions: MistakeQuestion[] = [];
-  unansweredQuestions: MistakeQuestion[] = [];
   
-  // 統計數據
-  weakestTopic: string = '載入中...';
-  recentMistakes: number = 0;
-  reviewedCount: number = 0;
+  // 答案顯示狀態（只用於正確答案）
+  visibleCorrectAnswers: Set<string> = new Set();
   
   // 詳情模態框
   selectedQuestion: MistakeQuestion | null = null;
@@ -89,9 +74,17 @@ export class MistakeAnalysisComponent implements OnInit {
   loading: boolean = true;
   
   constructor(
-    private router: Router,
-    private dashboardService: DashboardService
-  ) {}
+    private dashboardService: DashboardService,
+    private sidebarService: SidebarService,
+    private iconSetService: IconSetService
+  ) {
+    // 註冊圖標
+    const existingIcons = iconSetService.icons || {};
+    iconSetService.icons = {
+      ...existingIcons,
+      ...{ cilLockLocked, cilLockUnlocked, cilListRich, cilCheckCircle, cilBook, cilLightbulb }
+    };
+  }
   
   ngOnInit(): void {
     console.log('🚀 錯題統整組件初始化');
@@ -111,288 +104,170 @@ export class MistakeAnalysisComponent implements OnInit {
           this.processSubmissionsData(response.submissions);
         } else {
           console.log('⚠️ 沒有找到有效的提交數據');
-          this.allQuestions = [];
-          this.filteredQuestions = [];
+          this.wrongQuestions = [];
         }
         this.loading = false;
       },
       error: (error: any) => {
         console.error('❌ 獲取測驗數據失敗:', error);
         this.loading = false;
-        this.allQuestions = [];
-        this.filteredQuestions = [];
+        this.wrongQuestions = [];
       }
     });
   }
 
-  // 處理 submissions 數據，分類所有題目
+  // 處理 submissions 數據，只保留錯題並統計錯誤次數
   private processSubmissionsData(submissions: any[]): void {
     console.log('🔄 開始處理提交數據...');
-    this.allQuestions = [];
-    const topicSet = new Set<string>();
-    const chapterSet = new Set<string>();
+    console.log(`📊 收到 ${submissions.length} 個提交記錄`);
     
-         // 遍歷所有提交記錄
-     submissions.forEach((submission, submissionIndex) => {
-       console.log(`📝 處理第 ${submissionIndex + 1} 個提交:`, submission.submission_id);
-       const answers = submission.answers || [];
-       const submitTime = new Date(submission.submit_time || Date.now());
-       const processedCount = submission.processed_count || 0;
-       const skippedCount = submission.skipped_count || 0;
-       
-       console.log(`   - 答案數量: ${answers.length}`);
-       console.log(`   - 已處理題數: ${processedCount}`);
-       console.log(`   - 跳過題數: ${skippedCount}`);
-       
-       // 處理已作答的題目（answers 是數組格式）
-       if (Array.isArray(answers)) {
-         answers.forEach((answer: any, index: number) => {
-           if (answer && typeof answer === 'object') {
-             console.log(`     📋 處理答案 ${index + 1}:`, {
-               question_text: answer.question_text?.substring(0, 50) + '...',
-               user_answer: answer.user_answer,
-               is_correct: answer.is_correct,
-               topic: answer.topic,
-               chapter: answer.chapter
-             });
-             
-             const question: MistakeQuestion = {
-               id: `${submission.submission_id}_${index}`,
-               question_text: answer.question_text || '題目內容未提供',
-               student_answer: answer.user_answer || '', // 修正：使用 user_answer 字段
-               correct_answer: answer.correct_answer || '',
-               topic: answer.topic || '未分類', // 修正：直接使用 topic 字段
-               chapter: answer.chapter || '未分類', // 修正：使用 chapter 字段
-               timestamp: submitTime,
-               exam_id: submission.submission_id,
-               exam_type: submission.quiz_type || 'unknown', // 修正：使用 quiz_type
-               score: answer.score || 0,
-               is_correct: answer.is_correct || false,
-               question_number: answer.question_number || index.toString(),
-               type: answer.type || 'unknown',
-               feedback: JSON.stringify(answer.feedback) || `用戶回答：${answer.user_answer}，正確答案：${answer.correct_answer}`,
-               status: answer.is_correct ? 'correct' : 'wrong'
-             };
-             
-             this.allQuestions.push(question);
-             topicSet.add(question.topic);
-           }
-         });
-       } else {
-         console.log(`     ⚠️ answers 不是數組格式:`, typeof answers, answers);
-       }
-       
-       // 處理跳過的題目（如果有跳過統計）
-       if (skippedCount > 0) {
-         for (let i = 0; i < skippedCount; i++) {
-           const question: MistakeQuestion = {
-             id: `${submission.submission_id}_skipped_${i}`,
-             question_text: '跳過的題目',
-             student_answer: '',
-             correct_answer: '',
-             topic: '未分類',
-             chapter: '未分類',
-             timestamp: submitTime,
-             exam_id: submission.submission_id,
-             exam_type: submission.subject || 'unknown',
-             score: 0,
-             is_correct: false,
-             question_number: `skipped_${i}`,
-             type: 'unknown',
-             feedback: '此題被跳過',
-             status: 'unanswered'
-           };
-           
-           this.allQuestions.push(question);
-         }
-       }
-     });
-     
-     // 分類題目
-     this.categorizeQuestions();
-     
-     // 更新選項列表
-     this.topicOptions = Array.from(topicSet).sort();
+    let totalAnswers = 0;
+    let wrongAnswers = 0;
     
-    // 計算統計數據
-    this.calculateStatistics();
+    // 使用 Map 來統計每題的錯誤次數（以 question_id 或 question_text 作為唯一標識）
+    const questionMap = new Map<string, {
+      question: MistakeQuestion;
+      count: number;
+      latestTimestamp: Date;
+    }>();
     
-    // 應用篩選
-    this.applyFilters();
-    
-         console.log('✅ 數據處理完成:');
-     console.log(`   - 總題數: ${this.allQuestions.length}`);
-     console.log(`   - 正確題數: ${this.correctQuestions.length}`);
-     console.log(`   - 錯誤題數: ${this.wrongQuestions.length}`);
-     console.log(`   - 跳過題數: ${this.unansweredQuestions.length}`);
-     console.log(`   - 知識點選項: ${this.topicOptions.length} 個`);
-  }
-
-  // 分類題目
-  private categorizeQuestions(): void {
-    this.correctQuestions = this.allQuestions.filter(q => q.status === 'correct');
-    this.wrongQuestions = this.allQuestions.filter(q => q.status === 'wrong');
-    this.unansweredQuestions = this.allQuestions.filter(q => q.status === 'unanswered');
-    
-  }
-  
-  private extractTopic(answer: any): string {
-    // 優先從 AI 分析中提取
-    if (answer.key_elements_in_standard?.length > 0) {
-      return answer.key_elements_in_standard[0];
-    }
-    
-    // 從題目內容推斷知識點
-    const questionText = answer.question_text || '';
-    if (questionText.includes('演算法') || questionText.includes('Algorithm')) {
-      return '演算法';
-    } else if (questionText.includes('CPU') || questionText.includes('記憶體')) {
-      return '硬體架構';
-    } else if (questionText.includes('程式') || questionText.includes('程式碼')) {
-      return '程式設計';
-    } else if (questionText.includes('二進位') || questionText.includes('補數')) {
-      return '數位邏輯';
-    } else if (questionText.includes('陣列') || questionText.includes('迴圈')) {
-      return '資料結構';
-    }
-    
-    // 從題目類型推斷
-    if (answer.type) {
-      const typeMapping: { [key: string]: string } = {
-        'single-choice': '選擇題',
-        'multiple-choice': '多選題',
-        'true-false': '是非題',
-        'short-answer': '簡答題',
-        'long-answer': '問答題',
-        'coding-answer': '程式設計'
-      };
-      return typeMapping[answer.type] || answer.type;
-    }
-    
-    return '未分類';
-  }
-  
-  
-  
-  private determineExamType(submission: any): string {
-    // 根據提交資料判斷考試類型
-    if (submission.basic_info?.school) {
-      return 'pastexam';
-    }
-    return 'knowledge';
-  }
-  
-  private calculateStatistics(): void {
-    if (this.allQuestions.length === 0) {
-      this.weakestTopic = '無錯題資料';
-      this.recentMistakes = 0;
-      this.reviewedCount = 0;
-      return;
-    }
-    
-    // 計算最弱知識點（基於錯誤題目）
-    const topicCounts: { [key: string]: number } = {};
-    this.wrongQuestions.forEach(question => {
-      topicCounts[question.topic] = (topicCounts[question.topic] || 0) + 1;
+    // 遍歷所有提交記錄，只保留錯題
+    submissions.forEach((submission, submissionIndex) => {
+      console.log(`📝 處理第 ${submissionIndex + 1} 個提交:`, submission.submission_id);
+      const answers = submission.answers || [];
+      const submitTime = new Date(submission.submit_time || Date.now());
+      
+      console.log(`   - 該提交有 ${answers.length} 個答案`);
+      
+      // 處理已作答的題目（answers 是數組格式）
+      if (Array.isArray(answers)) {
+        answers.forEach((answer: any, index: number) => {
+          totalAnswers++;
+          
+          if (answer && typeof answer === 'object') {
+            // 更寬鬆的錯題判斷：支援 false、0、"false"、null、undefined
+            const isWrong = this.isAnswerWrong(answer.is_correct);
+            
+            if (isWrong) {
+              wrongAnswers++;
+              
+              // 格式化答案為字符串（處理數組類型）
+              const formatAnswer = (ans: any): string => {
+                if (!ans) return '';
+                if (typeof ans === 'string') return ans;
+                if (Array.isArray(ans)) return ans.join(', ');
+                if (typeof ans === 'object') return JSON.stringify(ans);
+                return String(ans);
+              };
+              
+              const userAnswerStr = formatAnswer(answer.user_answer);
+              const correctAnswerStr = formatAnswer(answer.correct_answer);
+              
+              // 使用 question_id 作為唯一標識，如果沒有則使用 question_text
+              const uniqueKey = answer.question_id || answer.question_text || `${submission.submission_id}_${index}`;
+              
+              // 如果該題目已經存在，增加錯誤次數並更新最新時間戳
+              if (questionMap.has(uniqueKey)) {
+                const existing = questionMap.get(uniqueKey)!;
+                existing.count++;
+                // 更新為最新的時間戳
+                if (submitTime > existing.latestTimestamp) {
+                  existing.latestTimestamp = submitTime;
+                  existing.question.timestamp = submitTime;
+                  existing.question.student_answer = userAnswerStr;
+                  existing.question.feedback = answer.feedback || null; // 更新 feedback
+                  // 如果新的 micro_concepts 存在且不為空，則更新
+                  if (answer.micro_concepts && Array.isArray(answer.micro_concepts) && answer.micro_concepts.length > 0) {
+                    existing.question.micro_concepts = answer.micro_concepts;
+                  }
+                }
+              } else {
+                // 新建題目記錄
+                const question: MistakeQuestion = {
+                  id: `${submission.submission_id}_${index}`,
+                  uniqueId: uniqueKey,
+                  question_text: answer.question_text && answer.question_text.trim() ? answer.question_text.trim() : '題目內容未提供',
+                  student_answer: userAnswerStr,
+                  correct_answer: correctAnswerStr,
+                  topic: (answer.topic && answer.topic !== 'unknown') ? answer.topic : '未分類',
+                  chapter: (answer.chapter && answer.chapter !== 'unknown') ? answer.chapter : '未分類',
+                  micro_concepts: Array.isArray(answer.micro_concepts) ? answer.micro_concepts.filter((mc: string) => mc && mc.trim()) : [], // 過濾空值
+                  timestamp: submitTime,
+                  exam_id: submission.submission_id,
+                  exam_type: submission.quiz_type || 'unknown',
+                  score: answer.score || 0,
+                  is_correct: false,
+                  question_number: answer.question_number || index.toString(),
+                  type: answer.type || 'unknown',
+                  feedback: answer.feedback || null,
+                  status: 'wrong',
+                  errorCount: 1
+                };
+                
+                questionMap.set(uniqueKey, {
+                  question,
+                  count: 1,
+                  latestTimestamp: submitTime
+                });
+              }
+            }
+          } else {
+            console.warn(`   ⚠️ 答案格式異常 (索引 ${index}):`, typeof answer, answer);
+          }
+        });
+      } else {
+        console.warn(`   ⚠️ answers 不是數組格式:`, typeof answers);
+      }
     });
     
-    if (Object.keys(topicCounts).length > 0) {
-      this.weakestTopic = Object.keys(topicCounts).reduce((a, b) => 
-        topicCounts[a] > topicCounts[b] ? a : b
-      );
-    } else {
-      this.weakestTopic = '無錯誤題目';
+    // 將 Map 轉換為數組，並設置錯誤次數
+    this.wrongQuestions = Array.from(questionMap.values()).map(item => {
+      item.question.errorCount = item.count;
+      return item.question;
+    });
+    
+    // 按錯誤次數排序（最多的在前），如果錯誤次數相同則按時間排序（最新的在前）
+    this.wrongQuestions.sort((a, b) => {
+      if (b.errorCount !== a.errorCount) {
+        return b.errorCount - a.errorCount;
+      }
+      return b.timestamp.getTime() - a.timestamp.getTime();
+    });
+    
+    console.log('✅ 數據處理完成:');
+    console.log(`   - 總答案數: ${totalAnswers}`);
+    console.log(`   - 錯題記錄數: ${wrongAnswers}`);
+    console.log(`   - 唯一錯題數量: ${this.wrongQuestions.length}`);
+    console.log(`   - 最多錯誤次數: ${this.wrongQuestions[0]?.errorCount || 0}`);
+  }
+  
+  // 判斷答案是否錯誤（支援多種格式）
+  private isAnswerWrong(isCorrect: any): boolean {
+    // 明確為 true 或 1 的視為正確
+    if (isCorrect === true || isCorrect === 1 || isCorrect === '1' || isCorrect === 'true') {
+      return false;
     }
     
-    // 計算本週新增錯題
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    this.recentMistakes = this.wrongQuestions.filter(question => 
-      question.timestamp > weekAgo
-    ).length;
-    
-    // 模擬複習次數（實際應用中可從後端獲取）
-    this.reviewedCount = Math.floor(this.wrongQuestions.length * 0.3);
+    // 其他情況都視為錯誤（包括 false、0、null、undefined、"false"、"0"）
+    return true;
   }
 
-     private extractFilterOptions(): void {
-     const topicSet = new Set<string>();
- 
-     this.allQuestions.forEach(question => {
-       topicSet.add(question.topic);
-     });
- 
-     this.topicOptions = Array.from(topicSet).sort();
-   }
+  // 答案顯示/隱藏控制（只控制正確答案）
+  toggleCorrectAnswer(uniqueId: string): void {
+    if (this.visibleCorrectAnswers.has(uniqueId)) {
+      this.visibleCorrectAnswers.delete(uniqueId);
+    } else {
+      this.visibleCorrectAnswers.add(uniqueId);
+    }
+  }
+
+  isCorrectAnswerVisible(uniqueId: string): boolean {
+    return this.visibleCorrectAnswers.has(uniqueId);
+  }
   
-     applyFilters(): void {
-     this.filteredQuestions = this.allQuestions.filter(question => {
-       // 知識點篩選
-       if (this.filters.topic && question.topic !== this.filters.topic) {
-         return false;
-       }
-       
-       // 時間範圍篩選
-       if (this.filters.timeRange) {
-         const now = new Date();
-         const questionDate = new Date(question.timestamp);
-         
-         if (this.filters.timeRange === 'day') {
-           // 今天
-           if (questionDate.getDate() !== now.getDate() ||
-               questionDate.getMonth() !== now.getMonth() ||
-               questionDate.getFullYear() !== now.getFullYear()) {
-             return false;
-           }
-         } else if (this.filters.timeRange === 'week') {
-           // 本週（過去7天）
-           const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-           if (questionDate < sevenDaysAgo) {
-             return false;
-           }
-         } else if (this.filters.timeRange === 'month') {
-           // 本月
-           if (questionDate.getMonth() !== now.getMonth() ||
-               questionDate.getFullYear() !== now.getFullYear()) {
-             return false;
-           }
-         } else if (this.filters.timeRange === 'year') {
-           // 今年
-           if (questionDate.getFullYear() !== now.getFullYear()) {
-             return false;
-           }
-         }
-       }
-       
-       // 測驗類型篩選
-       if (this.filters.examType && question.exam_type !== this.filters.examType) {
-         return false;
-       }
-       
-       // 狀態篩選
-       if (this.filters.status && question.status !== this.filters.status) {
-         return false;
-       }
-       
-       return true;
-     });
-   }
-  
-     resetFilters(): void {
-     this.filters = {
-       topic: '',
-       timeRange: '',
-       examType: '',
-       status: ''
-     };
-     
-     this.filteredQuestions = [...this.allQuestions];
-   }
-  
-  reviewMistake(question: MistakeQuestion): void {
-    this.selectedQuestion = question;
-    this.showDetailModal = true;
-    this.aiExplanation = ''; // 重置解析
+  // 計算總錯誤次數
+  getTotalErrorCount(): number {
+    return this.wrongQuestions.reduce((sum, q) => sum + q.errorCount, 0);
   }
   
   formatDate(date: Date): string {
@@ -400,25 +275,15 @@ export class MistakeAnalysisComponent implements OnInit {
     const d = new Date(date);
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
   }
-
-  getShortQuestionText(text: string): string {
-    if (!text) return '題目內容未提供';
-    // 限制題目長度，避免過長
-    if (text.length > 100) {
-      return text.substring(0, 100) + '...';
-    }
-    return text;
-  }
-
-  getShortAnswer(answer: string): string {
-    if (!answer) return '未作答';
-    // 限制答案長度
-    if (answer.length > 50) {
-      return answer.substring(0, 50) + '...';
-    }
-    return answer;
+  
+  // 查看詳情 - 打開 modal
+  reviewMistake(question: MistakeQuestion): void {
+    this.selectedQuestion = question;
+    this.showDetailModal = true;
+    this.aiExplanation = ''; // 重置解析
   }
   
+  // 獲取 AI 解析
   getAIExplanation(): void {
     if (!this.selectedQuestion) return;
     
@@ -427,139 +292,97 @@ export class MistakeAnalysisComponent implements OnInit {
     // 使用真實的 feedback 或生成模擬解析
     setTimeout(() => {
       if (this.selectedQuestion?.feedback) {
-        this.aiExplanation = this.selectedQuestion.feedback;
+        // 嘗試解析 feedback（可能是 JSON 字符串或對象）
+        let feedback: any;
+        try {
+          if (typeof this.selectedQuestion.feedback === 'string') {
+            feedback = JSON.parse(this.selectedQuestion.feedback);
+          } else {
+            feedback = this.selectedQuestion.feedback;
+          }
+        } catch (e) {
+          // 如果不是 JSON，將 feedback 轉換為字符串
+          if (typeof this.selectedQuestion.feedback === 'string') {
+            this.aiExplanation = this.selectedQuestion.feedback;
+          } else if (typeof this.selectedQuestion.feedback === 'object' && this.selectedQuestion.feedback !== null) {
+            // 如果是對象，轉換為字符串
+            this.aiExplanation = JSON.stringify(this.selectedQuestion.feedback, null, 2);
+          } else {
+            this.aiExplanation = '暫無 AI 解析';
+          }
+          this.loadingExplanation = false;
+          return;
+        }
+        
+        // 格式化 feedback 為易讀的文本
+        const parts: string[] = [];
+        
+        if (feedback.explanation) {
+          parts.push(`📝 **評分說明**\n${feedback.explanation}`);
+        }
+        
+        if (feedback.strengths && feedback.strengths !== '無' && feedback.strengths.trim()) {
+          parts.push(`\n✅ **優點**\n${feedback.strengths}`);
+        }
+        
+        if (feedback.weaknesses && feedback.weaknesses !== '無' && feedback.weaknesses.trim()) {
+          parts.push(`\n⚠️ **需要改進**\n${feedback.weaknesses}`);
+        }
+        
+        if (feedback.suggestions && feedback.suggestions !== '無' && feedback.suggestions.trim()) {
+          parts.push(`\n💡 **學習建議**\n${feedback.suggestions}`);
+        }
+        
+        this.aiExplanation = parts.length > 0 ? parts.join('\n\n') : '暫無 AI 解析';
       } else {
-        this.aiExplanation = `此題考察的是${this.selectedQuestion?.topic}領域中的基本概念。
-正確答案應該選擇「${this.selectedQuestion?.correct_answer}」，因為根據${this.selectedQuestion?.chapter}的內容，這是最準確的描述。
-
-錯誤選擇「${this.selectedQuestion?.student_answer}」的常見原因是混淆了相關概念。這是一個常見的誤區，需要注意區分。
-
-學習建議：
-1. 重新複習${this.selectedQuestion?.chapter}的相關內容
-2. 特別關注概念之間的區別
-3. 練習相關類型的題目鞏固理解
-
-希望這個解析對您有所幫助！`;
+        this.aiExplanation = `此題考察的是${this.selectedQuestion?.topic}領域中的基本概念。\n\n正確答案應該選擇「${this.selectedQuestion?.correct_answer}」，因為根據${this.selectedQuestion?.chapter}的內容，這是最準確的描述。\n\n錯誤選擇「${this.selectedQuestion?.student_answer}」的常見原因是混淆了相關概念。這是一個常見的誤區，需要注意區分。\n\n**學習建議：**\n1. 重新複習${this.selectedQuestion?.chapter}的相關內容\n2. 特別關注概念之間的區別\n3. 練習相關類型的題目鞏固理解\n\n希望這個解析對您有所幫助！`;
       }
       
       this.loadingExplanation = false;
     }, 1500);
   }
   
-  startSingleReview(): void {
-    if (!this.selectedQuestion) return;
-    this.showDetailModal = false;
+  // 格式化解析內容為 HTML（支持換行和粗體）
+  formatExplanation(text: string): string {
+    if (!text) return '';
     
-    // 導航到 AI 輔導頁面，攜帶題目資訊
-    this.router.navigate(['/dashboard/ai-tutoring'], {
-      queryParams: { 
-        questionId: this.selectedQuestion.id,
-        mode: 'mistake_review'
-      }
-    });
+    // 先處理雙換行（段落分隔）
+    let formatted = text.replace(/\n\n+/g, '||PARAGRAPH_BREAK||');
+    
+    // 將文本中的 **粗體** 轉換為 HTML
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // 將段落分隔符替換為 </p><p>
+    formatted = formatted.replace(/\|\|PARAGRAPH_BREAK\|\|/g, '</p><p>');
+    
+    // 將單換行轉換為 <br>
+    formatted = formatted.replace(/\n/g, '<br>');
+    
+    // 包裹在段落標籤中
+    return `<p>${formatted}</p>`;
   }
   
-  startReviewSession(): void {
-    if (this.filteredQuestions.length === 0) return;
+  // AI 複習此題 - 使用側邊欄 AI（一般教學導師，不使用 RAG 引導教學）
+  reviewQuestionWithAI(): void {
+    if (!this.selectedQuestion) return;
     
-    // 導航到 AI 輔導頁面，攜帶所有篩選題目的 ID
-    const questionIds = this.filteredQuestions.map(q => q.id).join(',');
-    this.router.navigate(['/dashboard/ai-tutoring'], {
-      queryParams: { 
-        questionIds: questionIds,
-        mode: 'batch_review'
-      }
-    });
-  }
-
-  startGuidedLearning(question: MistakeQuestion): void {
-    // 導航到 AI 輔導頁面，進行引導學習
-    // 傳遞完整的題目信息，支持AI輔導系統的引導學習模式
-    this.router.navigate(['/dashboard/ai-tutoring'], {
-      queryParams: { 
-        questionId: question.id,
-        mode: 'guided_learning',
-        topic: question.topic,
-        chapter: question.chapter,
-        questionText: question.question_text,
-        studentAnswer: question.student_answer,
-        correctAnswer: question.correct_answer,
-        score: question.score,
-        isCorrect: question.is_correct,
-        examType: question.exam_type || 'general',
-        timestamp: question.timestamp.toISOString(),
-        // 新增：支持引導學習的特定參數
-        learningType: 'concept_understanding',
-        difficulty: this.getDifficultyLevel(question.score),
-        focusAreas: this.getFocusAreas(question),
-        // 支持學習路徑設置
-        learningPath: 'progressive',
-        // 支持個性化學習設置
-        adaptiveLearning: 'true',
-        stepByStep: 'true'
-      }
-    });
-  }
-
-  // 新增：根據分數判斷難度等級
-  private getDifficultyLevel(score: number): string {
-    if (score >= 80) return 'easy';
-    if (score >= 60) return 'medium';
-    if (score >= 40) return 'hard';
-    return 'very_hard';
-  }
-
-  // 新增：根據題目特點確定重點學習領域
-  private getFocusAreas(question: MistakeQuestion): string {
-    const focusAreas: string[] = [];
+    // 關閉 modal
+    this.showDetailModal = false;
     
-    // 根據答題情況判斷重點
-    if (!question.is_correct) {
-      if (question.student_answer && question.student_answer.trim() !== '') {
-        focusAreas.push('concept_clarification');
-        focusAreas.push('common_mistakes');
-      } else {
-        focusAreas.push('basic_concepts');
-        focusAreas.push('knowledge_gaps');
-      }
-    }
-    
-    // 根據分數判斷
-    if (question.score < 60) {
-      focusAreas.push('fundamental_understanding');
-    }
-    
-    // 根據題目類型判斷
-    if (question.type) {
-      focusAreas.push(`type_${question.type}`);
-    }
-    
-    return focusAreas.join(',');
+    // 構建問題文本（明確要求直接解答，不使用引導式教學）
+    // 關鍵詞「直接分析」、「直接解答」會讓 AI 選擇 direct_answer_tool 而不是 ai_tutor_tool
+    const questionText = `請直接解答並分析這道錯題（不需要引導式提問，直接給出答案和解釋）：
+
+題目：${this.selectedQuestion.question_text}
+
+我的答案：${this.selectedQuestion.student_answer || '未作答'}
+
+正確答案：${this.selectedQuestion.correct_answer}
+
+請直接分析我為什麼答錯，正確答案為什麼是正確的，並提供改進建議。`;
+
+    // 打開側邊欄並發送問題（使用一般教學導師 - direct_answer_tool）
+    this.sidebarService.openSidebar(questionText);
   }
 
-  // 獲取各類題目數量
-  getCorrectCount(): number {
-    return this.correctQuestions.length;
-  }
-
-  getWrongCount(): number {
-    return this.wrongQuestions.length;
-  }
-
-  getUnansweredCount(): number {
-    return this.unansweredQuestions.length;
-  }
-
-  // 獲取篩選後的各類題目數量
-  getFilteredCorrectCount(): number {
-    return this.filteredQuestions.filter(q => q.status === 'correct').length;
-  }
-
-  getFilteredWrongCount(): number {
-    return this.filteredQuestions.filter(q => q.status === 'wrong').length;
-  }
-
-  getFilteredUnansweredCount(): number {
-    return this.filteredQuestions.filter(q => q.status === 'unanswered').length;
-  }
 }
