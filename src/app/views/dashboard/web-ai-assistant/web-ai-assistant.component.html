@@ -19,7 +19,7 @@
       </div>
       <div class="header-text">
         <span class="title">網站助手</span>
-        <span class="subtitle">智能導覽 • 學習規劃</span>
+        <span class="subtitle">智能助手 • 學習規劃</span>
       </div>
     </div>
     <div class="header-actions">
@@ -43,17 +43,6 @@
   <!-- 側邊框內容 -->
   <div class="sidebar-content" *ngIf="isExpanded">
     
-    <!-- 快速操作區 -->
-    <div class="quick-actions-bar">
-      <button
-        *ngFor="let item of quickActions"
-        type="button"
-        class="btn btn-sm btn-outline-primary quick-btn"
-        (click)="quickAction(item.action)"
-        [title]="item.label">
-        {{ item.label }}
-      </button>
-    </div>
 
     <!-- 訊息區域 -->
     <div class="messages-container" #messagesContainer>

@@ -56,14 +56,6 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
   currentQuizData: any = null;
   showStartQuizButton: boolean = false;
   
-  // 快速操作選項
-  quickActions = [
-    { label: '網站導覽', action: 'guide', icon: 'cilMap' },
-    { label: '學習進度', action: 'progress', icon: 'cilChart' },
-    { label: '學習計畫', action: 'plan', icon: 'cilCalendar' },
-    { label: '常見問題', action: 'faq', icon: 'cilHelp' }
-  ];
-
   private subscriptions: Subscription[] = [];
   private resizeStartX = 0;
   private resizeStartWidth = 0;
@@ -336,31 +328,7 @@ export class WebAiAssistantComponent implements OnInit, OnDestroy, AfterViewChec
     });
   }
 
-  /**
-   * 快速操作
-   */
-  quickAction(action: string): void {
-    switch (action) {
-      case 'guide':
-        // 直接啟動互動式導覽
-        this.detailedGuideService.startDetailedGuide();
-        // 也添加一個訊息告知用戶
-        this.addMessage('assistant', '🚀 正在啟動網站導覽，我將帶您一步步了解系統的主要功能...');
-        break;
-      case 'progress':
-        this.currentMessage = '我想查看我的學習進度';
-        this.sendMessage();
-        break;
-      case 'plan':
-        this.currentMessage = '請為我制定學習計畫';
-        this.sendMessage();
-        break;
-      case 'faq':
-        this.currentMessage = '有什麼常見問題嗎？';
-        this.sendMessage();
-        break;
-    }
-  }
+  
 
   /**
    * 處理 Enter 鍵

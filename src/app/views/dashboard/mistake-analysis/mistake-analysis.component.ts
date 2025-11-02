@@ -9,12 +9,14 @@ import {
   UtilitiesModule,
   TooltipModule,
   DropdownModule,
-  ModalModule
+  ModalModule,
+  FormModule
 } from '@coreui/angular';
 import { IconModule, IconDirective, IconSetService } from '@coreui/icons-angular';
-import { cilLockLocked, cilLockUnlocked, cilListRich, cilCheckCircle, cilBook, cilLightbulb } from '@coreui/icons';
+import { cilLockLocked, cilLockUnlocked, cilListRich, cilCheckCircle, cilBook, cilLightbulb, cilMagnifyingGlass, cilX, cilFilter } from '@coreui/icons';
 import { DashboardService } from '../../../service/dashboard.service';
 import { SidebarService } from '../../../service/sidebar.service';
+import { WebAiAssistantService } from '../../../service/web-ai-assistant.service';
 
 interface MistakeQuestion {
   id: string;
@@ -51,6 +53,7 @@ interface MistakeQuestion {
     TooltipModule,
     DropdownModule,
     ModalModule,
+    FormModule,
     IconModule,
     IconDirective
   ],
@@ -60,6 +63,24 @@ interface MistakeQuestion {
 export class MistakeAnalysisComponent implements OnInit {
   // 題目數據 - 只保留錯題（已合併相同題目並統計錯誤次數）
   wrongQuestions: MistakeQuestion[] = [];
+  filteredQuestions: MistakeQuestion[] = []; // 篩選後的題目
+  
+  // 篩選條件
+  searchTerm: string = '';
+  selectedTopic: string = '';
+  selectedChapter: string = '';
+  selectedErrorRange: string = '';
+  
+  // 篩選選項（從數據中提取）
+  topicOptions: string[] = [];
+  chapterOptions: string[] = [];
+  errorRangeOptions: Array<{value: string, label: string}> = [
+    { value: '', label: '全部' },
+    { value: '1', label: '1 次' },
+    { value: '2-3', label: '2-3 次' },
+    { value: '4-5', label: '4-5 次' },
+    { value: '6+', label: '6 次以上' }
+  ];
   
   // 答案顯示狀態（只用於正確答案）
   visibleCorrectAnswers: Set<string> = new Set();
@@ -76,13 +97,14 @@ export class MistakeAnalysisComponent implements OnInit {
   constructor(
     private dashboardService: DashboardService,
     private sidebarService: SidebarService,
-    private iconSetService: IconSetService
+    private iconSetService: IconSetService,
+    private webAiService: WebAiAssistantService
   ) {
     // 註冊圖標
     const existingIcons = iconSetService.icons || {};
     iconSetService.icons = {
       ...existingIcons,
-      ...{ cilLockLocked, cilLockUnlocked, cilListRich, cilCheckCircle, cilBook, cilLightbulb }
+      ...{ cilLockLocked, cilLockUnlocked, cilListRich, cilCheckCircle, cilBook, cilLightbulb, cilMagnifyingGlass, cilX, cilFilter }
     };
   }
   
@@ -234,11 +256,107 @@ export class MistakeAnalysisComponent implements OnInit {
       return b.timestamp.getTime() - a.timestamp.getTime();
     });
     
+    // 提取篩選選項
+    this.extractFilterOptions();
+    
+    // 初始化篩選後的列表
+    this.applyFilters();
+    
     console.log('✅ 數據處理完成:');
     console.log(`   - 總答案數: ${totalAnswers}`);
     console.log(`   - 錯題記錄數: ${wrongAnswers}`);
     console.log(`   - 唯一錯題數量: ${this.wrongQuestions.length}`);
     console.log(`   - 最多錯誤次數: ${this.wrongQuestions[0]?.errorCount || 0}`);
+  }
+  
+  // 提取篩選選項
+  private extractFilterOptions(): void {
+    const topics = new Set<string>();
+    const chapters = new Set<string>();
+    
+    this.wrongQuestions.forEach(question => {
+      if (question.topic && question.topic !== '未分類' && question.topic !== 'unknown') {
+        topics.add(question.topic);
+      }
+      if (question.chapter && question.chapter !== '未分類' && question.chapter !== 'unknown') {
+        chapters.add(question.chapter);
+      }
+    });
+    
+    this.topicOptions = Array.from(topics).sort();
+    this.chapterOptions = Array.from(chapters).sort();
+  }
+  
+  // 應用篩選
+  applyFilters(): void {
+    let filtered = [...this.wrongQuestions];
+    
+    // 搜尋欄篩選（題目、知識點、章節、微概念）
+    if (this.searchTerm.trim()) {
+      const searchLower = this.searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(question => {
+        const questionText = (question.question_text || '').toLowerCase();
+        const topic = (question.topic || '').toLowerCase();
+        const chapter = (question.chapter || '').toLowerCase();
+        const microConcepts = (question.micro_concepts || []).join(' ').toLowerCase();
+        const studentAnswer = (question.student_answer || '').toLowerCase();
+        const correctAnswer = (question.correct_answer || '').toLowerCase();
+        
+        return questionText.includes(searchLower) ||
+               topic.includes(searchLower) ||
+               chapter.includes(searchLower) ||
+               microConcepts.includes(searchLower) ||
+               studentAnswer.includes(searchLower) ||
+               correctAnswer.includes(searchLower);
+      });
+    }
+    
+    // 知識點篩選
+    if (this.selectedTopic) {
+      filtered = filtered.filter(question => question.topic === this.selectedTopic);
+    }
+    
+
+    // 錯誤次數範圍篩選
+    if (this.selectedErrorRange) {
+      filtered = filtered.filter(question => {
+        const count = question.errorCount;
+        switch (this.selectedErrorRange) {
+          case '1':
+            return count === 1;
+          case '2-3':
+            return count >= 2 && count <= 3;
+          case '4-5':
+            return count >= 4 && count <= 5;
+          case '6+':
+            return count >= 6;
+          default:
+            return true;
+        }
+      });
+    }
+    
+    this.filteredQuestions = filtered;
+  }
+  
+  // 清除所有篩選
+  clearFilters(): void {
+    this.searchTerm = '';
+    this.selectedTopic = '';
+    this.selectedChapter = '';
+    this.selectedErrorRange = '';
+    this.applyFilters();
+  }
+  
+  // 清除搜尋
+  clearSearch(): void {
+    this.searchTerm = '';
+    this.applyFilters();
+  }
+  
+  // 獲取篩選後的總錯誤次數
+  getFilteredTotalErrorCount(): number {
+    return this.filteredQuestions.reduce((sum, q) => sum + q.errorCount, 0);
   }
   
   // 判斷答案是否錯誤（支援多種格式）
@@ -335,7 +453,31 @@ export class MistakeAnalysisComponent implements OnInit {
         
         this.aiExplanation = parts.length > 0 ? parts.join('\n\n') : '暫無 AI 解析';
       } else {
-        this.aiExplanation = `此題考察的是${this.selectedQuestion?.topic}領域中的基本概念。\n\n正確答案應該選擇「${this.selectedQuestion?.correct_answer}」，因為根據${this.selectedQuestion?.chapter}的內容，這是最準確的描述。\n\n錯誤選擇「${this.selectedQuestion?.student_answer}」的常見原因是混淆了相關概念。這是一個常見的誤區，需要注意區分。\n\n**學習建議：**\n1. 重新複習${this.selectedQuestion?.chapter}的相關內容\n2. 特別關注概念之間的區別\n3. 練習相關類型的題目鞏固理解\n\n希望這個解析對您有所幫助！`;
+        // 如果沒有 feedback，調用 web-ai 生成解析
+        const prompt = `請直接解答並分析這道錯題（不需要引導式提問，直接給出答案和解釋）：
+
+題目：${this.selectedQuestion?.question_text}
+我的答案：${this.selectedQuestion?.student_answer}
+正確答案：${this.selectedQuestion?.correct_answer}
+
+請直接分析我為什麼答錯，正確答案為什麼是正確的，並提供改進建議。`;
+        
+        this.webAiService.sendMessage(prompt).subscribe({
+          next: (response: any) => {
+            if (response.success && response.content) {
+              this.aiExplanation = response.content;
+            } else {
+              this.aiExplanation = '無法生成 AI 解析，請稍後再試。';
+            }
+            this.loadingExplanation = false;
+          },
+          error: (error: any) => {
+            console.error('❌ 獲取 AI 解析失敗:', error);
+            this.aiExplanation = '生成 AI 解析時發生錯誤，請稍後再試。';
+            this.loadingExplanation = false;
+          }
+        });
+        return; // 異步處理，提前返回
       }
       
       this.loadingExplanation = false;

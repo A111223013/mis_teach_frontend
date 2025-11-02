@@ -571,14 +571,27 @@ export class DetailedGuideService {
 
   /**
    * 開始詳細導覽（動態生成步驟）
+   * [已註解] 網站導覽功能暫時停用
    */
   async startDetailedGuide(): Promise<void> {
+    // [已註解] 網站導覽功能暫時停用
+    console.log('網站導覽功能已停用');
+    return;
+    
+    /* 原始邏輯已註解
     try {
       this.isActive = true;
       this.currentStepIndex = 0;
       
       // 自動關閉 AI 側邊欄
       this.sidebarService.closeSidebar();
+      
+      // 如果不在概覽頁面，先導航到概覽頁面
+      if (window.location.pathname !== '/dashboard/overview') {
+        await this.router.navigate(['/dashboard/overview']);
+        // 等待頁面載入完成
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
       
       // 創建頭像
       this.createAvatar();
@@ -592,10 +605,11 @@ export class DetailedGuideService {
       console.error('啟動導覽失敗:', error);
       this.endGuide();
     }
+    */
   }
 
   /**
-   * 動態生成導覽步驟（根據頁面實際狀態）
+   * 動態生成導覽步驟（簡化為區塊介紹模式）
    */
   private generateDynamicSteps(): DetailedGuideStep[] {
     const steps: DetailedGuideStep[] = [];
@@ -605,28 +619,28 @@ export class DetailedGuideService {
       id: "system-header",
       page: "/dashboard/overview",
       target: "c-header, app-default-header",
-      title: "MIS 教學系統主導航",
-      content: "歡迎來到 MIS 教學系統！這是系統的主導航欄，包含 Logo「學無止盡 Ever Learning」、功能選單和右側的設定按鈕。",
-      buttonFunction: "點擊 Logo 返回首頁，中間是主要功能選單，右側是設定和登出功能",
-      blockPurpose: "系統的核心導航工具，提供全站功能訪問和用戶身份管理",
+      title: "系統主導航",
+      content: "歡迎來到 MIS 教學系統！\n\n這是系統的主導航欄，包含：\n• Logo「學無止盡 Ever Learning」：點擊可返回首頁\n• 主要功能選單：包含學習中心、課程、科技趨勢、AI 引導教學等功能\n• 右側設定按鈕：可以進入個人設定或登出系統",
+      buttonFunction: "",
+      blockPurpose: "系統的核心導航工具，提供全站功能訪問",
       position: "bottom",
       avatarPosition: "top-right",
       waitForElement: true,
-      delay: 1500
+      delay: 2000
     });
 
     steps.push({
       id: "overview-main-content",
       page: "/dashboard/overview",
       target: ".dashboard-container, c-container[fluid]",
-      title: "概覽頁面內容區",
-      content: "這裡是概覽頁面的主要內容區域。上方有每日簽到功能，下方左側是學習行事曆，右側是今日頭條新聞。",
-      buttonFunction: "查看整體學習進度、行事曆事件和最新新聞資訊",
-      blockPurpose: "提供學習進度概覽、系統統計和重要通知資訊的集中展示",
+      title: "概覽頁面",
+      content: "這裡是系統的概覽頁面，主要功能包括：\n\n• 每日簽到：上方有每日簽到功能，幫助您養成學習習慣\n• 學習行事曆：左側顯示月曆和學習事件，可管理學習計畫\n• 今日頭條：右側顯示最新的科技新聞和資訊\n\n您可以在這裡快速了解學習進度和重要通知。",
+      buttonFunction: "",
+      blockPurpose: "提供學習進度概覽和重要資訊集中展示",
       position: "bottom",
       avatarPosition: "bottom-right",
       waitForElement: true,
-      delay: 1000
+      delay: 2000
     });
 
     steps.push({
@@ -634,82 +648,53 @@ export class DetailedGuideService {
       page: "/dashboard/overview",
       target: ".col-lg-8.mb-4 c-card, .calendar-view, mwl-calendar-month-view",
       title: "學習行事曆",
-      content: "這裡是學習行事曆功能區塊，顯示月曆視圖和所有已建立的學習事件。您可以點擊日期查看當日事件，或點擊事件查看詳情。",
-      buttonFunction: "點擊日期：查看該日期的所有事件；點擊事件：查看事件詳情並可進行編輯或刪除",
-      blockPurpose: "管理個人學習行程，設定學習目標和提醒，追蹤學習計畫",
+      content: "這是學習行事曆功能區塊。\n\n主要功能：\n• 查看月曆視圖：顯示當月的日期和已建立的事件\n• 新增事件：點擊「新增事件」按鈕可以建立學習計畫\n• 查看事件：點擊日期可查看該日的所有事件\n• 管理事件：可以編輯或刪除已建立的事件\n\n使用行事曆可以幫助您規劃學習時間，設定目標和提醒。",
+      buttonFunction: "",
+      blockPurpose: "管理個人學習行程，追蹤學習計畫",
       position: "bottom",
       avatarPosition: "top-left",
       waitForElement: true,
-      delay: 1500
+      delay: 2000
     });
-
-    // 動態檢測：只有當沒有事件時，才介紹如何新增事件
-    const hasEvents = this.checkCalendarHasEvents();
-    if (!hasEvents) {
-      steps.push({
-        id: "add-calendar-button",
-        page: "/dashboard/overview",
-        target: "c-card-body .d-flex.justify-content-between button.btn.btn-sm.btn-primary",
-        title: "新增行事曆事件",
-        content: "點擊這個「新增事件」按鈕可以新增學習事件。在彈出的視窗中，您可以設定事件標題、內容、日期，並選擇是否啟用通知提醒。",
-        buttonFunction: "新增事件：點擊後會開啟彈窗，設定學習計畫的標題、內容、日期和通知時間",
-        blockPurpose: "創建新的學習事件，管理學習行程和提醒",
-        position: "bottom",
-        avatarPosition: "top-right",
-        waitForElement: true,
-        delay: 1000
-      });
-    } else {
-      // 如果有事件，介紹事件列表
-      steps.push({
-        id: "calendar-event-list",
-        page: "/dashboard/overview",
-        target: "c-modal .list-group .list-group-item, c-modal-body .list-group-item",
-        title: "行事曆事件列表",
-        content: "在事件清單中，這裡顯示您已建立的所有學習事件。您可以點擊事件查看詳情，使用編輯按鈕修改內容，或使用刪除按鈕移除不需要的事件。",
-        buttonFunction: "查看事件：點擊事件查看詳情；編輯：修改事件內容和時間；刪除：移除不需要的事件",
-        blockPurpose: "管理和追蹤所有學習事件，提供完整的 CRUD 功能",
-        position: "bottom",
-        avatarPosition: "top-left",
-        waitForElement: true,
-        delay: 1000
-      });
-    }
 
     // ============ 測驗中心 ============
     steps.push({
-      id: "click-learning-center-dropdown",
+      id: "navigate-to-quiz-center",
       page: "/dashboard/overview",
-      target: "c-header-nav c-dropdown[variant='nav-item'] a[cDropdownToggle]",
-      title: "點擊學習中心下拉選單",
-      content: "請點擊頂部導航欄的「學習中心」按鈕，這會展開學習中心功能的下拉選單，包含「測驗中心」和「錯題統整」兩個選項。",
-      buttonFunction: "點擊學習中心按鈕展開下拉選單",
-      blockPurpose: "展開學習中心功能選單，提供測驗和錯題相關功能",
+      target: "c-header-nav",
+      title: "前往測驗中心",
+      content: "接下來我們要介紹測驗中心功能。\n\n操作方式：\n1. 點擊頂部導航欄的「學習中心」按鈕\n2. 在下拉選單中選擇「測驗中心」\n3. 系統會帶您進入測驗中心頁面\n\n請按照上述步驟操作，然後點擊「下一步」繼續。",
+      buttonFunction: "",
+      blockPurpose: "導航到測驗中心頁面",
       position: "bottom",
       avatarPosition: "top-right",
       waitForElement: true,
-      delay: 1000
+      delay: 2000
     });
 
-    steps.push({
-      id: "select-quiz-center",
-      page: "/dashboard/overview",
-      target: "ul[cDropdownMenu] a[cDropdownItem], a[cDropdownItem][routerLink*='quiz-center'], .dropdown-menu a[routerLink*='quiz-center']",
-      title: "選擇測驗中心",
-      content: "在展開的下拉選單中，請點擊「測驗中心」選項進入測驗中心頁面。這裡可以選擇知識點測驗或學校考古題測驗。",
-      buttonFunction: "點擊測驗中心選項，導航到測驗中心頁面",
-      blockPurpose: "進入測驗中心，開始選擇測驗類型",
-      position: "bottom",
-      avatarPosition: "top-right",
-      waitForElement: true,
-      delay: 1500
-    });
-
-    // 添加測驗中心的動態步驟（根據實際狀態）
+    // 測驗中心功能介紹
     steps.push(...this.generateQuizCenterSteps());
 
-    // 添加其他固定步驟
-    steps.push(...this.generateRemainingSteps());
+    // ============ 測驗作答頁面 ============
+    steps.push(...this.generateQuizTakingSteps());
+
+    // ============ 其他功能 ============
+    steps.push(...this.generateOtherFeaturesSteps());
+
+    // ============ 完成導覽 ============
+    steps.push({
+      id: "guide-complete",
+      page: "/dashboard/overview",
+      target: "body",
+      title: "導覽完成！",
+      content: "恭喜您完成系統導覽！\n\n您現在已經了解系統的主要功能：\n• 概覽頁面和行事曆\n• 測驗中心（知識點測驗、學校考古題測驗）\n• 測驗作答功能\n• 其他學習功能\n\n可以開始使用各項功能進行學習了。祝您學習愉快！",
+      buttonFunction: "",
+      blockPurpose: "導覽結束提示",
+      position: "bottom",
+      avatarPosition: "top-right",
+      waitForElement: true,
+      delay: 2000
+    });
 
     return steps;
   }
@@ -738,181 +723,56 @@ export class DetailedGuideService {
   }
 
   /**
-   * 動態生成測驗中心的步驟
+   * 生成測驗中心步驟（簡化為功能介紹）
    */
   private generateQuizCenterSteps(): DetailedGuideStep[] {
     const steps: DetailedGuideStep[] = [];
 
-    // 先介紹標籤切換
     steps.push({
-      id: "quiz-center-tabs",
+      id: "quiz-center-overview",
       page: "/dashboard/quiz-center",
-      target: ".btn-group.w-100 .btn, button.btn[class*='btn-primary'], button.btn[class*='btn-outline-primary']",
-      title: "測驗類型切換",
-      content: "測驗中心提供兩種測驗類型：知識點測驗和學校考古題測驗。上方有兩個標籤按鈕可以切換測驗類型。",
-      buttonFunction: "切換測驗類型：點擊標籤切換不同的測驗類型",
-      blockPurpose: "選擇要進行的測驗類型",
+      target: ".quiz-center-container, c-card",
+      title: "測驗中心",
+      content: "歡迎來到測驗中心！這裡提供兩種測驗類型：\n\n• 知識點測驗：根據特定知識點進行測驗，可選擇難度和題數\n• 學校考古題測驗：根據特定學校、年度和系所進行考古題測驗\n\n上方有兩個標籤可以切換不同的測驗類型。",
+      buttonFunction: "",
+      blockPurpose: "測驗功能的主要入口",
       position: "bottom",
       avatarPosition: "top-right",
       waitForElement: true,
-      delay: 1000
+      delay: 2000
     });
 
-    // 檢測當前是哪個標籤（默認是知識點測驗）
-    const currentTab = this.getQuizCenterTab();
-    
-    if (currentTab === 'knowledge' || !currentTab) {
-      // 知識點測驗步驟
-      steps.push(...this.generateKnowledgeQuizSteps());
-    }
-
-    // 介紹切換到考古題測驗
     steps.push({
-      id: "switch-to-past-exam-tab",
+      id: "knowledge-quiz-intro",
       page: "/dashboard/quiz-center",
-      target: ".btn-group.w-100 button.btn, button.btn[class*='btn-outline-primary']",
-      title: "切換到學校考古題測驗",
-      content: "點擊「學校考古題測驗」標籤（第二個按鈕），切換到學校考古題測驗功能。這裡可以根據特定學校、年度和系所進行測驗。",
-      buttonFunction: "切換測驗類型：點擊「學校考古題測驗」標籤",
-      blockPurpose: "切換到學校考古題測驗功能",
+      target: ".quiz-center-container c-card-body",
+      title: "知識點測驗",
+      content: "知識點測驗功能介紹：\n\n• 選擇知識點：從可用的知識點按鈕中選擇要練習的主題（如 AI、MIS、作業系統等）\n• 選擇難度：可選擇簡單、中等或困難\n• 選擇題數：可選擇 10 題、20 題或 30 題\n• 開始測驗：完成選擇後，點擊「開始測驗」按鈕即可開始\n\n您可以試試選擇一個知識點進行測驗。",
+      buttonFunction: "",
+      blockPurpose: "介紹知識點測驗功能",
       position: "bottom",
-      avatarPosition: "top-right",
+      avatarPosition: "top-left",
       waitForElement: true,
-      delay: 1500
+      delay: 2000
     });
 
-    // 考古題測驗步驟（動態根據選擇狀態）
-    steps.push(...this.generatePastExamQuizSteps());
+    steps.push({
+      id: "past-exam-quiz-intro",
+      page: "/dashboard/quiz-center",
+      target: ".quiz-center-container c-card-body",
+      title: "學校考古題測驗",
+      content: "學校考古題測驗功能介紹：\n\n• 選擇學校：從學校卡片中選擇目標學校\n• 選擇年度：選擇該學校的考試年度\n• 選擇系所：選擇目標系所\n• 開始測驗：完成所有選擇後，系統會顯示題目數量，點擊「開始測驗」即可開始\n\n請您自行操作：選擇想要的學校、年度和系所，然後點擊「開始測驗」。完成後點擊「下一步」繼續導覽。",
+      buttonFunction: "",
+      blockPurpose: "介紹學校考古題測驗功能",
+      position: "bottom",
+      avatarPosition: "top-left",
+      waitForElement: true,
+      delay: 3000
+    });
 
     return steps;
   }
 
-  /**
-   * 生成知識點測驗步驟
-   */
-  private generateKnowledgeQuizSteps(): DetailedGuideStep[] {
-    return [
-      {
-        id: "knowledge-point-selection",
-        page: "/dashboard/quiz-center",
-        target: "c-card-body .d-flex.flex-wrap.gap-2 button.btn.btn-outline-primary",
-        title: "知識點測驗 - 選擇知識點",
-        content: "這是知識點測驗功能。您可以從上方按鈕中選擇要練習的知識點，每個知識點會顯示可用的題目數量。",
-        buttonFunction: "選擇知識點：點擊知識點按鈕選擇要練習的主題",
-        blockPurpose: "選擇知識點進行測驗",
-        position: "bottom",
-        avatarPosition: "top-left",
-        waitForElement: true,
-        delay: 1500
-      },
-      {
-        id: "knowledge-difficulty-selection",
-        page: "/dashboard/quiz-center",
-        target: "input[type='radio'][name='difficulty'], .form-check input[type='radio'][name='difficulty']",
-        title: "知識點測驗 - 選擇難度",
-        content: "選擇知識點後，可以選擇測驗難度：簡單、中等或困難。難度會影響題目的複雜程度。",
-        buttonFunction: "選擇難度：點擊單選按鈕選擇測驗難度",
-        blockPurpose: "設定測驗難度等級",
-        position: "bottom",
-        avatarPosition: "top-left",
-        waitForElement: true,
-        delay: 1000
-      },
-      {
-        id: "knowledge-question-count",
-        page: "/dashboard/quiz-center",
-        target: "input[type='radio'][name='questionCount'], .form-check input[type='radio'][name='questionCount']",
-        title: "知識點測驗 - 選擇題數",
-        content: "最後選擇題目數量：10題、20題或30題。選擇完成後，點擊「開始測驗」按鈕即可開始。",
-        buttonFunction: "選擇題數：點擊單選按鈕選擇題目數量，然後點擊開始測驗",
-        blockPurpose: "設定測驗題目數量",
-        position: "bottom",
-        avatarPosition: "top-left",
-        waitForElement: true,
-        delay: 1000
-      }
-    ];
-  }
-
-  /**
-   * 動態生成考古題測驗步驟（根據當前選擇狀態）
-   */
-  private generatePastExamQuizSteps(): DetailedGuideStep[] {
-    const steps: DetailedGuideStep[] = [];
-    
-    // 檢測當前選擇狀態
-    const quizState = this.getQuizCenterState();
-    
-    // 如果還沒有選擇學校，介紹選擇學校
-    if (!quizState.selectedSchool) {
-      steps.push({
-        id: "select-school",
-        page: "/dashboard/quiz-center",
-        target: ".option-grid .option-card",
-        title: "選擇學校",
-        content: "在學校選擇區塊中，點擊您想要練習的學校卡片。系統會根據您選擇的學校載入對應的年度選項。",
-        buttonFunction: "選擇學校：點擊學校卡片選擇目標學校",
-        blockPurpose: "選擇考古題的目標學校",
-        position: "bottom",
-        avatarPosition: "top-left",
-        waitForElement: true,
-        delay: 1500
-      });
-    }
-
-    // 如果已選擇學校但還沒選年度，介紹選擇年度
-    if (quizState.selectedSchool && !quizState.selectedYear) {
-      steps.push({
-        id: "select-year",
-        page: "/dashboard/quiz-center",
-        target: "c-card-body .option-grid .option-card",
-        title: "選擇年度",
-        content: "選擇學校後，這裡會顯示該學校可用的考試年度。點擊您想要練習的年度卡片，系統會載入對應的系所選項。",
-        buttonFunction: "選擇年度：點擊年度卡片選擇考試年份",
-        blockPurpose: "選擇考古題的考試年度",
-        position: "bottom",
-        avatarPosition: "top-left",
-        waitForElement: true,
-        delay: 1500
-      });
-    }
-
-    // 如果已選擇學校和年度但還沒選系所，介紹選擇系所
-    if (quizState.selectedSchool && quizState.selectedYear && !quizState.selectedDepartment) {
-      steps.push({
-        id: "select-department",
-        page: "/dashboard/quiz-center",
-        target: "c-card-body .option-grid .option-card",
-        title: "選擇系所",
-        content: "選擇學校和年度後，這裡會顯示該年度可用的系所。點擊您想要練習的系所卡片，系統會顯示找到的題目數量。",
-        buttonFunction: "選擇系所：點擊系所卡片選擇目標系所，系統會顯示題目數量",
-        blockPurpose: "選擇考古題的目標系所，完成測驗條件設定",
-        position: "bottom",
-        avatarPosition: "top-left",
-        waitForElement: true,
-        delay: 1500
-      });
-    }
-
-    // 如果已經完成所有選擇，介紹開始測驗
-    if (quizState.selectedSchool && quizState.selectedYear && quizState.selectedDepartment) {
-      steps.push({
-        id: "start-past-exam-quiz",
-        page: "/dashboard/quiz-center",
-        target: "button.btn.btn-primary.btn-lg:not([disabled]), .d-grid button:not([disabled])",
-        title: "開始考古題測驗",
-        content: "選擇完學校、年度和系所後，確認題目數量大於 0，然後點擊「開始測驗」按鈕進入答題頁面。",
-        buttonFunction: "開始測驗：點擊按鈕後系統會創建測驗並導航到答題頁面",
-        blockPurpose: "啟動考古題測驗，進入答題模式",
-        position: "bottom",
-        avatarPosition: "top-right",
-        waitForElement: true,
-        delay: 1000
-      });
-    }
-
-    return steps;
-  }
 
   /**
    * 獲取測驗中心的當前標籤狀態
@@ -924,18 +784,33 @@ export class DetailedGuideService {
         return null;
       }
       
-      // 查找被選中的按鈕（有 btn-primary 類且沒有 btn-outline-primary）
-      const buttons = document.querySelectorAll('.btn-group button.btn');
-      for (const btn of Array.from(buttons)) {
-        if (btn.classList.contains('btn-primary') && !btn.classList.contains('btn-outline-primary')) {
+      // 方法1: 查找被選中的按鈕（有 btn-primary 類且沒有 btn-outline-primary）
+      const buttons = Array.from(document.querySelectorAll('.btn-group button.btn')) as HTMLElement[];
+      for (const btn of buttons) {
+        // 檢查是否為激活狀態（有 btn-primary 且沒有 btn-outline-primary，或相反）
+        const isActive = btn.classList.contains('btn-primary') && !btn.classList.contains('btn-outline-primary');
+        if (isActive) {
           const text = btn.textContent?.trim() || '';
-          if (text.includes('知識點測驗')) {
+          if (text.includes('知識點測驗') || text.includes('知識點')) {
             return 'knowledge';
           }
-          if (text.includes('學校考古題測驗')) {
+          if (text.includes('學校考古題測驗') || text.includes('考古題')) {
             return 'pastexam';
           }
         }
+      }
+      
+      // 方法2: 通過檢查內容區域來判斷（知識點測驗有知識點按鈕，考古題有學校選擇）
+      const hasKnowledgeButtons = document.querySelector('.d-flex.flex-wrap.gap-2 button.btn.btn-outline-primary');
+      const hasSchoolSection = Array.from(document.querySelectorAll('h6')).some(h => 
+        h.textContent?.includes('選擇學校') || h.textContent?.includes('🏫')
+      );
+      
+      if (hasKnowledgeButtons && !hasSchoolSection) {
+        return 'knowledge';
+      }
+      if (hasSchoolSection && !hasKnowledgeButtons) {
+        return 'pastexam';
       }
       
       // 默認返回知識點測驗（第一個標籤通常是默認的）
@@ -960,56 +835,46 @@ export class DetailedGuideService {
       }
 
       // 檢測選中的學校、年度、系所（通過檢查 DOM 結構）
-      // 學校選擇區塊通常在「🏫 選擇學校」標題下方
-      const schoolSection = Array.from(document.querySelectorAll('h6')).find(h => 
-        h.textContent?.includes('選擇學校') || h.textContent?.includes('🏫')
-      );
+      // 查找所有帶有 selected 類的 option-card
+      const allOptionCards = Array.from(document.querySelectorAll('.option-card')) as HTMLElement[];
       
       let selectedSchool: string | null = null;
-      if (schoolSection) {
-        const parentCard = schoolSection.closest('c-card-body');
-        if (parentCard) {
-          const selectedCard = parentCard.querySelector('.option-card.selected');
-          if (selectedCard) {
-            selectedSchool = selectedCard.querySelector('.option-text')?.textContent?.trim() || null;
-          }
-        }
-      }
-
-      // 年度選擇區塊（在「📅 選擇年度」標題下方）
       let selectedYear: string | null = null;
-      if (selectedSchool) {
-        const yearSection = Array.from(document.querySelectorAll('h6')).find(h => 
-          h.textContent?.includes('選擇年度') || h.textContent?.includes('📅')
-        );
-        if (yearSection) {
-          const parentCard = yearSection.closest('c-card-body');
-          if (parentCard) {
+      let selectedDepartment: string | null = null;
+      
+      // 通過查找每個選擇區塊的標題來判斷選中的是什麼
+      const allH6 = Array.from(document.querySelectorAll('h6')) as HTMLElement[];
+      
+      for (const h6 of allH6) {
+        const text = h6.textContent?.trim() || '';
+        const parentCard = h6.closest('c-card-body');
+        
+        if (parentCard) {
+          if (text.includes('選擇學校') || text.includes('🏫')) {
+            // 學校區塊
             const selectedCard = parentCard.querySelector('.option-card.selected');
             if (selectedCard) {
-              const yearText = selectedCard.querySelector('.option-text')?.textContent?.trim() || '';
-              if (yearText.includes('年')) {
-                selectedYear = yearText;
+              const optionText = selectedCard.querySelector('.option-text')?.textContent?.trim();
+              if (optionText) {
+                selectedSchool = optionText;
               }
             }
-          }
-        }
-      }
-
-      // 系所選擇區塊（在「🎓 選擇系所」標題下方）
-      let selectedDepartment: string | null = null;
-      if (selectedSchool && selectedYear) {
-        const deptSection = Array.from(document.querySelectorAll('h6')).find(h => 
-          h.textContent?.includes('選擇系所') || h.textContent?.includes('🎓')
-        );
-        if (deptSection) {
-          const parentCard = deptSection.closest('c-card-body');
-          if (parentCard) {
+          } else if (text.includes('選擇年度') || text.includes('📅')) {
+            // 年度區塊
             const selectedCard = parentCard.querySelector('.option-card.selected');
             if (selectedCard) {
-              const deptText = selectedCard.querySelector('.option-text')?.textContent?.trim() || '';
-              if (deptText && !deptText.includes('年')) {
-                selectedDepartment = deptText;
+              const optionText = selectedCard.querySelector('.option-text')?.textContent?.trim();
+              if (optionText && optionText.includes('年')) {
+                selectedYear = optionText;
+              }
+            }
+          } else if (text.includes('選擇系所') || text.includes('🎓')) {
+            // 系所區塊
+            const selectedCard = parentCard.querySelector('.option-card.selected');
+            if (selectedCard) {
+              const optionText = selectedCard.querySelector('.option-text')?.textContent?.trim();
+              if (optionText && !optionText.includes('年')) {
+                selectedDepartment = optionText;
               }
             }
           }
@@ -1070,7 +935,7 @@ export class DetailedGuideService {
       // 排除已經動態生成的步驟
       return ![
         'system-header', 'overview-main-content', 'calendar-section', 
-        'add-calendar-button', 'calendar-event-list',
+        'add-calendar-button', 'calendar-event-list', 'calendar-view-events',
         'click-learning-center-dropdown', 'select-quiz-center',
         'quiz-center-tabs', 'knowledge-point-selection', 'knowledge-difficulty-selection',
         'knowledge-question-count', 'switch-to-past-exam-tab',
@@ -1083,91 +948,221 @@ export class DetailedGuideService {
   }
 
   /**
-   * 生成作答頁面步驟
+   * 生成作答頁面步驟（簡化為功能介紹）
    */
   private generateQuizTakingSteps(): DetailedGuideStep[] {
     return [
       {
-        id: "exam-page-header",
-        page: "/dashboard/quiz-taking",
-        target: ".exam-container, .exam-header, .exam-container .exam-header, .exam-page-layout",
-        title: "測驗作答頁面",
-        content: "這裡是測驗作答頁面。上方顯示測驗標題，右上角顯示當前題目進度、計時器和提交答案按鈕。",
-        buttonFunction: "查看考試資訊：標題顯示考試資訊；進度顯示當前題目位置；計時器顯示答題時間；提交答案按鈕用於完成測驗",
-        blockPurpose: "測驗作答的主要介面，提供完整的答題環境和進度追蹤",
+        id: "navigate-to-quiz-taking",
+        page: "/dashboard/quiz-center",
+        target: "body",
+        title: "前往測驗作答頁面",
+        content: "當您完成測驗選擇並點擊「開始測驗」後，系統會帶您進入測驗作答頁面。\n\n如果您還沒有開始測驗，請先完成測驗選擇並點擊「開始測驗」按鈕。\n\n完成後點擊「下一步」繼續導覽測驗作答頁面的功能。",
+        buttonFunction: "",
+        blockPurpose: "導航到測驗作答頁面",
         position: "bottom",
         avatarPosition: "top-right",
         waitForElement: true,
         delay: 2000
       },
       {
-        id: "question-nav-panel",
+        id: "exam-page-overview",
         page: "/dashboard/quiz-taking",
-        target: ".question-nav-panel, .col-md-3.col-lg-2.question-nav-panel, .question-grid, .question-nav-btn",
-        title: "題目導覽面板",
-        content: "左側是題目導覽面板，顯示所有題目的編號和狀態。您可以點擊任意題號快速跳轉到該題目。題目狀態包括：已作答、未作答、已標記、當前題目。",
-        buttonFunction: "題目導覽：點擊題號快速跳轉；查看狀態：不同顏色和標記顯示題目狀態",
-        blockPurpose: "題目導覽和狀態管理，提供快速題目切換功能",
+        target: ".exam-container, .exam-page-layout, .quiz-taking-container, body",
+        title: "測驗作答頁面",
+        content: "這是測驗作答頁面的整體介紹：\n\n• 頁面頂部：顯示測驗標題和基本資訊（學校、年度、系所）\n• 右上角：顯示當前題目進度（如：第 1 題 / 共 23 題）、計時器、提交答案按鈕\n• 左側面板：題目導覽區，顯示所有題目的編號和狀態\n• 中間區域：題目內容和答案選項\n\n這些功能幫助您順利完成測驗。",
+        buttonFunction: "",
+        blockPurpose: "介紹測驗作答頁面的整體結構",
+        position: "bottom",
+        avatarPosition: "top-right",
+        waitForElement: true,
+        delay: 2500
+      },
+      {
+        id: "question-navigation",
+        page: "/dashboard/quiz-taking",
+        target: ".question-nav-panel, .question-grid, .question-nav, body",
+        title: "題目導覽功能",
+        content: "左側的題目導覽面板提供以下功能：\n\n• 統計資訊：顯示總題數、已作答、未作答、已標記的數量\n• 題目編號：以網格方式顯示所有題目的編號，方便快速定位\n• 狀態顯示：不同顏色和標記顯示題目狀態\n  - 綠色：已作答\n  - 白色：未作答\n  - 黃色星號：已標記\n  - 藍色：當前題目\n• 快速跳轉：點擊任意題號可以快速跳轉到該題目\n\n使用題目導覽可以幫助您更好地管理答題進度。",
+        buttonFunction: "",
+        blockPurpose: "介紹題目導覽功能",
         position: "right",
         avatarPosition: "top-right",
         waitForElement: true,
-        delay: 1500
+        delay: 2500
       },
       {
-        id: "question-area",
+        id: "question-and-answer",
         page: "/dashboard/quiz-taking",
-        target: ".question-area, .question-header, .question-text, .question-title, .exam-container .question-area",
-        title: "題目內容區",
-        content: "這裡顯示當前的題目內容。題目上方有標籤顯示題目類型（單選、多選、簡答等）。您可以在下方的答案區域作答。",
-        buttonFunction: "閱讀題目：查看完整題目內容；選擇答案：在答案區域選擇或輸入答案",
-        blockPurpose: "顯示題目內容和提供作答介面",
+        target: ".question-area, .answer-section, .question-content, body",
+        title: "題目與作答",
+        content: "中間區域顯示題目內容和答案選項：\n\n• 題目標題：顯示測驗標題（學校、年度、系所）\n• 題目進度：右上角顯示「第 X / 共 Y 題」和計時器\n• 題目類型標籤：顯示題目類型（單選、多選、簡答、選填題等）\n• 題目內容：顯示完整的題目文字和相關資訊\n• 答案選項：根據題目類型提供不同的作答方式\n  - 單選/多選：提供選項按鈕（A、B、C、D 等）供您選擇\n  - 簡答/填空/選填：提供文字輸入框供您輸入答案\n  - 長答題：提供較大的文字區域供您輸入詳細答案\n• 標記功能：可以使用「標記此題★」按鈕標記需要複習的題目\n\n請仔細閱讀題目，選擇或輸入正確答案。",
+        buttonFunction: "",
+        blockPurpose: "介紹題目和作答功能",
         position: "bottom",
         avatarPosition: "top-right",
         waitForElement: true,
-        delay: 1500
+        delay: 2500
       },
       {
-        id: "answer-section",
+        id: "submit-exam",
         page: "/dashboard/quiz-taking",
-        target: ".answer-section, .options-list, .form-check, .sub-question-answer, .answer-section .form-check",
-        title: "答案選項區域",
-        content: "這裡是答案選項區域。根據題目類型，可能是選項按鈕（單選、多選）、文字輸入框（簡答、填空）或長文字區域（長答題）。",
-        buttonFunction: "作答題目：點擊選項或輸入答案；標記題目：使用標記按鈕標記需要複習的題目",
-        blockPurpose: "提供題目作答介面，支援多種題型",
-        position: "bottom",
-        avatarPosition: "top-left",
-        waitForElement: true,
-        delay: 1500
-      },
-      {
-        id: "submit-button",
-        page: "/dashboard/quiz-taking",
-        target: ".exam-header button.btn.btn-success, button.btn.btn-success, .exam-header .btn-success",
-        title: "提交答案",
-        content: "右上角的「提交答案」按鈕用於完成測驗並提交所有答案。點擊後系統會確認並顯示測驗結果。",
-        buttonFunction: "提交答案：完成測驗並查看結果和詳細解析",
-        blockPurpose: "完成測驗並獲取評分結果",
+        target: ".exam-header, button.btn-success, body",
+        title: "提交測驗",
+        content: "完成所有題目後，您可以提交測驗：\n\n• 提交按鈕：位於右上角的綠色「提交答案」按鈕\n• 提交確認：點擊後系統會確認是否要提交\n• 測驗結果：提交後會顯示測驗結果，包括：\n  - 總分和答對題數\n  - 每題的正確答案和您的答案\n  - 詳細解析（如有）\n• 標記功能：可以使用「標記此題★」按鈕標記需要複習的題目\n\n請確認完成所有題目後再提交。",
+        buttonFunction: "",
+        blockPurpose: "介紹提交測驗功能",
         position: "top",
         avatarPosition: "top-right",
         waitForElement: true,
-        delay: 1500
+        delay: 2500
+      }
+    ];
+  }
+
+  /**
+   * 生成其他功能步驟
+   */
+  private generateOtherFeaturesSteps(): DetailedGuideStep[] {
+    return [
+      {
+        id: "navigate-to-learning-analytics",
+        page: "/dashboard/overview",
+        target: "c-header-nav",
+        title: "前往學習成效分析",
+        content: "接下來我們要介紹學習成效分析功能。\n\n操作方式：\n1. 點擊頂部導航欄的「學習分析」選單項\n2. 系統會帶您進入學習成效分析頁面\n\n請按照上述步驟操作，然後點擊「下一步」繼續。",
+        buttonFunction: "",
+        blockPurpose: "導航到學習成效分析頁面",
+        position: "bottom",
+        avatarPosition: "top-right",
+        waitForElement: true,
+        delay: 2000
+      },
+      {
+        id: "learning-analytics-overview",
+        page: "/dashboard/learning-analytics",
+        target: ".learning-analytics-container, .page-header, body",
+        title: "學習成效分析頁面",
+        content: "歡迎來到學習成效分析頁面！這裡提供全面的學習數據分析：\n\n• 頁面標題：顯示「學習成效分析」和說明\n• AI 教練總結：提供 AI 驅動的個人化學習分析和建議\n• 核心指標卡片：顯示掌握度、答對率、學習時長等關鍵數據\n• 知識診斷中心：深入分析知識掌握狀況，發現學習盲點\n• 趨勢分析：查看學習進度趨勢圖表\n\n這是了解自己學習狀況的重要工具。",
+        buttonFunction: "",
+        blockPurpose: "介紹學習成效分析頁面整體功能",
+        position: "bottom",
+        avatarPosition: "top-right",
+        waitForElement: true,
+        delay: 2500
+      },
+      {
+        id: "learning-analytics-features",
+        page: "/dashboard/learning-analytics",
+        target: ".learning-analytics-container c-card, body",
+        title: "學習分析功能詳情",
+        content: "學習成效分析頁面提供以下詳細功能：\n\n• AI 教練分析：自動分析學習狀況，指出需要關注的領域和表現良好的領域\n• 核心指標：\n  - 掌握度：各知識點的掌握程度\n  - 答對率：測驗答題的正確率\n  - 學習時長：總學習時間統計\n  - 練習次數：完成的測驗和練習次數\n• 知識診斷：深入分析知識點掌握狀況，發現薄弱環節\n• 趨勢圖表：以視覺化方式展示學習進度變化\n• 個人化建議：根據分析結果提供改進建議\n\n您可以透過這些功能全面了解自己的學習狀況。",
+        buttonFunction: "",
+        blockPurpose: "詳細介紹學習分析功能",
+        position: "bottom",
+        avatarPosition: "top-right",
+        waitForElement: true,
+        delay: 2500
+      },
+      {
+        id: "navigate-to-news",
+        page: "/dashboard/overview",
+        target: "c-header-nav",
+        title: "前往科技趨勢",
+        content: "接下來我們要介紹科技趨勢（新聞）功能。\n\n操作方式：\n1. 點擊頂部導航欄的「科技趨勢」選單項\n2. 系統會帶您進入科技新聞頁面\n\n請按照上述步驟操作，然後點擊「下一步」繼續。",
+        buttonFunction: "",
+        blockPurpose: "導航到科技趨勢頁面",
+        position: "bottom",
+        avatarPosition: "top-right",
+        waitForElement: true,
+        delay: 2000
+      },
+      {
+        id: "news-overview",
+        page: "/dashboard/news",
+        target: ".news-container, .news-grid, body",
+        title: "科技趨勢頁面",
+        content: "歡迎來到科技趨勢頁面！這裡提供最新的科技新聞和資訊：\n\n• 新聞搜尋：上方有搜尋欄，可以輸入關鍵字搜尋特定的新聞\n• 新聞卡片：以網格方式展示所有新聞\n• 新聞內容：每個新聞卡片包含：\n  - 標題：新聞標題\n  - 摘要：新聞內容摘要\n  - 日期：發布日期\n  - 標籤：相關主題標籤\n• 查看詳情：點擊新聞卡片可以開啟新聞連結查看完整內容\n\n可以在這裡了解最新的科技發展和趨勢。",
+        buttonFunction: "",
+        blockPurpose: "介紹科技趨勢頁面功能",
+        position: "bottom",
+        avatarPosition: "top-right",
+        waitForElement: true,
+        delay: 2500
+      },
+      {
+        id: "navigate-to-settings",
+        page: "/dashboard/overview",
+        target: "c-header-nav",
+        title: "前往系統設定",
+        content: "最後我們要介紹系統設定功能。\n\n操作方式：\n1. 點擊右上角的「設定」按鈕（齒輪圖標）\n2. 在下拉選單中選擇「編輯設定」\n3. 系統會開啟個人設定模態框\n\n請按照上述步驟操作，然後點擊「下一步」繼續。",
+        buttonFunction: "",
+        blockPurpose: "導航到系統設定",
+        position: "bottom",
+        avatarPosition: "top-right",
+        waitForElement: true,
+        delay: 2000
+      },
+      {
+        id: "settings-overview",
+        page: "/dashboard/overview",
+        target: "c-modal#settingsModal, .settings-container, body",
+        title: "系統設定功能",
+        content: "這是系統設定模態框，提供以下功能：\n\n• 個人資料編輯：\n  - 姓名：可以修改顯示名稱\n  - 生日：設定出生日期\n  - 目標學校：選擇目標報考的學校\n• LINE Bot 綁定：\n  - 顯示 QR Code 供掃描\n  - 綁定後可以接收學習提醒和通知\n  - 可以在 LINE 上與系統互動\n• 登出功能：在設定選單中可以登出系統\n\n記得定期更新個人資料，並可以選擇綁定 LINE Bot 以獲得更好的學習體驗。",
+        buttonFunction: "",
+        blockPurpose: "詳細介紹系統設定功能",
+        position: "bottom",
+        avatarPosition: "top-right",
+        waitForElement: true,
+        delay: 2500
+      },
+      {
+        id: "courses-intro",
+        page: "/dashboard/overview",
+        target: "c-header-nav",
+        title: "課程中心",
+        content: "課程中心提供豐富的學習資源：\n\n• 位置：頂部導航欄的「課程」選單\n• 功能：瀏覽所有可用的課程和教材\n• 內容：以書架方式展示，每個課程卡片顯示封面、名稱和簡介\n• 學習：點擊課程卡片可以查看詳細內容和教材\n\n可以在這裡找到適合的學習資源。",
+        buttonFunction: "",
+        blockPurpose: "介紹課程中心功能",
+        position: "bottom",
+        avatarPosition: "top-right",
+        waitForElement: true,
+        delay: 2000
       }
     ];
   }
 
   /**
    * 執行指定步驟（支持動態調整）
+   * [已註解] 網站導覽功能暫時停用
    */
   private async executeStep(stepIndex: number): Promise<void> {
-    // 在執行步驟前，動態檢測並可能重新生成步驟（特別是在測驗中心）
-    if (stepIndex > 0 && window.location.pathname === '/dashboard/quiz-center') {
-      // 如果在測驗中心，重新生成動態步驟
-      this.regenerateQuizCenterSteps();
-    }
-
+    // [已註解] 網站導覽功能暫時停用
+    return;
+    
+    /* 原始邏輯已註解
     if (stepIndex >= this.guideSteps.length) {
       this.completeGuide();
       return;
+    }
+
+    // 在執行步驟前，動態檢測並可能重新生成步驟（特別是在測驗中心）
+    // 但只在需要時重新生成（避免頻繁重新生成導致步驟跳躍）
+    if (window.location.pathname === '/dashboard/quiz-center') {
+      const currentStep = this.guideSteps[stepIndex];
+      // 如果是測驗中心相關的步驟，且當前步驟ID在需要動態更新的步驟列表中
+      if (currentStep && [
+        'quiz-center-tabs', 'switch-to-past-exam-tab', 
+        'select-school', 'select-year', 'select-department', 'start-past-exam-quiz',
+        'knowledge-point-selection', 'knowledge-difficulty-selection', 'knowledge-question-count'
+      ].includes(currentStep.id)) {
+        this.regenerateQuizCenterSteps();
+        // 重新獲取步驟（因為可能已經更新）
+        if (stepIndex >= this.guideSteps.length) {
+          this.completeGuide();
+          return;
+        }
+      }
     }
 
     this.currentStepIndex = stepIndex;
@@ -1175,18 +1170,18 @@ export class DetailedGuideService {
 
     // console.log(`🎯 執行步驟 ${stepIndex + 1}/${this.guideSteps.length}: ${step.title}`);
 
-    // 不自動跳轉頁面，而是指引用戶點擊導航
+    // 檢查是否需要導航到其他頁面（改為純介紹模式，即使不在目標頁面也顯示介紹）
     if (step.page && step.page !== window.location.pathname) {
-      // console.log(`📍 需要導航到: ${step.page}，等待用戶點擊導航`);
-      // 等待用戶手動導航
-      this.waitForNavigation(step);
+      // 純介紹模式：即使不在目標頁面，也顯示介紹說明
+      // 只是提示用戶如何導航，但不強制等待
+      this.showNavigationHint(step);
       return;
     }
 
     // 等待頁面載入和元素出現
     await this.waitForPageLoad();
 
-    // 查找目標元素
+    // 查找目標元素（改為寬鬆模式，找不到也繼續）
     const target = await this.findTargetElement(step.target, step.waitForElement);
 
     if (target) {
@@ -1213,30 +1208,12 @@ export class DetailedGuideService {
 
         // 顯示詳細說明
         this.showDetailedDescription(step, stepIndex);
-
-        // 如果是需要點擊的步驟，設置點擊監聽器（點擊後自動進入下一步）
-        if (this.isClickableStep(step)) {
-          this.setupClickListener(target, step);
-        }
       }, step.delay || 1000);
     } else {
-      // console.warn(`⚠️ 找不到目標元素: ${step.target}`);
-      // 顯示找不到元素的提示，並設置自動跳過
-      this.showElementNotFoundMessage(step);
-
-      // 清除之前的計時器，避免重複觸發
-      if (this.autoSkipTimer) {
-        clearTimeout(this.autoSkipTimer);
-      }
-
-      // 10秒後自動跳過到下一步，避免卡住
-      this.autoSkipTimer = setTimeout(() => {
-        if (this.isActive && this.currentStepIndex < this.guideSteps.length) {
-          // console.log(`🔄 自動跳過步驟: ${step.title}`);
-          this.nextStep();
-        }
-      }, 10000);
+      // 找不到目標元素時，改為在頁面中央顯示介紹（純介紹模式）
+      this.showDescriptionWithoutTarget(step, stepIndex);
     }
+    */
   }
 
   /**
@@ -1572,9 +1549,14 @@ export class DetailedGuideService {
   }
 
   /**
-   * 創建頭像
+   * 創建導覽頭像
+   * [已註解] 網站導覽功能暫時停用
    */
   private createAvatar(): void {
+    // [已註解] 網站導覽功能暫時停用
+    return;
+    
+    /* 原始邏輯已註解
     this.avatarElement = document.createElement('div');
     this.avatarElement.className = 'detailed-guide-avatar';
     this.avatarElement.style.cssText = `
@@ -1599,6 +1581,7 @@ export class DetailedGuideService {
     });
 
     document.body.appendChild(this.avatarElement);
+    */
   }
 
   /**
@@ -1818,8 +1801,14 @@ export class DetailedGuideService {
 
   /**
    * 下一步 - 強化版本，確保清理乾淨
+   * [已註解] 網站導覽功能暫時停用
    */
   nextStep(): void {
+    // [已註解] 網站導覽功能暫時停用
+    console.log('網站導覽功能已停用');
+    return;
+    
+    /* 原始邏輯已註解
     // 立即清除所有效果，避免重複顯示
     this.clearEffects();
 
@@ -1834,32 +1823,52 @@ export class DetailedGuideService {
     } else {
       this.completeGuide();
     }
+    */
   }
 
   /**
    * 上一步
+   * [已註解] 網站導覽功能暫時停用
    */
   previousStep(): void {
+    // [已註解] 網站導覽功能暫時停用
+    console.log('網站導覽功能已停用');
+    return;
+    
+    /* 原始邏輯已註解
     if (this.currentStepIndex > 0) {
       this.executeStep(this.currentStepIndex - 1);
     }
+    */
   }
 
   /**
    * 跳過導覽
+   * [已註解] 網站導覽功能暫時停用
    */
   skipGuide(): void {
+    // [已註解] 網站導覽功能暫時停用
+    console.log('網站導覽功能已停用');
+    return;
+    
+    /* 原始邏輯已註解
     this.endGuide();
     this.markUserAsGuided();
+    */
   }
 
   /**
    * 完成導覽
+   * [已註解] 網站導覽功能暫時停用
    */
   private completeGuide(): void {
+    // [已註解] 網站導覽功能暫時停用
+    this.endGuide();
+    /* 原始邏輯已註解
     this.endGuide();
     this.markUserAsGuided();
     this.showCompletionMessage();
+    */
   }
 
   /**
@@ -2143,41 +2152,94 @@ export class DetailedGuideService {
   }
 
   /**
-   * 等待用戶導航 - 修正版本，避免重複觸發
+   * 顯示導航提示（純介紹模式）
    */
-  private waitForNavigation(step: DetailedGuideStep): void {
-
-
-    // 先清除所有效果，避免重複顯示
+  private showNavigationHint(step: DetailedGuideStep): void {
+    // 清除所有效果
     this.clearEffects();
-
-    // 高亮導航按鈕
-    this.highlightNavigationButton(step);
-
-    // 設置路由監聽器
-    const routeCheckInterval = setInterval(() => {
+    
+    // 顯示介紹說明（即使不在目標頁面）
+    this.showDescriptionWithoutTarget(step, this.currentStepIndex);
+    
+    // 設置監聽路由變化，如果用戶導航到目標頁面，自動更新顯示
+    const checkNavigation = () => {
       if (window.location.pathname === step.page) {
-        clearInterval(routeCheckInterval);
-
-        // 清除導航相關的效果
-        this.clearEffects();
-
-        // 等待頁面載入後繼續當前步驟
+        // 已經在目標頁面，重新執行步驟以顯示正確的高亮
         setTimeout(() => {
           this.executeStep(this.currentStepIndex);
-        }, 1500);
+        }, 500);
+        return true;
       }
-    }, 500);
+      return false;
+    };
+    
+    // 立即檢查一次
+    if (!checkNavigation()) {
+      // 定期檢查（最多等待 30 秒）
+      let attempts = 0;
+      const maxAttempts = 60; // 30秒 = 60 * 500ms
+      const checkInterval = setInterval(() => {
+        attempts++;
+        if (checkNavigation() || attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+        }
+      }, 500);
+    }
+  }
 
-    // 30秒後自動超時
-    setTimeout(() => {
-      clearInterval(routeCheckInterval);
-      if (window.location.pathname !== step.page) {
-        console.warn(`⏰ 導航超時，自動跳過: ${step.page}`);
-        this.clearEffects();
-        this.nextStep();
+  /**
+   * 顯示說明但不需要目標元素（純介紹模式）
+   */
+  private showDescriptionWithoutTarget(step: DetailedGuideStep, stepIndex: number): void {
+    this.clearEffects();
+    
+    // 查找一個通用容器作為定位參考（優先找 body）
+    let container = document.body;
+    
+    // 嘗試找一個合適的容器
+    const possibleContainers = [
+      '.dashboard-container',
+      'c-container',
+      '.main-content',
+      'body'
+    ];
+    
+    for (const selector of possibleContainers) {
+      const el = document.querySelector(selector) as HTMLElement;
+      if (el) {
+        container = el;
+        break;
       }
-    }, 30000);
+    }
+    
+    // 滾動到容器位置
+    container.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+      inline: 'center'
+    });
+    
+    // 等待滾動完成
+    setTimeout(() => {
+      // 高亮容器（如果是可見的）
+      if (container && container !== document.body) {
+        this.highlightElement(container);
+      }
+      
+      // 定位頭像到容器
+      this.positionAvatar(container, step.avatarPosition || 'top-right');
+      
+      // 顯示詳細說明
+      this.showDetailedDescription(step, stepIndex);
+    }, 500);
+  }
+
+  /**
+   * 等待用戶導航（已廢棄，改用 showNavigationHint）
+   */
+  private waitForNavigation(step: DetailedGuideStep): void {
+    // 使用新的方法
+    this.showNavigationHint(step);
   }
 
   /**
@@ -2365,36 +2427,12 @@ export class DetailedGuideService {
   }
 
   /**
-   * 判斷是否為可點擊步驟（需要用戶點擊後自動進入下一步）
+   * 判斷是否為可點擊步驟（改為純介紹模式，不需要點擊監聽）
    */
   private isClickableStep(step: DetailedGuideStep): boolean {
-    const clickableKeywords = [
-      'button', 'btn', 'click', '點擊', '選擇', '選擇器',
-      'dropdown', 'menu', 'nav-link', 'routerLink',
-      'option-card', 'form-check', 'submit',
-      'c-dropdown', 'c-button', 'a[routerLink]'
-    ];
-    
-    const stepTarget = step.target.toLowerCase();
-    const stepTitle = step.title.toLowerCase();
-    const stepContent = step.content.toLowerCase();
-    
-    // 特別檢查是否為導航類步驟
-    const isNavigationStep: boolean = step.target.includes('routerLink') || 
-                           step.target.includes('cDropdownItem') ||
-                           stepContent.includes('導航') ||
-                           stepContent.includes('進入') ||
-                           Boolean(step.buttonFunction && step.buttonFunction.includes('導航'));
-    
-    // 檢查目標選擇器、標題或內容中是否包含可點擊關鍵字
-    const hasClickableKeyword = clickableKeywords.some(keyword => 
-      stepTarget.includes(keyword) || 
-      stepTitle.includes(keyword) || 
-      stepContent.includes('點擊') || 
-      stepContent.includes('選擇')
-    );
-    
-    return hasClickableKeyword || isNavigationStep;
+    // 改為純介紹模式，所有步驟都不需要點擊監聽
+    // 用戶通過「下一步」按鈕手動推進
+    return false;
   }
 
   /**
@@ -2412,18 +2450,127 @@ export class DetailedGuideService {
         // 清除點擊監聽器，避免重複觸發
         element.removeEventListener('click', clickHandler);
         
-        // 檢查是否為導航步驟（點擊後會跳轉到其他頁面）
-        const isNavigationStep = step.target.includes('routerLink') || 
-                               step.target.includes('cDropdownItem') ||
-                               step.content.includes('導航') ||
-                               step.content.includes('進入') ||
-                               (step.buttonFunction && step.buttonFunction.includes('導航'));
-        
-        // 檢查下一步是否需要不同的頁面
-        const nextStep = this.guideSteps[this.currentStepIndex + 1];
-        const needsPageChange = nextStep && nextStep.page && nextStep.page !== window.location.pathname;
-        
-        if (isNavigationStep || needsPageChange) {
+      // 檢查是否為導航步驟（點擊後會跳轉到其他頁面）
+      const isNavigationStep = step.target.includes('routerLink') || 
+                             step.target.includes('cDropdownItem') ||
+                             step.content.includes('導航') ||
+                             step.content.includes('進入') ||
+                             (step.buttonFunction && step.buttonFunction.includes('導航'));
+      
+      // 檢查是否為標籤切換步驟（點擊後會切換標籤，但仍在同一頁面）
+      const isTabSwitchStep = step.id === 'switch-to-past-exam-tab' || 
+                              step.id === 'quiz-center-tabs' ||
+                              step.content.includes('切換') && step.content.includes('標籤');
+      
+      // 檢查是否為選擇步驟（選擇學校、年度、系所、知識點等）
+      const isSelectionStep = step.id === 'select-school' || 
+                             step.id === 'select-year' || 
+                             step.id === 'select-department' ||
+                             step.id === 'knowledge-point-selection' ||
+                             (step.content.includes('選擇') && step.content.includes('卡片'));
+      
+      // 檢查下一步是否需要不同的頁面
+      const nextStep = this.guideSteps[this.currentStepIndex + 1];
+      const needsPageChange = nextStep && nextStep.page && nextStep.page !== window.location.pathname;
+      
+      // 如果是標籤切換步驟，需要重新生成步驟並繼續
+      if (isTabSwitchStep) {
+        // 等待標籤切換完成（內容區域變化）
+        setTimeout(() => {
+          // 重新生成測驗中心步驟
+          if (window.location.pathname === '/dashboard/quiz-center') {
+            this.regenerateQuizCenterSteps();
+            
+            // 找到當前步驟在重新生成後的索引
+            const currentStepId = step.id;
+            let newIndex = this.guideSteps.findIndex(s => s.id === currentStepId);
+            
+            // 如果找不到，嘗試找到下一個考古題相關步驟
+            if (newIndex === -1 || currentStepId === 'switch-to-past-exam-tab') {
+              // 找到第一個考古題相關步驟（選擇學校）
+              newIndex = this.guideSteps.findIndex(s => s.id === 'select-school');
+              if (newIndex === -1) {
+                // 如果還是找不到，找下一個步驟
+                newIndex = this.currentStepIndex + 1;
+              }
+            }
+            
+            // 更新當前步驟索引並執行
+            if (newIndex >= 0 && newIndex < this.guideSteps.length) {
+              // 等待一下讓 DOM 更新完成
+              setTimeout(() => {
+                this.executeStep(newIndex);
+              }, 800);
+            } else {
+              // 如果找不到下一步，繼續下一個
+              setTimeout(() => {
+                this.nextStep();
+              }, 500);
+            }
+          } else {
+            this.nextStep();
+          }
+        }, 500);
+      } else if (isSelectionStep) {
+        // 如果是選擇步驟（選擇學校、年度、系所等），需要重新生成步驟
+        // 等待 DOM 更新完成（選擇後可能會顯示新的選項）
+        setTimeout(() => {
+          if (window.location.pathname === '/dashboard/quiz-center') {
+            // 重新生成測驗中心步驟
+            this.regenerateQuizCenterSteps();
+            
+            // 找到下一個相關步驟
+            let nextIndex = this.currentStepIndex + 1;
+            
+            // 根據當前步驟，找到應該執行的下一步
+            if (step.id === 'select-school') {
+              // 選擇學校後，應該是選擇年度
+              nextIndex = this.guideSteps.findIndex(s => s.id === 'select-year');
+              if (nextIndex === -1) {
+                // 如果年度已經選了，找系所或開始測驗
+                nextIndex = this.guideSteps.findIndex(s => s.id === 'select-department' || s.id === 'start-past-exam-quiz');
+              }
+              if (nextIndex === -1) {
+                nextIndex = this.currentStepIndex + 1;
+              }
+            } else if (step.id === 'select-year') {
+              // 選擇年度後，應該是選擇系所
+              nextIndex = this.guideSteps.findIndex(s => s.id === 'select-department');
+              if (nextIndex === -1) {
+                // 如果系所已經選了，找開始測驗
+                nextIndex = this.guideSteps.findIndex(s => s.id === 'start-past-exam-quiz');
+              }
+              if (nextIndex === -1) {
+                nextIndex = this.currentStepIndex + 1;
+              }
+            } else if (step.id === 'select-department') {
+              // 選擇系所後，應該是開始測驗
+              nextIndex = this.guideSteps.findIndex(s => s.id === 'start-past-exam-quiz');
+              if (nextIndex === -1) {
+                nextIndex = this.currentStepIndex + 1;
+              }
+            }
+            
+            // 確保索引有效
+            if (nextIndex >= 0 && nextIndex < this.guideSteps.length) {
+              // 等待一下讓 DOM 更新完成
+              setTimeout(() => {
+                this.executeStep(nextIndex);
+              }, 600);
+            } else {
+              // 如果找不到下一步，繼續下一個
+              setTimeout(() => {
+                this.nextStep();
+              }, 300);
+            }
+          } else {
+            // 不在測驗中心頁面，直接下一步
+            setTimeout(() => {
+              this.nextStep();
+            }, 300);
+          }
+        }, 500);
+      } else if (isNavigationStep || needsPageChange) {
           // 如果是導航步驟，監聽路由變化
           const targetPath = nextStep?.page || step.page;
           const startPath = window.location.pathname;

@@ -1,4 +1,6 @@
 <div class="bg-light dark:bg-transparent min-vh-100 d-flex flex-column">
+  <!-- 光線掃描效果層 -->
+  <div class="light-scan-layer"></div>
   <div class="tech-particles">
     <div class="particle"></div>
     <div class="particle"></div>
@@ -11,7 +13,7 @@
     <div class="particle"></div>
     <div class="particle"></div>
   </div>
-  <header class="navbar navbar-light shadow-sm custom-2">
+  <header class="navbar navbar-light shadow-sm custom-2" style="position: relative; z-index: 10;">
     <div class="container">
       <a class="navbar-brand d-flex align-items-center" href="dashboard">
         <img src="assets/logo.jpg" alt="MIS Teach Logo" class="sidebar-brand-full mx-1" height="32">
@@ -19,7 +21,7 @@
       </a>
     </div>
   </header>
-  <div class="flex-grow-1 d-flex flex-row align-items-center">
+  <div class="flex-grow-1 d-flex flex-row align-items-center" style="position: relative; z-index: 5;">
     <c-container breakpoint="md">
       <c-row class="justify-content-center">
         <c-col lg="10" xl="8">

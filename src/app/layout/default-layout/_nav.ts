@@ -7,18 +7,14 @@ export const navItems: INavData[] = [
     iconComponent: { name: 'cilBook' }
   },
   {
-    name: '學習中心',
-    iconComponent: { name: 'cilSchool' },
-    children: [
-      {
-        name: '測驗中心',
-        url: '/dashboard/quiz-center'
-      },
-      {
-        name: '錯題統整',
-        url: '/dashboard/mistake-analysis'
-      }
-    ]
+    name: '測驗中心',
+    url: '/dashboard/quiz-center',
+    iconComponent: { name: 'cilSchool' }
+  },
+  {
+    name: '錯題統整',
+    url: '/dashboard/mistake-analysis',
+    iconComponent: { name: 'cilList' }
   },
   {
     name: '學習分析',

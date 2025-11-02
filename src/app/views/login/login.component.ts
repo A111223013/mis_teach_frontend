@@ -90,12 +90,13 @@ export class LoginComponent implements OnInit {
 
             // 先導航到 dashboard
             this.router.navigate(['/dashboard']).then(() => {
+              // [已註解] 網站導覽功能暫時停用
               // 延遲觸發導覽，確保頁面完全載入
               setTimeout(() => {
                 this.showWelcomeMessage();
-                setTimeout(() => {
-                  this.detailedGuideService.startDetailedGuide();
-                }, 3500);
+                // setTimeout(() => {
+                //   this.detailedGuideService.startDetailedGuide();
+                // }, 3500);
               }, 1000);
             });
           } else {

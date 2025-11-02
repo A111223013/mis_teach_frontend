@@ -1,184 +1,170 @@
-<div class="mistake-analysis-container p-4">
+<div class="mistake-analysis-container">
+  <!-- 頁面標題 -->
+  <div class="page-header">
+    <h1 class="page-title">錯題統整</h1>
+    <p class="page-subtitle">查看並複習所有答錯的題目，針對性加強薄弱環節</p>
+  </div>
+
   <c-card>
-    <c-card-header class="bg-danger text-white">
-      <h3 class="mb-0">
-        <c-icon name="cilListRich" class="me-2"></c-icon>
-        題目分析
-      </h3>
-    </c-card-header>
     <c-card-body>
       <div *ngIf="loading" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">載入中...</span>
         </div>
-        <p class="mt-3">載入測驗數據中...</p>
+        <p class="mt-3">載入錯題數據中...</p>
       </div>
 
       <div *ngIf="!loading">
-        <div class="filters mb-4">
-          <h5 class="mb-3">篩選選項</h5>
-          <c-row>
-            <c-col xs="12" md="6" xl="2">
-              <div class="mb-3">
-                <label class="form-label">狀態</label>
-                <select class="form-select" [(ngModel)]="filters.status" (change)="applyFilters()">
-                  <option value="">全部狀態</option>
-                  <option value="correct">正確題目</option>
-                  <option value="wrong">錯誤題目</option>
-                  <option value="unanswered">未答題目</option>
-                </select>
-              </div>
-            </c-col>
-            <c-col xs="12" md="6" xl="2">
-              <div class="mb-3">
-                <label class="form-label">知識點</label>
-                <select class="form-select" [(ngModel)]="filters.topic" (change)="applyFilters()">
-                  <option value="">全部知識點</option>
-                  <option *ngFor="let topic of topicOptions" [value]="topic">{{ topic }}</option>
-                </select>
-              </div>
-            </c-col>
+        <div *ngIf="wrongQuestions.length === 0" class="text-center py-5">
+          <svg cIcon name="cilCheckCircle" size="3xl" class="text-success mb-3"></svg>
+          <h5>目前沒有錯題</h5>
+          <p class="text-muted">繼續加油，保持全對！</p>
+        </div>
 
-            <c-col xs="12" md="6" xl="2">
-              <div class="mb-3">
-                <label class="form-label">時間範圍</label>
-                <select class="form-select" [(ngModel)]="filters.timeRange" (change)="applyFilters()">
-                  <option value="">全部時間</option>
-                  <option value="day">今天</option>
-                  <option value="week">本週</option>
-                  <option value="month">本月</option>
-                  <option value="year">今年</option>
-                </select>
+        <div *ngIf="wrongQuestions.length > 0">
+          <!-- 篩選區域 -->
+          <div class="filter-section mb-4">
+            <!-- 搜尋欄 -->
+            <div class="search-container mb-3">
+              <div class="search-wrapper">
+                <div class="search-icon-wrapper">
+                  <svg cIcon name="cilMagnifyingGlass" class="search-icon"></svg>
+                </div>
+                <input 
+                  type="text" 
+                  [(ngModel)]="searchTerm" 
+                  placeholder="搜尋題目、知識點、章節、微概念..."
+                  class="search-input"
+                  (keyup.enter)="applyFilters()"
+                  (input)="applyFilters()">
+                <button 
+                  *ngIf="searchTerm" 
+                  class="clear-btn" 
+                  (click)="clearSearch()" 
+                  type="button" 
+                  title="清除搜尋">
+                  <svg cIcon name="cilX"></svg>
+                </button>
               </div>
-            </c-col>
-            <c-col xs="12" md="6" xl="2">
-              <div class="mb-3">
-                <label class="form-label">測驗類型</label>
-                <select class="form-select" [(ngModel)]="filters.examType" (change)="applyFilters()">
-                  <option value="">全部類型</option>
-                  <option value="knowledge">知識點測驗</option>
-                  <option value="pastexam">考古題測驗</option>
-                </select>
+            </div>
+            
+            <!-- 下拉選單篩選 -->
+            <div class="filter-dropdowns">
+              <div class="row g-2">
+                <div class="col-md-3 col-sm-6">
+                  <select 
+                    class="form-select" 
+                    [(ngModel)]="selectedTopic"
+                    (change)="applyFilters()">
+                    <option value="">全部知識點</option>
+                    <option *ngFor="let topic of topicOptions" [value]="topic">{{ topic }}</option>
+                  </select>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <select 
+                    class="form-select" 
+                    [(ngModel)]="selectedErrorRange"
+                    (change)="applyFilters()">
+                    <option *ngFor="let range of errorRangeOptions" [value]="range.value">{{ range.label }}</option>
+                  </select>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <button 
+                    class="btn btn-outline-secondary w-100" 
+                    (click)="clearFilters()"
+                    *ngIf="searchTerm || selectedTopic || selectedChapter || selectedErrorRange">
+                    <svg cIcon name="cilX" class="me-1"></svg> 清除篩選
+                  </button>
+                </div>
               </div>
-            </c-col>
-          </c-row>
-          
-          <div class="d-flex justify-content-end mb-3">
-            <button class="btn btn-outline-secondary me-2" (click)="resetFilters()">
-              <c-icon name="cilFilterX" class="me-1"></c-icon>
-              重置篩選
-            </button>
-            <button class="btn btn-primary" (click)="startReviewSession()">
-              <c-icon name="cilBook" class="me-1"></c-icon>
-              開始複習選中題目
-            </button>
+            </div>
           </div>
-        </div>
+          
+          <!-- 統計資訊 -->
+          <div class="mb-4">
+            <h5 class="mb-0">
+              <span *ngIf="filteredQuestions.length === wrongQuestions.length">
+                共有 <span class="text-danger fw-bold">{{ wrongQuestions.length }}</span> 道不同錯題需要複習
+                <span class="text-muted ms-2">（總共錯誤 <span class="text-danger fw-bold">{{ getTotalErrorCount() }}</span> 次）</span>
+              </span>
+              <span *ngIf="filteredQuestions.length !== wrongQuestions.length">
+                顯示 <span class="text-danger fw-bold">{{ filteredQuestions.length }}</span> / 
+                <span class="text-muted">{{ wrongQuestions.length }}</span> 道錯題
+                <span class="text-muted ms-2">（錯誤 <span class="text-danger fw-bold">{{ getFilteredTotalErrorCount() }}</span> 次）</span>
+              </span>
+            </h5>
+          </div>
 
-        <div class="stats-row mb-4">
-          <c-row>
-            <c-col xs="6" md="2">
-              <div class="stat-card bg-light p-3 rounded text-center">
-                <h2 class="text-primary">{{ allQuestions.length }}</h2>
-                <p class="text-muted mb-0">總題數</p>
-              </div>
-            </c-col>
-            <c-col xs="6" md="2">
-              <div class="stat-card bg-light p-3 rounded text-center">
-                <h2 class="text-success">{{ getCorrectCount() }}</h2>
-                <p class="text-muted mb-0">正確題數</p>
-              </div>
-            </c-col>
-            <c-col xs="6" md="2">
-              <div class="stat-card bg-light p-3 rounded text-center">
-                <h2 class="text-danger">{{ getWrongCount() }}</h2>
-                <p class="text-muted mb-0">錯誤題數</p>
-              </div>
-            </c-col>
-            <c-col xs="6" md="2">
-              <div class="stat-card bg-light p-3 rounded text-center">
-                <h2 class="text-warning">{{ getUnansweredCount() }}</h2>
-                <p class="text-muted mb-0">跳過題數</p>
-              </div>
-            </c-col>
-            <c-col xs="6" md="2">
-              <div class="stat-card bg-light p-3 rounded text-center">
-                <h2 class="text-info">{{ recentMistakes }}</h2>
-                <p class="text-muted mb-0">本週錯題</p>
-              </div>
-            </c-col>
-            <c-col xs="6" md="2">
-              <div class="stat-card bg-light p-3 rounded text-center">
-                <h2 class="text-primary">{{ weakestTopic }}</h2>
-                <p class="text-muted mb-0">最弱知識點</p>
-              </div>
-            </c-col>
-          </c-row>
-        </div>
+          <!-- 題目列表 -->
+          <div class="questions-list" *ngIf="filteredQuestions.length > 0">
+            <c-row class="g-4">
+              <c-col xs="12" *ngFor="let question of filteredQuestions; let i = index">
+                <c-card class="question-card">
+                  <c-card-body>
+                    <div class="question-header mb-3 d-flex justify-content-between align-items-start">
+                      <div class="question-number">
+                        <span class="badge bg-danger me-2">錯誤 {{ question.errorCount }} 次</span>
+                        <small class="text-muted">{{ formatDate(question.timestamp) }}</small>
+                      </div>
+                    </div>
 
-        <h5 class="mb-3">題目列表</h5>
+                    <div class="question-content mb-3">
+                      <h6 class="question-label mb-2">題目：</h6>
+                      <div class="p-3 bg-light rounded question-text">
+                        {{ question.question_text }}
+                      </div>
+                    </div>
 
-        <div *ngIf="filteredQuestions.length === 0" class="text-center py-5">
-          <c-icon name="cilCheckCircle" size="3xl" class="text-success mb-3"></c-icon>
-          <h5>沒有符合條件的題目</h5>
-          <p class="text-muted">嘗試調整篩選條件或清除篩選</p>
-        </div>
+                    <div class="answer-section mb-3">
+                      <div class="mb-2">
+                        <h6 class="question-label mb-2">您的答案：</h6>
+                        <div class="p-3 bg-danger-subtle rounded">
+                          <span class="text-danger">{{ question.student_answer || '未作答' }}</span>
+                        </div>
+                      </div>
 
-        <div *ngIf="filteredQuestions.length > 0">
-          <c-row class="g-3">
-            <c-col xs="12" md="6" xl="4" *ngFor="let question of filteredQuestions">
-              <c-card class="h-100 question-card">
-                <c-card-header class="d-flex justify-content-between align-items-center py-2">
-                  <div>
-                    <c-badge 
-                      [color]="question.status === 'correct' ? 'success' : question.status === 'wrong' ? 'danger' : 'warning'" 
-                      class="me-2">
-                      {{ question.status === 'correct' ? '正確' : question.status === 'wrong' ? '錯誤' : '未答' }}
-                    </c-badge>
-                    <c-badge color="info">{{ question.topic }}</c-badge>
-                  </div>
-                  <small class="text-muted">{{ formatDate(question.timestamp) }}</small>
-                </c-card-header>
-                                 <c-card-body>
-                   <p class="question-text mb-3">{{ getShortQuestionText(question.question_text) }}</p>
-                   
-                   <div class="answers mb-3" *ngIf="question.status !== 'unanswered'">
-                     <div class="mb-2">
-                       <small class="text-muted d-block">您的答案：</small>
-                       <div class="p-2 rounded" 
-                            [class]="question.status === 'correct' ? 'bg-success-subtle' : 'bg-danger-subtle'">
-                         <span [class]="question.status === 'correct' ? 'text-success' : 'text-danger'">
-                           {{ getShortAnswer(question.student_answer) }}
-                         </span>
-                       </div>
-                     </div>
-                     <div *ngIf="question.status === 'wrong'">
-                       <small class="text-muted d-block">正確答案：</small>
-                       <div class="p-2 bg-success-subtle rounded">
-                         <span class="text-success">{{ getShortAnswer(question.correct_answer) }}</span>
-                       </div>
-                     </div>
-                   </div>
-                   
-                   <div class="answers mb-3" *ngIf="question.status === 'unanswered'">
-                     <div class="p-2 bg-warning-subtle rounded">
-                       <span class="text-warning">此題未作答</span>
-                     </div>
-                   </div>
-                 </c-card-body>
-                                 <c-card-footer class="bg-light d-flex justify-content-end align-items-center">
-                   <div class="d-flex gap-2">
-                     <button class="btn btn-sm btn-primary" (click)="reviewMistake(question)">
-                       <c-icon name="cilBook" class="me-1"></c-icon> 查看詳情
-                     </button>
-                     <button class="btn btn-sm btn-success" (click)="startGuidedLearning(question)">
-                       <c-icon name="cilLightbulb" class="me-1"></c-icon> 引導學習
-                     </button>
-                   </div>
-                 </c-card-footer>
-              </c-card>
-            </c-col>
-          </c-row>
+                      <div class="mb-2">
+                        <h6 class="question-label mb-2 d-flex align-items-center">
+                          正確答案：
+                          <button 
+                            class="btn btn-link btn-sm p-0 ms-2" 
+                            (click)="toggleCorrectAnswer(question.uniqueId)"
+                            [attr.aria-label]="isCorrectAnswerVisible(question.uniqueId) ? '隱藏答案' : '顯示答案'">
+                            <svg 
+                              cIcon 
+                              [name]="isCorrectAnswerVisible(question.uniqueId) ? 'cilLockUnlocked' : 'cilLockLocked'" 
+                              class="text-primary"
+                              size="lg">
+                            </svg>
+                          </button>
+                        </h6>
+                        <div class="p-3 bg-success-subtle rounded" *ngIf="isCorrectAnswerVisible(question.uniqueId)">
+                          <span class="text-success">{{ question.correct_answer }}</span>
+                        </div>
+                        <div class="p-3 bg-light rounded text-muted" *ngIf="!isCorrectAnswerVisible(question.uniqueId)">
+                          <span>點擊鎖圖標查看正確答案</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="question-actions mt-3">
+                      <button class="btn btn-primary btn-sm" (click)="reviewMistake(question)">
+                        <svg cIcon name="cilBook" class="me-1"></svg> 查看詳情
+                      </button>
+                    </div>
+                  </c-card-body>
+                </c-card>
+              </c-col>
+            </c-row>
+          </div>
+          
+          <!-- 沒有符合篩選條件的結果 -->
+          <div *ngIf="filteredQuestions.length === 0" class="text-center py-5">
+            <svg cIcon name="cilFilter" size="3xl" class="text-muted mb-3"></svg>
+            <h5>沒有符合篩選條件的錯題</h5>
+            <p class="text-muted">請嘗試調整篩選條件</p>
+            <button class="btn btn-outline-primary mt-2" (click)="clearFilters()">清除所有篩選</button>
+          </div>
         </div>
       </div>
     </c-card-body>
@@ -193,51 +179,47 @@
   <c-modal-body *ngIf="selectedQuestion">
     <div class="question-detail">
       <div class="mb-4">
-        <h6 class="text-muted">題目內容</h6>
+        <h6 class="text-muted mb-2">題目內容</h6>
         <div class="p-3 bg-light rounded">
           {{ selectedQuestion.question_text }}
         </div>
       </div>
 
-      <c-row *ngIf="selectedQuestion.status !== 'unanswered'">
+      <c-row>
         <c-col xs="12" md="6">
-          <h6 class="text-muted">您的答案</h6>
-          <div class="p-3 rounded" 
-               [class]="selectedQuestion.status === 'correct' ? 'bg-success-subtle' : 'bg-danger-subtle'">
-            <span [class]="selectedQuestion.status === 'correct' ? 'text-success' : 'text-danger'">
-              {{ selectedQuestion.student_answer || '未作答' }}
-            </span>
+          <h6 class="text-muted mb-2">您的答案</h6>
+          <div class="p-3 bg-danger-subtle rounded">
+            <span class="text-danger">{{ selectedQuestion.student_answer || '未作答' }}</span>
           </div>
         </c-col>
 
-        <c-col xs="12" md="6" *ngIf="selectedQuestion.status === 'wrong'">
-          <h6 class="text-muted">正確答案</h6>
+        <c-col xs="12" md="6">
+          <h6 class="text-muted mb-2">正確答案</h6>
           <div class="p-3 bg-success-subtle rounded">
             <span class="text-success">{{ selectedQuestion.correct_answer }}</span>
           </div>
         </c-col>
       </c-row>
 
-      <div class="mt-4" *ngIf="selectedQuestion.status === 'unanswered'">
-        <div class="p-3 bg-warning-subtle rounded">
-          <span class="text-warning">此題未作答</span>
-        </div>
-      </div>
-
-      <div class="mt-4">
-        <h6 class="text-muted">題目信息</h6>
-        <div class="d-flex flex-wrap gap-2">
-          <c-badge color="info">知識點: {{ selectedQuestion.topic }}</c-badge>
-          <c-badge color="primary" *ngIf="selectedQuestion.exam_type">
-            {{ selectedQuestion.exam_type === 'knowledge' ? '知識點測驗' : '考古題測驗' }}
-          </c-badge>
+      <div class="mt-4" *ngIf="(selectedQuestion.topic && selectedQuestion.topic !== 'unknown' && selectedQuestion.topic !== '未分類') || (selectedQuestion.micro_concepts && selectedQuestion.micro_concepts.length > 0)">
+        <h6 class="text-muted mb-2">相關資訊</h6>
+        <div class="p-3 bg-light rounded">
+          <div *ngIf="selectedQuestion.topic && selectedQuestion.topic !== 'unknown' && selectedQuestion.topic !== '未分類'">
+            <strong>知識點：</strong>{{ selectedQuestion.topic }}
+          </div>
+          <div *ngIf="selectedQuestion.micro_concepts && selectedQuestion.micro_concepts.length > 0" class="mt-2">
+            <strong>微概念：</strong>
+            <span *ngFor="let concept of selectedQuestion.micro_concepts; let last = last">
+              {{ concept }}<span *ngIf="!last">、</span>
+            </span>
+          </div>
         </div>
       </div>
 
       <div class="mt-4" *ngIf="selectedQuestion.status === 'wrong'">
-        <h6 class="text-muted">AI 解析</h6>
-        <div class="p-3 bg-light rounded" *ngIf="aiExplanation">
-          {{ aiExplanation }}
+        <h6 class="text-muted mb-2">AI 解析</h6>
+        <div class="p-3 bg-light rounded ai-explanation-content" *ngIf="aiExplanation">
+          <div [innerHTML]="formatExplanation(aiExplanation)"></div>
         </div>
         <div class="p-3 bg-light rounded text-muted" *ngIf="!aiExplanation">
           <div class="text-center">
@@ -249,22 +231,17 @@
       </div>
     </div>
   </c-modal-body>
-     <c-modal-footer>
-     <button cButton color="secondary" (click)="showDetailModal = false">
-       關閉
-     </button>
-     <button 
-       cButton 
-       color="info" 
-       *ngIf="selectedQuestion && selectedQuestion.status === 'wrong' && !aiExplanation && !loadingExplanation"
-       (click)="getAIExplanation()">
-       <c-icon name="cilLightbulb" class="me-1"></c-icon> 獲取 AI 解析
-     </button>
-     <button cButton color="primary" (click)="startSingleReview()">
-       <c-icon name="cilBook" class="me-1"></c-icon> 開始複習此題
-     </button>
-     <button cButton color="success" (click)="startGuidedLearning(selectedQuestion!)">
-       <c-icon name="cilLightbulb" class="me-1"></c-icon> 引導學習
-     </button>
-   </c-modal-footer>
-</c-modal> 
+  <c-modal-footer>
+    <button cButton color="secondary" (click)="showDetailModal = false">關閉</button>
+    <button 
+      cButton 
+      color="info" 
+      *ngIf="selectedQuestion && selectedQuestion.status === 'wrong' && !aiExplanation && !loadingExplanation"
+      (click)="getAIExplanation()">
+      <svg cIcon name="cilLightbulb" class="me-1"></svg> 獲取 AI 解析
+    </button>
+    <button cButton color="primary" (click)="reviewQuestionWithAI()">
+      <svg cIcon name="cilBook" class="me-1"></svg> AI 複習此題
+    </button>
+  </c-modal-footer>
+</c-modal>
