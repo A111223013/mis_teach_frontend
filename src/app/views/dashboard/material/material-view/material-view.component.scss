@@ -40,8 +40,9 @@
       color: #374151;
     }
     
-    i {
-      font-size: 1rem;
+    svg {
+      width: 1rem;
+      height: 1rem;
     }
   }
 
@@ -55,6 +56,58 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .header-tools {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+
+    .tool-icon-btn {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      color: #6b7280;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: #e5e7eb;
+        color: #374151;
+      }
+
+      &.active {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+      }
+
+      svg {
+        width: 1.1rem;
+        height: 1.1rem;
+      }
+
+      .note-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: #ef4444;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 10px;
+        min-width: 18px;
+        text-align: center;
+      }
+    }
   }
 }
 
@@ -328,9 +381,38 @@
   border-radius: 3px;
   padding: 1px 2px;
   transition: all 0.2s ease;
+  position: relative;
   
   &:hover {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
+
+  &.active {
+    animation: highlightPulse 1s ease-in-out;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  }
+}
+
+// 筆記標記動畫
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.5);
+  }
+}
+
+// 快速提示動畫
+@keyframes fadeInOut {
+  0%, 100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  20%, 80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
 
@@ -447,6 +529,311 @@
       h2 {
         font-size: 1.25rem;
       }
+    }
+  }
+}
+
+// 筆記側邊欄
+.note-panel {
+  position: fixed;
+  right: -400px;
+  top: 80px;
+  width: 380px;
+  height: calc(100vh - 80px);
+  background: white;
+  border-left: 1px solid #e5e7eb;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  transition: right 0.3s ease;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+
+  &.visible {
+    right: 0;
+  }
+
+  .note-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+
+    h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .close-btn {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      color: #6b7280;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: #e5e7eb;
+        color: #374151;
+      }
+
+      i {
+        font-size: 1.2rem;
+      }
+    }
+  }
+
+  .note-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+  }
+
+  .note-editor {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+
+    .note-title-input {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      transition: border-color 0.2s ease;
+
+      &:focus {
+        outline: none;
+        border-color: #3b82f6;
+      }
+    }
+
+    .note-text-input {
+      width: 100%;
+      padding: 0.75rem;
+      margin-bottom: 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.2s ease;
+
+      &:focus {
+        outline: none;
+        border-color: #3b82f6;
+      }
+    }
+
+    .note-editor-actions {
+      display: flex;
+      gap: 0.5rem;
+
+      .btn-primary,
+      .btn-secondary {
+        flex: 1;
+        padding: 0.6rem 1rem;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .btn-primary {
+        background: #3b82f6;
+        color: white;
+
+        &:hover {
+          background: #2563eb;
+        }
+      }
+
+      .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+
+        &:hover {
+          background: #e5e7eb;
+        }
+      }
+    }
+  }
+
+  .note-list {
+    .note-item {
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .note-item-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+
+        h4 {
+          flex: 1;
+          margin: 0;
+          font-size: 1rem;
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        .note-item-actions {
+          display: flex;
+          gap: 0.25rem;
+
+          .icon-btn {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            background: transparent;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+
+            &:hover {
+              background: #e5e7eb;
+              color: #374151;
+            }
+
+            i {
+              font-size: 0.9rem;
+            }
+          }
+        }
+      }
+
+      .note-item-content {
+        margin-bottom: 0.75rem;
+        color: #4b5563;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .note-item-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: #9ca3af;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+
+        .note-date {
+          flex: 1;
+          min-width: 120px;
+        }
+
+        .note-footer-right {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+
+        .note-highlight-badge {
+          padding: 4px 10px;
+          background: #dbeafe;
+          color: #1e40af;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+
+          &:hover {
+            background: #bfdbfe;
+            transform: scale(1.05);
+          }
+
+          i {
+            font-size: 0.7rem;
+          }
+        }
+
+        .note-highlight-preview {
+          padding: 4px 8px;
+          background: #f3f4f6;
+          color: #6b7280;
+          border-radius: 8px;
+          font-size: 0.7rem;
+          font-style: italic;
+          max-width: 200px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+
+      &.active {
+        background: #eff6ff;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        animation: noteFlash 0.5s ease-in-out;
+      }
+    }
+
+    .note-flash {
+      animation: noteFlash 0.5s ease-in-out;
+    }
+
+    @keyframes noteFlash {
+      0%, 100% {
+        background: #f9fafb;
+      }
+      50% {
+        background: #eff6ff;
+      }
+    }
+
+    .empty-notes {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #9ca3af;
+
+      p {
+        margin: 0.5rem 0;
+
+        &.hint {
+          font-size: 0.85rem;
+          color: #d1d5db;
+        }
+      }
+    }
+  }
+}
+
+// 響應式：筆記面板在小螢幕上全寬
+@media (max-width: 768px) {
+  .note-panel {
+    width: 100%;
+    right: -100%;
+    
+    &.visible {
+      right: 0;
     }
   }
 }
