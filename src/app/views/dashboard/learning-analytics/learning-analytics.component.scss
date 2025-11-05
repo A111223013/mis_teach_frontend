@@ -18,7 +18,8 @@
   
   // Loading 狀態
   &.loading {
-    pointer-events: none;
+    /* 不禁止整頁互動，避免頁面被鎖死；僅以視覺透明度提示 */
+    pointer-events: auto;
     opacity: 0.7;
   }
 }
@@ -569,7 +570,7 @@ select.form-select {
       .activity-fill {
         height: 100%;
         border-radius: 6px;
-        transition: width 0.5s ease;
+      transition: none;
         position: relative;
         
         &::after {
@@ -579,8 +580,8 @@ select.form-select {
           left: 0;
           right: 0;
           bottom: 0;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-          animation: shimmer 2s infinite;
+        background: none;
+        animation: none;
         }
       }
     }
@@ -894,7 +895,7 @@ select.form-select {
 .knowledge-item,
 .suggestion-card,
 .metric-card {
-  animation: fadeIn 0.3s ease-out;
+  animation: none;
 }
 
 // 工具提示樣式
@@ -1008,9 +1009,9 @@ select.form-select {
 .skeleton-text {
   .skeleton-line {
     height: 1rem;
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
+    background: #f0f0f0;
+    background-size: auto;
+    animation: none;
     border-radius: 4px;
     margin-bottom: 0.5rem;
     

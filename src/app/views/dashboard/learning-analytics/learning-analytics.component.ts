@@ -111,6 +111,24 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   // AI教練分析
   aiCoachAnalysis: any = null;
   
+  // 圖表初始化狀態與控制（穩定化）
+  private dataReady = false; // 數據是否已準備
+  private viewReady = false; // 視圖是否已準備
+  private chartsInitialized = false; // 是否已建立圖表
+  private initAttempts = 0;
+  private readonly MAX_INIT_ATTEMPTS = 3;
+  private chartInitTimer: any = null;
+  private isUpdatingIntegrated = false; // 防止整合圖表併發更新
+  private trendUpdateTimer: any = null; // 趨勢圖切換節流
+  // 緊急停用圖表（先讓頁面可操作，再逐步排查）
+  private readonly HARD_DISABLE_CHARTS = false;
+  // 逐步定位用：單張圖開關（先只開雷達圖）
+  private readonly ENABLE_RADAR = true;
+  private readonly ENABLE_TREND = true;
+  private readonly ENABLE_INTEGRATED = true;
+  // 先恢復打 API 驗證資料流程，但仍不畫圖
+  private readonly HARD_SAFE_MODE = false;
+  
 
   // 圖表相關
   @ViewChild('radarChart', { static: false }) radarChart?: ElementRef<HTMLCanvasElement>;
@@ -166,28 +184,62 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
-    // 視圖初始化後的邏輯
+    // 視圖初始化後，嘗試進行圖表初始化
+    this.viewReady = true;
+    this.tryInitCharts();
   }
 
   ngOnDestroy() {
+    // 清理訂閱
     if (this.dataSubscription) {
       this.dataSubscription.unsubscribe();
     }
+    
+    // 清理所有圖表實例
+    this.safeDestroy(this.radarChart);
+    this.safeDestroy(this.trendLineChart);
+    this.safeDestroy(this.integratedAnalysisChart);
   }
 
   // 載入所有數據
   loadAllData() {
     this.isLoading = true;
 
+    if (this.HARD_SAFE_MODE) {
+      // 本地極小資料，避免任何重型渲染
+      setTimeout(() => {
+        this.analyticsData = {
+          overview: {
+            learning_velocity: 0,
+            retention_rate: 0,
+            avg_time_per_concept: 0,
+            focus_score: 0,
+            domains: [],
+            top_weak_points: [],
+          },
+          trends: [],
+        } as any;
+        this.processData();
+        this.isLoading = false;
+        this.dataReady = true;
+        this.tryInitCharts();
+      }, 0);
+      return;
+    }
+
     this.dataSubscription = this.learningAnalyticsService.loadAllData(this.selectedTrendPeriod).subscribe({
       next: (data: any) => {
         this.analyticsData = data;
         this.processData();
         this.isLoading = false;
+        this.dataReady = true;
+        this.tryInitCharts();
       },
       error: (error: any) => {
         console.error('載入學習分析數據失敗:', error);
         this.isLoading = false;
+        this.dataReady = true; // 即便失敗也不阻塞（會顯示空狀態）
+        this.tryInitCharts();
       }
     });
   }
@@ -197,7 +249,7 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     if (!this.analyticsData) return;
 
     this.overview = this.analyticsData.overview;
-    this.trendData = this.analyticsData.trends || [];
+    this.trendData = this.normalizeTrendArray((this.analyticsData as any).trends || []);
     
     // 處理AI教練分析（後端已處理Redis快取）
     this.aiCoachAnalysis = (this.analyticsData as any).ai_coach_analysis || null;
@@ -214,24 +266,130 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   // 初始化其他數據
   private initializeOtherData() {
     this.topWeakPoints = this.overview?.top_weak_points || [];
-    this.trendData = this.analyticsData?.trends || [];
+    this.trendData = this.normalizeTrendArray((this.analyticsData as any)?.trends || []);
     this.progressTracking = this.analyticsData?.progress_tracking || [];
     this.improvementItems = this.analyticsData?.improvement_items || [];
     this.attentionItems = this.analyticsData?.attention_items || [];
-    this.radarData = this.analyticsData?.radar_data || null;
+    this.radarData = this.normalizeRadarData((this.analyticsData as any)?.radar_data, this.overview?.domains || []);
     
     // 數據加載完成
     this.isLoading = false;
     
     // 初始化指標卡片數據
     this.initializeMetricCards();
-    
-    // 初始化所有圖表
-    setTimeout(() => {
-      this.initRadarChart();
-      this.initTrendChart();
-      this.initIntegratedAnalysisChart();
-    }, 100);
+    // 使用單一入口，避免重複建立圖表
+    this.tryInitCharts();
+  }
+
+  private buildRadarFromOverview(domains: any[]): { labels: string[]; data: number[] } | null {
+    if (!Array.isArray(domains) || domains.length === 0) return null;
+    const top = domains.slice(0, 8); // 限制最多 8 個標籤，避免首繪壓力
+    const labels = top.map((d: any) => d?.name ?? '');
+    const data = top.map((d: any) => Math.round(((d?.mastery ?? 0) * 100)));
+    return { labels, data };
+  }
+
+  private normalizeRatio(value: number): number {
+    if (value == null || isNaN(value as any)) return 0;
+    return value > 1 ? Math.min(1, value / 100) : Math.max(0, value);
+  }
+
+  private normalizeTrendArray(items: any[]): any[] {
+    if (!Array.isArray(items)) return [];
+    return items.map((it: any) => {
+      const date = it?.date ?? it?.day ?? it?.ts ?? '';
+      const rawAcc = it?.accuracy ?? it?.accuracy_rate ?? 0;
+      const accuracy = this.normalizeRatio(Number(rawAcc));
+      const questions = Number(it?.questions ?? it?.answered_questions ?? 0) || 0;
+      const forgetting_data = Array.isArray(it?.forgetting_data)
+        ? it.forgetting_data
+        : (Array.isArray(it?.forgetting) ? it.forgetting : []);
+      return { date, accuracy, questions, forgetting_data };
+    });
+  }
+
+  private normalizeRadarData(input: any, domains: any[]): { labels: string[]; data: number[] } | null {
+    try {
+      // 無後端專屬資料，從 overview.domains 構建
+      if (!input) return this.buildRadarFromOverview(domains || []);
+
+      // 直接符合格式 { labels: string[], data: number[] }
+      if (Array.isArray(input.labels) && (Array.isArray((input as any).data) || (input as any).datasets)) {
+        const labels = input.labels as string[];
+        // 允許 Chart.js 風格 datasets
+        const data = Array.isArray((input as any).data)
+          ? (input as any).data as number[]
+          : Array.isArray((input as any).datasets) && (input as any).datasets[0]?.data
+            ? (input as any).datasets[0].data as number[]
+            : [];
+        if (labels.length && data.length) return { labels, data };
+      }
+
+      // 若是物件陣列：[{ name/mastery } 或 { label/value }]
+      if (Array.isArray(input)) {
+        const items = input.slice(0, 8);
+        const labels = items.map((it: any) => it?.name ?? it?.label ?? '');
+        const data = items.map((it: any) => {
+          const m = it?.mastery ?? it?.value ?? 0;
+          return Math.round((m > 1 ? m : m * 100));
+        });
+        if (labels.length && data.length) return { labels, data };
+      }
+
+      // 其他情況：嘗試從 overview.domains 構建
+      return this.buildRadarFromOverview(domains || []);
+    } catch {
+      return this.buildRadarFromOverview(domains || []);
+    }
+  }
+
+  // 單一入口：在數據與視圖都就緒後才初始化圖表，且限制重試次數
+  private tryInitCharts(): void {
+    if (this.HARD_DISABLE_CHARTS) return; // 緊急停用圖表建立
+    if (this.chartsInitialized) return;
+    if (!(this.dataReady && this.viewReady)) return;
+    if (!this.canRenderCharts()) {
+      if (this.initAttempts++ < this.MAX_INIT_ATTEMPTS) {
+        clearTimeout(this.chartInitTimer);
+        this.chartInitTimer = setTimeout(() => this.tryInitCharts(), 300);
+      }
+      return;
+    }
+
+    this.chartsInitialized = true;
+    this.runWhenIdle(() => {
+      try { if (this.ENABLE_TREND) this.initTrendChart(); } catch (e) { console.error(e); }
+      try { if (this.ENABLE_RADAR) this.initRadarChart(); } catch (e) { console.error(e); }
+      try { if (this.ENABLE_INTEGRATED) this.initIntegratedAnalysisChart(); } catch (e) { console.error(e); }
+    });
+  }
+
+  private canRenderCharts(): boolean {
+    const trendOk = !this.ENABLE_TREND || (!!(this.trendLineChart?.nativeElement) && Array.isArray(this.trendData));
+    const radarOk = !this.ENABLE_RADAR || !!(this.radarChart?.nativeElement);
+    const integratedOk = !this.ENABLE_INTEGRATED || !!(this.integratedAnalysisChart?.nativeElement);
+    return trendOk && radarOk && integratedOk;
+  }
+
+  private safeDestroy(ref?: ElementRef<HTMLCanvasElement>): void {
+    const inst = (ref?.nativeElement as any)?.chart;
+    if (inst) {
+      try { inst.destroy(); } catch {}
+    }
+  }
+
+  // 使用 requestIdleCallback，若瀏覽器不支援則退回 rAF，再退回 setTimeout
+  private runWhenIdle(fn: () => void): void {
+    const w = window as any;
+    if (typeof w.requestIdleCallback === 'function') {
+      w.requestIdleCallback(fn, { timeout: 300 });
+      return;
+    }
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => fn());
+      return;
+    }
+    setTimeout(fn, 0);
   }
   
   // 初始化指標卡片
@@ -314,21 +472,34 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 趨勢分析相關方法
   changeTrendPeriod(days: number): void {
+    if (this.isLoading) return; // 載入中不允許切換
     this.selectedTrendPeriod = days;
-    // 不重新載入數據，只更新圖表顯示
-    this.updateTrendChart();
+    // 重新載入數據（因為不同天數需要不同數據）
+    this.loadAllData();
   }
   
   // 切換趨勢知識點
   onTrendDomainChange(): void {
-    this.updateTrendChart();
+    if (this.isLoading || !this.trendLineChart?.nativeElement) return; // 防護檢查
+    // 簡單節流，避免快速切換造成多次重繪
+    clearTimeout(this.trendUpdateTimer);
+    this.trendUpdateTimer = setTimeout(() => {
+      this.updateTrendChart();
+    }, 120);
   }
   
   // 更新趨勢圖表（不重新載入數據）
   private updateTrendChart(): void {
-    if (this.trendLineChart) {
-      this.initTrendChart();
+    if (!this.trendLineChart?.nativeElement || !this.trendData || this.trendData.length === 0) {
+      return; // 嚴格檢查，避免錯誤
     }
+    this.runWhenIdle(() => {
+      try {
+        this.initTrendChart();
+      } catch (e) {
+        console.error('更新趨勢圖表失敗:', e);
+      }
+    });
   }
   
   // 初始化趨勢圖表知識點選項
@@ -358,31 +529,29 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 初始化趨勢圖表
   private initTrendChart(): void {
-    
-    if (!this.trendLineChart || !this.trendData || this.trendData.length === 0) {
-      return;
-    }
+    if (!this.trendLineChart || !this.trendData || this.trendData.length === 0) return;
 
-    const ctx = this.trendLineChart.nativeElement.getContext('2d');
-    if (!ctx) {
-      return;
+    const canvas = this.trendLineChart.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 固定首繪尺寸，避免 layout 抖動
+    if (!canvas.width || !canvas.height) {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(320, Math.floor(rect.width || 320));
+      canvas.height = Math.max(240, Math.floor(rect.height || 240));
     }
 
     // 銷毀現有圖表
-    if ((this.trendLineChart.nativeElement as any).chart) {
-      (this.trendLineChart.nativeElement as any).chart.destroy();
-    }
+    this.safeDestroy(this.trendLineChart);
 
-    // 準備數據
-    const labels = this.trendData.map(item => item.date);
-    
     // 根據選擇的知識點篩選數據
     let filteredTrendData = this.trendData;
     if (this.selectedTrendDomain && this.selectedTrendDomain !== 'all') {
       // 使用後端提供的領域趨勢數據
       const domainTrends = (this.analyticsData as any).domain_trends;
       if (domainTrends && domainTrends[this.selectedTrendDomain]) {
-        filteredTrendData = domainTrends[this.selectedTrendDomain];
+        filteredTrendData = this.normalizeTrendArray(domainTrends[this.selectedTrendDomain]);
       } else {
         // 如果沒有該領域的數據，創建空數據
         filteredTrendData = this.trendData.map(item => ({
@@ -394,21 +563,34 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       }
     }
     
-    const accuracyData = filteredTrendData.map(item => item.accuracy * 100);
-    const questionsData = filteredTrendData.map(item => item.questions);
+    // 先篩選，再抽樣，確保 labels 和 data 對應
+    const sampled = this.sampleTrend(filteredTrendData, 300);
+    if (sampled.length === 0) {
+      console.warn('趨勢圖數據為空，無法繪製');
+      return;
+    }
+    
+    const labels = sampled.map(item => item.date || '');
+    const accuracyData = sampled.map(item => (item.accuracy || 0) * 100);
+    const questionsData = sampled.map(item => item.questions || 0);
     
     // 準備遺忘曲線數據
-    const forgettingData = filteredTrendData.map(item => {
+    const forgettingData = sampled.map(item => {
       if (item.forgetting_data && item.forgetting_data.length > 0) {
         // 計算平均遺忘率
         const avgForgetting = item.forgetting_data.reduce((sum: number, concept: any) => 
-          sum + concept.forgetting_rate, 0) / item.forgetting_data.length;
+          sum + (concept.forgetting_rate || 0), 0) / item.forgetting_data.length;
         return avgForgetting * 100;
       }
       return 0;
     });
-    // 創建新圖表
-    (this.trendLineChart.nativeElement as any).chart = new Chart(ctx, {
+    
+    // 確保 y1 軸最大值安全（避免空陣列報錯）
+    const maxQuestions = questionsData.length > 0 ? Math.max(...questionsData) : 0;
+    
+    // 創建新圖表（包在 try-catch 中，避免錯誤導致頁面崩潰）
+    try {
+      (canvas as any).chart = new Chart(ctx, {
       type: 'line',
       data: {
         labels: labels,
@@ -441,8 +623,12 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
         ]
       },
       options: {
-        responsive: true,
+         responsive: true,
         maintainAspectRatio: false,
+         animation: false,
+         parsing: false,
+         normalized: true,
+         plugins: { decimation: { enabled: true, algorithm: 'lttb', samples: 300 }, legend: { display: true, position: 'top' } },
         interaction: {
           mode: 'index',
           intersect: false,
@@ -475,20 +661,27 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
               text: '答題數量'
             },
             min: 0,
-            max: Math.max(...questionsData) > 0 ? Math.max(...questionsData) * 1.2 : 10,
+            max: maxQuestions > 0 ? maxQuestions * 1.2 : 10,
             grid: {
               drawOnChartArea: false,
             },
           }
-        },
-        plugins: {
-          legend: {
-            display: true,
-            position: 'top'
-          }
-        }
+         }
       }
     });
+    } catch (error) {
+      console.error('創建趨勢圖表失敗:', error);
+      // 不拋出錯誤，避免頁面崩潰
+    }
+  }
+
+  // 等距抽樣：把大型序列壓到最多 N 筆
+  private sampleTrend(arr: any[], maxPoints: number): any[] {
+    if (!Array.isArray(arr) || arr.length <= maxPoints) return arr || [];
+    const step = Math.ceil(arr.length / maxPoints);
+    const out = [] as any[];
+    for (let i = 0; i < arr.length; i += step) out.push(arr[i]);
+    return out;
   }
 
   // 掌握度顏色相關方法
@@ -1023,7 +1216,6 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 初始化雷達圖
   private initRadarChart(): void {
-    
     if (!this.radarChart || !this.radarData) {
       console.log('雷達圖初始化失敗：缺少radarChart或radarData');
       return;
@@ -1033,132 +1225,167 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       console.log('雷達圖數據為空');
       return;
     }
-
-    const ctx = this.radarChart.nativeElement.getContext('2d');
-    if (!ctx) {
-      console.log('雷達圖初始化失敗：無法獲取canvas context');
-      return;
-    }
-
-    // 銷毀現有圖表
-    if ((this.radarChart.nativeElement as any).chart) {
-      (this.radarChart.nativeElement as any).chart.destroy();
-    }
-
-    // 創建新圖表
-    (this.radarChart.nativeElement as any).chart = new Chart(ctx, {
-      type: 'radar',
-      data: {
-        labels: this.radarData.labels,
-        datasets: [{
-          label: '掌握度',
-          data: this.radarData.data,
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 2,
-          pointBackgroundColor: 'rgba(54, 162, 235, 1)',
-          pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: 'rgba(54, 162, 235, 1)'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          r: {
-            beginAtZero: true,
-            max: 100,
-            ticks: {
-              stepSize: 20
-            }
-          }
-        },
-        plugins: {
-          legend: {
-            display: true,
-            position: 'top'
-          }
-        }
+    this.runWhenIdle(() => {
+      const canvas = this.radarChart!.nativeElement;
+      // 固定首繪尺寸，避免 layout 抖動
+      if (!canvas.width || !canvas.height) {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.max(320, Math.floor(rect.width || 320));
+        canvas.height = Math.max(240, Math.floor(rect.height || 240));
       }
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.log('雷達圖初始化失敗：無法獲取canvas context');
+        return;
+      }
+
+      // 銷毀現有圖表
+      this.safeDestroy(this.radarChart);
+
+      // 創建新圖表（極簡配置）
+      (canvas as any).chart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: this.radarData.labels,
+          datasets: [{
+            label: '掌握度',
+            data: this.radarData.data,
+            backgroundColor: 'rgba(54, 162, 235, 0.18)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 2,
+            pointRadius: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          parsing: false,
+          normalized: true,
+          scales: {
+            r: {
+              beginAtZero: true,
+              max: 100,
+              ticks: { stepSize: 20 }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
     });
   }
 
   // 初始化整合分析圖表
   private initIntegratedAnalysisChart(): void {
-    if (!this.integratedAnalysisChart) {
-      console.log('整合圖表初始化失敗：缺少integratedAnalysisChart');
-      return;
-    }
+    try {
+      // 嚴格檢查元素
+      if (!this.integratedAnalysisChart || !this.integratedAnalysisChart.nativeElement) {
+        console.log('整合圖表初始化失敗：缺少integratedAnalysisChart');
+        return;
+      }
 
-    const ctx = this.integratedAnalysisChart.nativeElement.getContext('2d');
-    if (!ctx) {
-      console.log('整合圖表初始化失敗：無法獲取canvas context');
-      return;
-    }
+      const canvas = this.integratedAnalysisChart.nativeElement;
+      if (!canvas || !canvas.getContext) {
+        console.log('整合圖表初始化失敗：canvas元素無效');
+        return;
+      }
 
-    // 銷毀現有圖表
-    if ((this.integratedAnalysisChart.nativeElement as any).chart) {
-      (this.integratedAnalysisChart.nativeElement as any).chart.destroy();
-    }
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.log('整合圖表初始化失敗：無法獲取canvas context');
+        return;
+      }
 
-  // 使用init-data中的數據，而不是單獨調用API
-  this.useInitDataForAnalysis();
-}
+      // 確保 canvas 尺寸正確
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+
+      // 安全銷毀現有圖表
+      this.safeDestroy(this.integratedAnalysisChart);
+
+      // 使用init-data中的數據，而不是單獨調用API
+      this.useInitDataForAnalysis();
+    } catch (error) {
+      console.error('初始化整合圖表時出錯:', error);
+    }
+  }
 
   // 使用init-data中的數據進行分析
   private useInitDataForAnalysis(): void {
-    
-    if (!this.analyticsData || !this.analyticsData.overview || !this.analyticsData.overview.domains) {
-      console.log('沒有可用的init-data，使用fallback數據');
-      return;
-    }
-
-    // 從init-data中提取領域數據
-    const domains = this.analyticsData.overview.domains;
-
-  // 轉換為深度分析所需的格式
-  this.difficultyAnalysisData = {
-    domain_difficulty_analysis: domains.map((domain: any) => ({
-      domain_id: domain.id,
-      domain_name: domain.name,
-      overall_mastery: domain.mastery || 0,
-      difficulty_breakdown: domain.difficulty_breakdown || { '簡單': 0, '中等': 0, '困難': 0 },
-      difficulty_analysis: domain.difficulty_analysis || {
-        easy_mastery: 0,
-        medium_mastery: 0,
-        hard_mastery: 0,
-        bottleneck_level: 'none',
-        recommended_difficulty: '簡單'
-      },
-      forgetting_analysis: domain.forgetting_analysis || {
-        base_mastery: 0,
-        current_mastery: 0,
-        days_since_practice: 0,
-        review_urgency: 'low',
-        forgetting_factor: 1.0
+    try {
+      if (!this.analyticsData || !this.analyticsData.overview || !this.analyticsData.overview.domains) {
+        console.log('沒有可用的init-data，使用fallback數據');
+        return;
       }
-    }))
-  };
 
-  // 初始化可用的大知識點列表
-  this.initializeAvailableMajorConcepts();
-  
-  // 更新圖表
-  this.updateIntegratedChart();
-}
+      // 從init-data中提取領域數據
+      const domains = this.analyticsData.overview.domains;
+
+      // 轉換為深度分析所需的格式
+      this.difficultyAnalysisData = {
+        domain_difficulty_analysis: domains.map((domain: any) => ({
+          domain_id: domain.id,
+          domain_name: domain.name,
+          overall_mastery: domain.mastery || 0,
+          difficulty_breakdown: domain.difficulty_breakdown || { '簡單': 0, '中等': 0, '困難': 0 },
+          difficulty_analysis: domain.difficulty_analysis || {
+            easy_mastery: 0,
+            medium_mastery: 0,
+            hard_mastery: 0,
+            bottleneck_level: 'none',
+            recommended_difficulty: '簡單'
+          },
+          forgetting_analysis: domain.forgetting_analysis || {
+            base_mastery: 0,
+            current_mastery: 0,
+            days_since_practice: 0,
+            review_urgency: 'low',
+            forgetting_factor: 1.0
+          }
+        }))
+      };
+
+      // 初始化可用的大知識點列表
+      this.initializeAvailableMajorConcepts();
+      
+      // 使用 runWhenIdle 延遲更新圖表，避免阻塞
+      this.runWhenIdle(() => {
+        try {
+          this.updateIntegratedChart();
+        } catch (error) {
+          console.error('更新整合圖表時出錯:', error);
+        }
+      });
+    } catch (error) {
+      console.error('處理init-data時出錯:', error);
+    }
+  }
 
 // 載入難度分析數據
   private loadDifficultyAnalysisData(): void {
     this.learningAnalyticsService.getDifficultyAnalysis().subscribe({
       next: (data) => {
-        this.difficultyAnalysisData = data;
-        
-        // 初始化可用的大知識點列表
-        this.initializeAvailableMajorConcepts();
-        
-        // 更新圖表
-        this.updateIntegratedChart();
+        try {
+          this.difficultyAnalysisData = data;
+          
+          // 初始化可用的大知識點列表
+          this.initializeAvailableMajorConcepts();
+          
+          // 使用 runWhenIdle 延遲更新圖表，避免阻塞
+          this.runWhenIdle(() => {
+            try {
+              this.updateIntegratedChart();
+            } catch (error) {
+              console.error('更新整合圖表時出錯:', error);
+            }
+          });
+        } catch (error) {
+          console.error('處理難度分析數據時出錯:', error);
+        }
       },
       error: (error) => {
         console.error('載入難度分析數據失敗:', error);
@@ -1169,7 +1396,8 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   // 初始化可用的大知識點列表
   private initializeAvailableMajorConcepts(): void {
     if (this.difficultyAnalysisData && this.difficultyAnalysisData.domain_difficulty_analysis) {
-      this.availableMajorConcepts = ['all', ...this.difficultyAnalysisData.domain_difficulty_analysis.map((domain: any) => domain.domain_name)];
+      const top = this.difficultyAnalysisData.domain_difficulty_analysis.slice(0, 12);
+      this.availableMajorConcepts = ['all', ...top.map((domain: any) => domain.domain_name)];
     } else {
       this.availableMajorConcepts = ['all'];
     }
@@ -1177,65 +1405,99 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 更新整合圖表
   private updateIntegratedChart(): void {
-    if (!this.integratedAnalysisChart || !this.difficultyAnalysisData) {
-      return;
-    }
+    if (this.isUpdatingIntegrated) return;
+    this.isUpdatingIntegrated = true;
+    try {
+      // 嚴格檢查必要元素和數據
+      if (!this.integratedAnalysisChart || !this.integratedAnalysisChart.nativeElement) {
+        return;
+      }
 
-    const ctx = this.integratedAnalysisChart.nativeElement.getContext('2d');
-    if (!ctx) return;
+      if (!this.difficultyAnalysisData || !this.difficultyAnalysisData.domain_difficulty_analysis) {
+        return;
+      }
 
-    // 銷毀現有圖表
-    if ((this.integratedAnalysisChart.nativeElement as any).chart) {
-      (this.integratedAnalysisChart.nativeElement as any).chart.destroy();
-    }
+      const canvas = this.integratedAnalysisChart.nativeElement;
+      if (!canvas || !canvas.getContext) {
+        return;
+      }
 
-    // 根據選中的大知識點獲取數據
-    let chartData;
-    if (this.selectedMajorConcept === 'all') {
-      // 顯示所有大知識點的數據
-      chartData = this.prepareAllConceptsData();
-    } else {
-      // 顯示特定大知識點的數據
-      chartData = this.prepareSpecificConceptData(this.selectedMajorConcept);
-    }
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return;
+      }
 
-    // 創建新圖表
-    (this.integratedAnalysisChart.nativeElement as any).chart = new Chart(ctx, {
-      type: 'bar',
-      data: chartData,
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: 1,
-            ticks: {
-              callback: function(value: any) {
-                return (value * 100).toFixed(0) + '%';
+      // 確保 canvas 尺寸正確
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+
+      // 安全銷毀現有圖表
+      this.safeDestroy(this.integratedAnalysisChart);
+
+      // 根據選中的大知識點獲取數據
+      let chartData;
+      if (this.selectedMajorConcept === 'all') {
+        // 顯示所有大知識點的數據
+        chartData = this.prepareAllConceptsData();
+      } else {
+        // 顯示特定大知識點的數據
+        chartData = this.prepareSpecificConceptData(this.selectedMajorConcept);
+      }
+
+      // 檢查數據是否有效
+      if (!chartData || !chartData.labels || !chartData.datasets || chartData.datasets.length === 0) {
+        console.warn('整合圖表數據無效，跳過渲染');
+        return;
+      }
+
+      // 創建新圖表
+      (this.integratedAnalysisChart.nativeElement as any).chart = new Chart(ctx, {
+        type: 'bar',
+        data: chartData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false, // 禁用動畫以提升性能
+          parsing: false,
+          normalized: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 1,
+              ticks: {
+                callback: function(value: any) {
+                  return (value * 100).toFixed(0) + '%';
+                }
               }
             }
-          }
-        },
-        plugins: {
-          legend: {
-            display: true,
-            position: 'top'
           },
-          tooltip: {
-            callbacks: {
-              label: function(context: any) {
-                const value = context.parsed.y;
-                return `${context.dataset.label}: ${(value * 100).toFixed(1)}%`;
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context: any) {
+                  const value = context.parsed.y;
+                  return `${context.dataset.label}: ${(value * 100).toFixed(1)}%`;
+                }
               }
             }
           }
         }
-      }
-    });
+      });
 
-    // 更新摘要
-    this.updateMasterySummary();
+      // 更新摘要
+      this.updateMasterySummary();
+    } catch (error) {
+      console.error('更新整合圖表時出錯:', error);
+    } finally {
+      this.isUpdatingIntegrated = false;
+    }
   }
 
   // 準備所有概念的數據
@@ -1244,7 +1506,7 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       return this.getEmptyChartData();
     }
 
-    const domains = this.difficultyAnalysisData.domain_difficulty_analysis;
+    const domains = this.difficultyAnalysisData.domain_difficulty_analysis.slice(0, 12);
     const labels = domains.map((domain: any) => domain.domain_name);
     
     return {
@@ -1252,21 +1514,21 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       datasets: [
         {
           label: '簡單掌握度',
-          data: domains.map((domain: any) => domain.difficulty_breakdown['簡單'] || 0),
+          data: domains.map((domain: any) => this.normalizeRatio(domain.difficulty_breakdown['簡單'] || 0)),
           backgroundColor: 'rgba(75, 192, 192, 0.6)',
           borderColor: 'rgba(75, 192, 192, 1)',
           borderWidth: 2
         },
         {
           label: '中等掌握度',
-          data: domains.map((domain: any) => domain.difficulty_breakdown['中等'] || 0),
+          data: domains.map((domain: any) => this.normalizeRatio(domain.difficulty_breakdown['中等'] || 0)),
           backgroundColor: 'rgba(255, 206, 86, 0.6)',
           borderColor: 'rgba(255, 206, 86, 1)',
           borderWidth: 2
         },
         {
           label: '困難掌握度',
-          data: domains.map((domain: any) => domain.difficulty_breakdown['困難'] || 0),
+          data: domains.map((domain: any) => this.normalizeRatio(domain.difficulty_breakdown['困難'] || 0)),
           backgroundColor: 'rgba(255, 99, 132, 0.6)',
           borderColor: 'rgba(255, 99, 132, 1)',
           borderWidth: 2
@@ -1291,21 +1553,21 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       datasets: [
         {
           label: '簡單掌握度',
-          data: [domain.difficulty_breakdown['簡單'] || 0],
+          data: [this.normalizeRatio(domain.difficulty_breakdown['簡單'] || 0)],
           backgroundColor: 'rgba(75, 192, 192, 0.6)',
           borderColor: 'rgba(75, 192, 192, 1)',
           borderWidth: 2
         },
         {
           label: '中等掌握度',
-          data: [domain.difficulty_breakdown['中等'] || 0],
+          data: [this.normalizeRatio(domain.difficulty_breakdown['中等'] || 0)],
           backgroundColor: 'rgba(255, 206, 86, 0.6)',
           borderColor: 'rgba(255, 206, 86, 1)',
           borderWidth: 2
         },
         {
           label: '困難掌握度',
-          data: [domain.difficulty_breakdown['困難'] || 0],
+          data: [this.normalizeRatio(domain.difficulty_breakdown['困難'] || 0)],
           backgroundColor: 'rgba(255, 99, 132, 0.6)',
           borderColor: 'rgba(255, 99, 132, 1)',
           borderWidth: 2
@@ -1346,7 +1608,18 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 大知識點選擇變更
   onMajorConceptChange(): void {
-    this.updateIntegratedChart();
+    // 防止在載入中或圖表未初始化時操作
+    if (this.isLoading || !this.integratedAnalysisChart) {
+      return;
+    }
+    
+    this.runWhenIdle(() => {
+      try {
+        this.updateIntegratedChart();
+      } catch (error) {
+        console.error('切換大知識點時出錯:', error);
+      }
+    });
   }
 
   // 更新掌握度摘要
@@ -1363,9 +1636,9 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     let highestMedium = { domain: '無', value: 0 };
 
     domains.forEach((domain: any) => {
-      const hard = domain.difficulty_breakdown['困難'] || 0;
-      const easy = domain.difficulty_breakdown['簡單'] || 0;
-      const medium = domain.difficulty_breakdown['中等'] || 0;
+      const hard = this.normalizeRatio(domain.difficulty_breakdown['困難'] || 0);
+      const easy = this.normalizeRatio(domain.difficulty_breakdown['簡單'] || 0);
+      const medium = this.normalizeRatio(domain.difficulty_breakdown['中等'] || 0);
 
       if (hard < lowestHard.value) {
         lowestHard = { domain: domain.domain_name, value: hard };
@@ -1381,19 +1654,19 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     this.masterySummary = [
       {
         title: '困難掌握率最低',
-        value: (lowestHard.value * 100).toFixed(0) + '%',
+        value: (this.normalizeRatio(lowestHard.value) * 100).toFixed(0) + '%',
         concept: lowestHard.domain,
         color: 'danger'
       },
       {
         title: '簡單掌握率最低',
-        value: (lowestEasy.value * 100).toFixed(0) + '%',
+        value: (this.normalizeRatio(lowestEasy.value) * 100).toFixed(0) + '%',
         concept: lowestEasy.domain,
         color: 'warning'
       },
       {
         title: '中等掌握率最高',
-        value: (highestMedium.value * 100).toFixed(0) + '%',
+        value: (this.normalizeRatio(highestMedium.value) * 100).toFixed(0) + '%',
         concept: highestMedium.domain,
         color: 'success'
       }
