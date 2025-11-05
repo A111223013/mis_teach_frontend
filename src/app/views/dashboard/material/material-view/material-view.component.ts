@@ -1,4 +1,4 @@
-import { Component, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, ElementRef, AfterViewChecked, OnDestroy } from '@angular/core';
 import { CommonModule, Location, ViewportScroller  } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -20,7 +20,10 @@ import {
   cilTrash, 
   cilX, 
   cilPencil, 
-  cilSpeech 
+  cilSpeech,
+  cilArrowTop,
+  cilArrowBottom,
+  cilReload
 } from '@coreui/icons';
 
 @Component({
@@ -36,7 +39,7 @@ import {
   templateUrl: './material-view.component.html',
   styleUrls: ['./material-view.component.scss']
 })
-export class MaterialViewComponent implements AfterViewChecked {
+export class MaterialViewComponent implements AfterViewChecked, OnDestroy {
   filename: string = '';
   content: string = '';
   private rendered = false;
@@ -74,6 +77,17 @@ export class MaterialViewComponent implements AfterViewChecked {
   selectedHighlightId: string | null = null; // 當前選中的劃記ID，用於建立關聯筆記
   activeHighlightId: string | null = null; // 當前高亮的劃記ID
   highlightedNoteId: string | null = null; // 當前高亮的筆記ID
+  
+  // 浮動面板相關屬性
+  notePanelMinimized: boolean = false;
+  notePanelPosition: { x: number, y: number } = { x: 0, y: 0 };
+  notePanelSize: { width: number, height: number } = { width: 400, height: 600 };
+  private isDragging: boolean = false;
+  private isResizing: boolean = false;
+  private dragStartPos: { x: number, y: number } = { x: 0, y: 0 };
+  private resizeStartPos: { x: number, y: number, width: number, height: number } = { x: 0, y: 0, width: 0, height: 0 };
+  private mouseMoveHandler = this.onMouseMove.bind(this);
+  private mouseUpHandler = this.onMouseUp.bind(this);
 
   constructor(
     private route: ActivatedRoute,
@@ -98,7 +112,10 @@ export class MaterialViewComponent implements AfterViewChecked {
         cilTrash,
         cilX,
         cilPencil,
-        cilSpeech
+        cilSpeech,
+        cilArrowTop,
+        cilArrowBottom,
+        cilReload
       }
     };
   }
@@ -120,6 +137,19 @@ export class MaterialViewComponent implements AfterViewChecked {
     
     // 添加螢光筆事件監聽器
     this.setupHighlighter();
+    
+    // 初始化浮動面板位置（右上角，避免遮擋網站助手）
+    this.resetNotePanelPosition();
+    
+    // 添加全局滑鼠事件監聽器
+    document.addEventListener('mousemove', this.mouseMoveHandler);
+    document.addEventListener('mouseup', this.mouseUpHandler);
+  }
+  
+  ngOnDestroy(): void {
+    // 移除全局事件監聽器
+    document.removeEventListener('mousemove', this.mouseMoveHandler);
+    document.removeEventListener('mouseup', this.mouseUpHandler);
   }
 
   loadMaterial(filename: string) {
@@ -1566,5 +1596,88 @@ export class MaterialViewComponent implements AfterViewChecked {
     highlightElement.addEventListener('mouseleave', () => {
       highlightElement.style.transform = 'scale(1)';
     });
+  }
+  
+  // ========== 浮動面板拖動和調整大小功能 ==========
+  
+  // 重置面板位置到右上角（避免遮擋網站助手）
+  resetNotePanelPosition(): void {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    // 預設位置：右上角，但留出網站助手的空間（約 400px）
+    this.notePanelPosition = {
+      x: viewportWidth - this.notePanelSize.width - 420, // 留出網站助手空間
+      y: 100
+    };
+  }
+  
+  // 開始拖動
+  startDrag(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('.panel-icon-btn, .close-btn')) {
+      return; // 如果是點擊按鈕，不觸發拖動
+    }
+    event.preventDefault();
+    this.isDragging = true;
+    this.dragStartPos = {
+      x: event.clientX - this.notePanelPosition.x,
+      y: event.clientY - this.notePanelPosition.y
+    };
+  }
+  
+  // 開始調整大小
+  startResize(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isResizing = true;
+    this.resizeStartPos = {
+      x: event.clientX,
+      y: event.clientY,
+      width: this.notePanelSize.width,
+      height: this.notePanelSize.height
+    };
+  }
+  
+  // 滑鼠移動處理
+  onMouseMove(event: MouseEvent): void {
+    if (this.isDragging) {
+      const newX = event.clientX - this.dragStartPos.x;
+      const newY = event.clientY - this.dragStartPos.y;
+      
+      // 限制在視窗範圍內
+      const maxX = window.innerWidth - this.notePanelSize.width;
+      const maxY = window.innerHeight - (this.notePanelMinimized ? 60 : this.notePanelSize.height);
+      
+      this.notePanelPosition = {
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      };
+    } else if (this.isResizing) {
+      const deltaX = event.clientX - this.resizeStartPos.x;
+      const deltaY = event.clientY - this.resizeStartPos.y;
+      
+      const newWidth = Math.max(300, Math.min(800, this.resizeStartPos.width + deltaX));
+      const newHeight = Math.max(400, Math.min(window.innerHeight - 100, this.resizeStartPos.height + deltaY));
+      
+      this.notePanelSize = {
+        width: newWidth,
+        height: newHeight
+      };
+      
+      // 調整位置，避免超出視窗
+      const maxX = window.innerWidth - this.notePanelSize.width;
+      const maxY = window.innerHeight - this.notePanelSize.height;
+      if (this.notePanelPosition.x > maxX) {
+        this.notePanelPosition.x = maxX;
+      }
+      if (this.notePanelPosition.y > maxY) {
+        this.notePanelPosition.y = maxY;
+      }
+    }
+  }
+  
+  // 滑鼠釋放處理
+  onMouseUp(event: MouseEvent): void {
+    this.isDragging = false;
+    this.isResizing = false;
   }
 }

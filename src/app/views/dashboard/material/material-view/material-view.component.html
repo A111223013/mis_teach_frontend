@@ -7,13 +7,6 @@
     </button>
     <h1 class="document-title">{{ filename }}</h1>
     <div class="header-tools">
-      <button class="tool-icon-btn" (click)="toggleHighlighterMode()" [class.active]="highlighterMode" title="螢光筆模式">
-        <svg cIcon name="cilPen" size="sm"></svg>
-      </button>
-      <button class="tool-icon-btn" (click)="toggleNotePanel()" [class.active]="showNotePanel" title="筆記">
-        <svg cIcon name="cilNotes" size="sm"></svg>
-        <span class="note-badge" *ngIf="notes.length > 0">{{ notes.length }}</span>
-      </button>
       <button class="tool-icon-btn" (click)="clearAllHighlights()" title="清除所有劃記">
         <svg cIcon name="cilTrash" size="sm"></svg>
       </button>
@@ -77,16 +70,44 @@
     </div>
   </div>
 
-  <!-- 筆記側邊欄 -->
-  <aside class="note-panel" [class.visible]="showNotePanel">
-    <div class="note-panel-header">
-      <h3>筆記</h3>
-      <button class="close-btn" (click)="toggleNotePanel()">
-        <svg cIcon name="cilX" size="sm"></svg>
-      </button>
+  <!-- 可拖動的浮動筆記面板 -->
+  <aside 
+    class="note-panel-floating" 
+    [class.visible]="showNotePanel"
+    [class.minimized]="notePanelMinimized"
+    [style.left.px]="notePanelPosition.x"
+    [style.top.px]="notePanelPosition.y"
+    [style.width.px]="notePanelSize.width"
+    [style.height.px]="notePanelSize.height"
+  >
+    <!-- 拖動手柄 -->
+    <div 
+      class="note-panel-header"
+      (mousedown)="startDrag($event)"
+    >
+      <div class="panel-header-left">
+        <button class="panel-icon-btn" (click)="notePanelMinimized = !notePanelMinimized" title="最小化">
+          <svg cIcon [name]="notePanelMinimized ? 'cilArrowTop' : 'cilArrowBottom'" size="sm"></svg>
+        </button>
+        <h3>筆記</h3>
+      </div>
+      <div class="panel-header-right">
+        <button class="panel-icon-btn" (click)="resetNotePanelPosition()" title="重置位置">
+          <svg cIcon name="cilReload" size="sm"></svg>
+        </button>
+        <button class="close-btn" (click)="toggleNotePanel()" title="關閉">
+          <svg cIcon name="cilX" size="sm"></svg>
+        </button>
+      </div>
     </div>
     
-    <div class="note-panel-content">
+    <!-- 調整大小手柄 -->
+    <div 
+      class="resize-handle"
+      (mousedown)="startResize($event)"
+    ></div>
+    
+    <div class="note-panel-content" *ngIf="!notePanelMinimized">
       <!-- 筆記編輯表單 -->
       <div class="note-editor">
         <input 
@@ -153,7 +174,7 @@
             </div>
           </div>
         </div>
-        <div class="empty-notes" *ngIf="notes.length === 0">
+          <div class="empty-notes" *ngIf="notes.length === 0">
           <p>還沒有筆記</p>
           <p class="hint">雙擊劃記的文字或點擊「建立」按鈕來新增筆記</p>
         </div>
