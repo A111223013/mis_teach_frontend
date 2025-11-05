@@ -246,10 +246,20 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 處理數據
   private processData() {
-    if (!this.analyticsData) return;
+    if (!this.analyticsData) {
+      console.warn('⚠️ processData: analyticsData 為空');
+      return;
+    }
 
+    console.log('📊 處理數據 - analyticsData:', this.analyticsData);
+    
     this.overview = this.analyticsData.overview;
-    this.trendData = this.normalizeTrendArray((this.analyticsData as any).trends || []);
+    
+    // 處理趨勢數據 - 確保從 API 返回的 trends 正確映射
+    const rawTrends = (this.analyticsData as any).trends || [];
+    console.log('📈 原始趨勢數據:', rawTrends);
+    this.trendData = this.normalizeTrendArray(rawTrends);
+    console.log('📈 正規化後趨勢數據:', this.trendData);
     
     // 處理AI教練分析（後端已處理Redis快取）
     this.aiCoachAnalysis = (this.analyticsData as any).ai_coach_analysis || null;
@@ -270,7 +280,14 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     this.progressTracking = this.analyticsData?.progress_tracking || [];
     this.improvementItems = this.analyticsData?.improvement_items || [];
     this.attentionItems = this.analyticsData?.attention_items || [];
-    this.radarData = this.normalizeRadarData((this.analyticsData as any)?.radar_data, this.overview?.domains || []);
+    
+    // 處理雷達圖數據 - 優先使用 API 返回的 radar_data，否則從 overview.domains 構建
+    const rawRadarData = (this.analyticsData as any)?.radar_data;
+    const domains = this.overview?.domains || [];
+    console.log('🎯 原始雷達數據:', rawRadarData);
+    console.log('🎯 overview.domains:', domains);
+    this.radarData = this.normalizeRadarData(rawRadarData, domains);
+    console.log('🎯 正規化後雷達數據:', this.radarData);
     
     // 數據加載完成
     this.isLoading = false;
@@ -308,6 +325,26 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     });
   }
 
+  private drawNoData(ref: ElementRef<HTMLCanvasElement> | undefined, message: string): void {
+    try {
+      if (!ref || !ref.nativeElement) return;
+      const canvas = ref.nativeElement;
+      const rect = canvas.getBoundingClientRect();
+      if (!canvas.width || !canvas.height) {
+        canvas.width = Math.max(320, Math.floor(rect.width || 320));
+        canvas.height = Math.max(150, Math.floor(rect.height || 150));
+      }
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#9ca3af';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '14px system-ui, -apple-system, Segoe UI, Roboto, PingFang TC, Noto Sans TC';
+      ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+    } catch {}
+  }
+
   private normalizeRadarData(input: any, domains: any[]): { labels: string[]; data: number[] } | null {
     try {
       // 無後端專屬資料，從 overview.domains 構建
@@ -337,10 +374,29 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       }
 
       // 其他情況：嘗試從 overview.domains 構建
-      return this.buildRadarFromOverview(domains || []);
+      const fromDomains = this.buildRadarFromOverview(domains || []);
+      return fromDomains;
     } catch {
       return this.buildRadarFromOverview(domains || []);
     }
+  }
+
+  private isAllZeros(values: number[]): boolean {
+    if (!Array.isArray(values) || values.length === 0) return true;
+    return values.every(v => Number(v) === 0);
+  }
+
+  private buildRadarFromWrongRate(domains: any[]): { labels: string[]; data: number[] } | null {
+    if (!Array.isArray(domains) || domains.length === 0) return null;
+    const top = domains.slice(0, 8);
+    const labels = top.map((d: any) => d?.name ?? '');
+    const data = top.map((d: any) => {
+      const total = Number(d?.questionCount ?? 0);
+      const wrong = Number(d?.wrongCount ?? 0);
+      if (total <= 0) return 0;
+      return Math.round((wrong / total) * 100);
+    });
+    return { labels, data };
   }
 
   // 單一入口：在數據與視圖都就緒後才初始化圖表，且限制重試次數
@@ -529,7 +585,17 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 初始化趨勢圖表
   private initTrendChart(): void {
-    if (!this.trendLineChart || !this.trendData || this.trendData.length === 0) return;
+    console.log('🔄 開始初始化趨勢圖');
+    console.log('  - trendLineChart:', !!this.trendLineChart);
+    console.log('  - trendData 長度:', this.trendData?.length || 0);
+    console.log('  - trendData 前3筆:', this.trendData?.slice(0, 3));
+    
+    if (!this.trendLineChart || !this.trendData || this.trendData.length === 0) {
+      console.warn('⚠️ 趨勢圖初始化失敗：缺少元素或數據為空');
+      return;
+    }
+    
+    console.log('✅ 趨勢圖數據有效，準備繪製');
 
     const canvas = this.trendLineChart.nativeElement;
     const ctx = canvas.getContext('2d');
@@ -567,6 +633,7 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     const sampled = this.sampleTrend(filteredTrendData, 300);
     if (sampled.length === 0) {
       console.warn('趨勢圖數據為空，無法繪製');
+      this.drawNoData(this.trendLineChart, '暫無趨勢數據');
       return;
     }
     
@@ -588,6 +655,15 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
     // 確保 y1 軸最大值安全（避免空陣列報錯）
     const maxQuestions = questionsData.length > 0 ? Math.max(...questionsData) : 0;
     
+    // 檢查數據
+    console.log('📈 趨勢圖數據詳情:');
+    console.log('  - labels 數量:', labels.length, '前3個:', labels.slice(0, 3));
+    console.log('  - accuracyData:', accuracyData.slice(0, 3));
+    console.log('  - questionsData:', questionsData.slice(0, 3));
+    console.log('  - canvas 尺寸:', canvas.width, 'x', canvas.height);
+    
+    // 即便為 0 也要顯示趨勢圖（使用 0 線），讓使用者看得到座標與時間軸
+
     // 創建新圖表（包在 try-catch 中，避免錯誤導致頁面崩潰）
     try {
       (canvas as any).chart = new Chart(ctx, {
@@ -669,8 +745,9 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
          }
       }
     });
+    console.log('✅ 趨勢圖 Chart.js 創建成功');
     } catch (error) {
-      console.error('創建趨勢圖表失敗:', error);
+      console.error('❌ 創建趨勢圖表失敗:', error);
       // 不拋出錯誤，避免頁面崩潰
     }
   }
@@ -1216,15 +1293,21 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 初始化雷達圖
   private initRadarChart(): void {
+    console.log('🔄 開始初始化雷達圖');
+    console.log('  - radarChart:', !!this.radarChart);
+    console.log('  - radarData:', this.radarData);
+    
     if (!this.radarChart || !this.radarData) {
-      console.log('雷達圖初始化失敗：缺少radarChart或radarData');
+      console.warn('⚠️ 雷達圖初始化失敗：缺少radarChart或radarData');
       return;
     }
     
     if (!this.radarData.labels || !this.radarData.data || this.radarData.labels.length === 0) {
-      console.log('雷達圖數據為空');
+      console.warn('⚠️ 雷達圖數據為空 - labels:', this.radarData.labels, 'data:', this.radarData.data);
       return;
     }
+    
+    console.log('✅ 雷達圖數據有效，準備繪製');
     this.runWhenIdle(() => {
       const canvas = this.radarChart!.nativeElement;
       // 固定首繪尺寸，避免 layout 抖動
@@ -1243,47 +1326,77 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       // 銷毀現有圖表
       this.safeDestroy(this.radarChart);
 
-      // 創建新圖表（極簡配置）
-      (canvas as any).chart = new Chart(ctx, {
-        type: 'radar',
-        data: {
-          labels: this.radarData.labels,
-          datasets: [{
-            label: '掌握度',
-            data: this.radarData.data,
-            backgroundColor: 'rgba(54, 162, 235, 0.18)',
-            borderColor: 'rgba(54, 162, 235, 1)',
-            borderWidth: 2,
-            pointRadius: 2,
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false,
-          parsing: false,
-          normalized: true,
-          scales: {
-            r: {
-              beginAtZero: true,
-              max: 100,
-              ticks: { stepSize: 20 }
-            }
-          },
-          plugins: { legend: { display: false } }
+      // 檢查數據值
+      console.log('🎯 雷達圖數據詳情:');
+      console.log('  - labels:', this.radarData.labels);
+      console.log('  - data:', this.radarData.data);
+      console.log('  - canvas 尺寸:', canvas.width, 'x', canvas.height);
+
+      // 若全為 0，改以錯題率（基於題數）作為替代視覺化
+      if (this.isAllZeros(this.radarData.data)) {
+        const fallback = this.buildRadarFromWrongRate(this.overview?.domains || []);
+        if (fallback && !this.isAllZeros(fallback.data)) {
+          console.log('ℹ️ 雷達圖全為 0，使用錯題率替代:', fallback);
+          this.radarData = fallback;
+        } else {
+          console.log('ℹ️ 雷達圖全為 0 且無題數可計算，顯示占位文字');
+          this.drawNoData(this.radarChart, '暫無雷達數據');
+          return;
         }
-      });
+      }
+      
+      // 創建新圖表（極簡配置）
+      try {
+        (canvas as any).chart = new Chart(ctx, {
+          type: 'radar',
+          data: {
+            labels: this.radarData.labels,
+            datasets: [{
+              label: '掌握度',
+              data: this.radarData.data,
+              backgroundColor: 'rgba(54, 162, 235, 0.18)',
+              borderColor: 'rgba(54, 162, 235, 1)',
+              borderWidth: 2,
+              pointRadius: 3,
+              pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            parsing: false,
+            normalized: true,
+            scales: {
+              r: {
+                beginAtZero: true,
+                max: 100,
+                ticks: { stepSize: 20 }
+              }
+            },
+            plugins: { legend: { display: false } }
+          }
+        });
+        console.log('✅ 雷達圖 Chart.js 創建成功');
+      } catch (error) {
+        console.error('❌ 雷達圖 Chart.js 創建失敗:', error);
+      }
     });
   }
 
   // 初始化整合分析圖表
   private initIntegratedAnalysisChart(): void {
+    console.log('🔄 開始初始化整合圖');
+    console.log('  - integratedAnalysisChart:', !!this.integratedAnalysisChart);
+    
     try {
       // 嚴格檢查元素
       if (!this.integratedAnalysisChart || !this.integratedAnalysisChart.nativeElement) {
-        console.log('整合圖表初始化失敗：缺少integratedAnalysisChart');
+        console.warn('⚠️ 整合圖表初始化失敗：缺少integratedAnalysisChart');
         return;
       }
+      
+      console.log('✅ 整合圖元素存在，準備調用 API');
 
       const canvas = this.integratedAnalysisChart.nativeElement;
       if (!canvas || !canvas.getContext) {
@@ -1307,8 +1420,8 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
       // 安全銷毀現有圖表
       this.safeDestroy(this.integratedAnalysisChart);
 
-      // 使用init-data中的數據，而不是單獨調用API
-      this.useInitDataForAnalysis();
+      // 優先使用後端難度分析 API（與舊版後端相容），失敗再退回 init-data
+      this.loadDifficultyAnalysisData();
     } catch (error) {
       console.error('初始化整合圖表時出錯:', error);
     }
@@ -1367,28 +1480,68 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
 // 載入難度分析數據
   private loadDifficultyAnalysisData(): void {
+    console.log('🔄 開始載入難度分析數據（後端 API）');
+    
     this.learningAnalyticsService.getDifficultyAnalysis().subscribe({
       next: (data) => {
+        console.log('📊 難度分析 API 返回:', data);
+        
         try {
-          this.difficultyAnalysisData = data;
+          // 兼容舊版/新版欄位：若資料缺失，從 overview.domains 構建
+          if (!data || !(data as any).domain_difficulty_analysis) {
+            console.warn('⚠️ 難度分析數據缺失，回退到 init-data');
+            this.useInitDataForAnalysis();
+            return;
+          }
           
+          console.log('✅ 難度分析數據有效，開始正規化');
+
+          // 正規化比例到 0~1
+          const normalized = (data as any).domain_difficulty_analysis.map((d: any) => ({
+            domain_id: d.domain_id ?? d.id,
+            domain_name: d.domain_name ?? d.name,
+            overall_mastery: this.normalizeRatio(d.overall_mastery ?? d.mastery ?? 0),
+            difficulty_breakdown: {
+              '簡單': this.normalizeRatio(d.difficulty_breakdown?.['簡單'] ?? d.easy ?? 0),
+              '中等': this.normalizeRatio(d.difficulty_breakdown?.['中等'] ?? d.medium ?? 0),
+              '困難': this.normalizeRatio(d.difficulty_breakdown?.['困難'] ?? d.hard ?? 0),
+            },
+            difficulty_analysis: d.difficulty_analysis ?? {
+              easy_mastery: 0, medium_mastery: 0, hard_mastery: 0,
+              bottleneck_level: 'none', recommended_difficulty: '簡單'
+            },
+            forgetting_analysis: d.forgetting_analysis ?? {
+              base_mastery: 0, current_mastery: 0, days_since_practice: 0,
+              review_urgency: 'low', forgetting_factor: 1.0
+            }
+          }));
+
+          this.difficultyAnalysisData = { domain_difficulty_analysis: normalized };
+          console.log('✅ 難度分析數據正規化完成，共', normalized.length, '個領域');
+
           // 初始化可用的大知識點列表
           this.initializeAvailableMajorConcepts();
+          console.log('✅ 可用大知識點列表:', this.availableMajorConcepts);
           
           // 使用 runWhenIdle 延遲更新圖表，避免阻塞
           this.runWhenIdle(() => {
             try {
+              console.log('🔄 開始更新整合圖表');
               this.updateIntegratedChart();
+              console.log('✅ 整合圖表更新完成');
             } catch (error) {
-              console.error('更新整合圖表時出錯:', error);
+              console.error('❌ 更新整合圖表時出錯:', error);
             }
           });
         } catch (error) {
-          console.error('處理難度分析數據時出錯:', error);
+          console.error('❌ 處理難度分析數據時出錯:', error);
+          this.useInitDataForAnalysis();
         }
       },
       error: (error) => {
-        console.error('載入難度分析數據失敗:', error);
+        console.error('❌ 載入難度分析數據失敗:', error);
+        // 後端失敗 → 回退 init-data
+        this.useInitDataForAnalysis();
       }
     });
   }
@@ -1449,12 +1602,74 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
       // 檢查數據是否有效
       if (!chartData || !chartData.labels || !chartData.datasets || chartData.datasets.length === 0) {
-        console.warn('整合圖表數據無效，跳過渲染');
+        console.warn('⚠️ 整合圖表數據無效，跳過渲染');
         return;
       }
 
-      // 創建新圖表
-      (this.integratedAnalysisChart.nativeElement as any).chart = new Chart(ctx, {
+      // 檢查數據詳情
+      console.log('📊 整合圖數據詳情:');
+      console.log('  - labels 數量:', chartData.labels.length, '前3個:', chartData.labels.slice(0, 3));
+      console.log('  - datasets 數量:', chartData.datasets.length);
+      chartData.datasets.forEach((ds: any, idx: number) => {
+        console.log(`  - dataset[${idx}] (${ds.label}):`, ds.data.slice(0, 3));
+      });
+      console.log('  - canvas 尺寸:', canvas.width, 'x', canvas.height);
+
+      // 若主數據全為 0，切換為「題目數/錯題數」堆疊長條視圖
+      const all0 = chartData.datasets.every((ds: any) => this.isAllZeros(ds.data));
+      if (all0) {
+        const domains = (this.difficultyAnalysisData?.domain_difficulty_analysis || []).slice(0, 12);
+        const labels = domains.map((d: any) => d.domain_name);
+        const qCounts = labels.map((name: string) => {
+          const dom = (this.overview?.domains || []).find((x: any) => x?.name === name);
+          return Number(dom?.questionCount ?? 0);
+        });
+        const wrongCounts = labels.map((name: string) => {
+          const dom = (this.overview?.domains || []).find((x: any) => x?.name === name);
+          return Number(dom?.wrongCount ?? 0);
+        });
+        // 若題數與錯題數也都是 0，改顯示占位文字
+        const countsAllZero = this.isAllZeros(qCounts) && this.isAllZeros(wrongCounts);
+        if (countsAllZero) {
+          this.drawNoData(this.integratedAnalysisChart, '暫無整合數據');
+          return;
+        }
+        const altChartData = {
+          labels,
+          datasets: [
+            { label: '題目數', data: qCounts, backgroundColor: 'rgba(99, 102, 241, 0.6)', borderColor: 'rgba(99, 102, 241, 1)', borderWidth: 1, stack: 'counts' },
+            { label: '錯題數', data: wrongCounts, backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1, stack: 'counts' }
+          ]
+        };
+        console.log('ℹ️ 整合圖全為 0，改顯示題目數/錯題數:', altChartData);
+        try {
+          (this.integratedAnalysisChart.nativeElement as any).chart = new Chart(ctx, {
+            type: 'bar',
+            data: altChartData,
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: false,
+              // 針對堆疊長條，改由 Chart.js 預設解析
+              normalized: true,
+              scales: {
+                x: { stacked: true },
+                y: { beginAtZero: true, stacked: true }
+              },
+              plugins: { legend: { display: true, position: 'top' } }
+            }
+          });
+          console.log('✅ 整合圖（題目數/錯題數）Chart.js 創建成功');
+        } catch (error) {
+          console.error('❌ 整合圖（題目數/錯題數）Chart.js 創建失敗:', error);
+        }
+        this.updateMasterySummary();
+        return;
+      }
+
+      // 創建新圖表（掌握度視圖）
+      try {
+        (this.integratedAnalysisChart.nativeElement as any).chart = new Chart(ctx, {
         type: 'bar',
         data: chartData,
         options: {
@@ -1490,11 +1705,15 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
           }
         }
       });
+      console.log('✅ 整合圖 Chart.js 創建成功');
 
       // 更新摘要
       this.updateMasterySummary();
+      } catch (error) {
+        console.error('❌ Chart.js 創建失敗:', error);
+      }
     } catch (error) {
-      console.error('更新整合圖表時出錯:', error);
+      console.error('❌ 更新整合圖表時出錯:', error);
     } finally {
       this.isUpdatingIntegrated = false;
     }
