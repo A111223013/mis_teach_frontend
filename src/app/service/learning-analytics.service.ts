@@ -71,6 +71,26 @@ export interface AIDiagnosisData {
     forgetting_curve_data: number[];
   };
   full_text: string;
+  knowledge_relations?: {
+    has_relations: boolean;
+    prerequisites: Array<{
+      name: string;
+      strength: number;
+      type: string;
+    }>;
+    related_concepts: Array<{
+      name: string;
+      strength: number;
+      type: string;
+    }>;
+    leads_to: Array<{
+      name: string;
+      strength: number;
+      type: string;
+    }>;
+    relation_graph?: any;
+    total_relations: number;
+  };
 }
 
 export interface LearningPathItem {

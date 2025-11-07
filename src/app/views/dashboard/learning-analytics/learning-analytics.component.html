@@ -49,7 +49,7 @@
                       </ul>
                     </div>
                     <div class="ai-recommendations" *ngIf="aiCoachAnalysis?.strong_domains?.length > 0">
-                      <h6 class="mb-2 text-success">表現良好的領域：</h6>
+                      <h6 class="mb-2 ">表現良好的領域：</h6>
                       <ul class="list-unstyled mb-0">
                         <li *ngFor="let domain of aiCoachAnalysis.strong_domains" class="mb-1">
                           <i class="cil-check-circle me-2 text-success"></i>{{ domain }}
@@ -670,9 +670,93 @@
                 <i class="cil-chart me-2"></i>分析依據
               </h6>
               <div class="d-flex flex-wrap gap-2">
-                <span class="badge bg-secondary" *ngFor="let evidence of currentAIDiagnosis.evidence">
+                <span class="badge bg-secondary evidence-item" *ngFor="let evidence of currentAIDiagnosis.evidence">
                   {{ evidence }}
                 </span>
+              </div>
+            </div>
+
+            <!-- 知識點關聯圖 - Neo4j知識圖譜 -->
+            <div class="knowledge-relations mb-4" *ngIf="currentAIDiagnosis.knowledge_relations && currentAIDiagnosis.knowledge_relations.has_relations">
+              <h6 class="text-primary mb-3">
+                <i class="cil-share-alt me-2"></i>知識點關聯圖譜
+              </h6>
+              
+              <!-- 前置知識點 -->
+              <div class="mb-3" *ngIf="currentAIDiagnosis.knowledge_relations.prerequisites && currentAIDiagnosis.knowledge_relations.prerequisites.length > 0">
+                <div class="card border-warning">
+                  <div class="card-header bg-warning bg-opacity-10">
+                    <i class="cil-arrow-left me-2 text-warning"></i>
+                    <strong>前置知識點</strong>（必須先掌握）
+                  </div>
+                  <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                      <span class="badge bg-warning text-dark" 
+                            *ngFor="let prereq of currentAIDiagnosis.knowledge_relations.prerequisites"
+                            [title]="'關聯強度: ' + (prereq.strength * 100).toFixed(0) + '%'">
+                        {{ prereq.name }}
+                        <small class="ms-1">({{ (prereq.strength * 100).toFixed(0) }}%)</small>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 相關知識點 -->
+              <div class="mb-3" *ngIf="currentAIDiagnosis.knowledge_relations.related_concepts && currentAIDiagnosis.knowledge_relations.related_concepts.length > 0">
+                <div class="card border-info">
+                  <div class="card-header bg-info bg-opacity-10">
+                    <i class="cil-arrow-circle me-2 text-info"></i>
+                    <strong>相關知識點</strong>（可同時學習）
+                  </div>
+                  <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                      <span class="badge bg-info" 
+                            *ngFor="let related of currentAIDiagnosis.knowledge_relations.related_concepts"
+                            [title]="'關聯強度: ' + (related.strength * 100).toFixed(0) + '%'">
+                        {{ related.name }}
+                        <small class="ms-1">({{ (related.strength * 100).toFixed(0) }}%)</small>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 後續知識點 -->
+              <div class="mb-3" *ngIf="currentAIDiagnosis.knowledge_relations.leads_to && currentAIDiagnosis.knowledge_relations.leads_to.length > 0">
+                <div class="card border-success">
+                  <div class="card-header bg-success bg-opacity-10">
+                    <i class="cil-arrow-right me-2 text-success"></i>
+                    <strong>後續知識點</strong>（掌握後可學習）
+                  </div>
+                  <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                      <span class="badge bg-success" 
+                            *ngFor="let leads of currentAIDiagnosis.knowledge_relations.leads_to"
+                            [title]="'關聯強度: ' + (leads.strength * 100).toFixed(0) + '%'">
+                        {{ leads.name }}
+                        <small class="ms-1">({{ (leads.strength * 100).toFixed(0) }}%)</small>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 關聯圖說明 -->
+              <div class="alert alert-info mb-0">
+                <i class="cil-info me-2"></i>
+                <small>
+                  此關聯圖基於Neo4j知識圖譜生成，AI診斷已參考這些關聯關係進行分析。
+                  關聯強度越高，表示知識點之間的關係越密切。
+                </small>
+              </div>
+            </div>
+
+            <!-- 無關聯數據提示 -->
+            <div class="knowledge-relations mb-4" *ngIf="currentAIDiagnosis.knowledge_relations && !currentAIDiagnosis.knowledge_relations.has_relations">
+              <div class="alert alert-warning">
+                <i class="cil-warning me-2"></i>
+                <strong>注意：</strong>此知識點在Neo4j知識圖譜中沒有關聯數據，AI診斷基於一般教學原則進行分析。
               </div>
             </div>
 

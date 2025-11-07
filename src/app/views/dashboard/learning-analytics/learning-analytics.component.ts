@@ -269,15 +269,27 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   // 初始化其他數據
   private initializeOtherData() {
-    this.topWeakPoints = this.overview?.top_weak_points || [];
+    // 過濾掉「未知領域」
+    this.topWeakPoints = (this.overview?.top_weak_points || []).filter((item: any) => 
+      item && item.name && item.name !== '未知領域' && item.name !== '未知'
+    );
     this.trendData = this.normalizeTrendArray((this.analyticsData as any)?.trends || []);
     this.progressTracking = this.analyticsData?.progress_tracking || [];
-    this.improvementItems = this.analyticsData?.improvement_items || [];
-    this.attentionItems = this.analyticsData?.attention_items || [];
+    // 過濾掉「未知領域」
+    this.improvementItems = (this.analyticsData?.improvement_items || []).filter((item: any) => 
+      item && item.name && item.name !== '未知領域' && item.name !== '未知'
+    );
+    // 過濾掉「未知領域」
+    this.attentionItems = (this.analyticsData?.attention_items || []).filter((item: any) => 
+      item && item.name && item.name !== '未知領域' && item.name !== '未知'
+    );
     
     // 處理雷達圖數據 - 優先使用 API 返回的 radar_data，否則從 overview.domains 構建
     const rawRadarData = (this.analyticsData as any)?.radar_data;
-    const domains = this.overview?.domains || [];
+    // 過濾掉「未知領域」
+    const domains = (this.overview?.domains || []).filter((domain: any) => 
+      domain && domain.name && domain.name !== '未知領域' && domain.name !== '未知'
+    );
     this.radarData = this.normalizeRadarData(rawRadarData, domains);
     
     // 數據加載完成
@@ -291,7 +303,12 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
 
   private buildRadarFromOverview(domains: any[]): { labels: string[]; data: number[] } | null {
     if (!Array.isArray(domains) || domains.length === 0) return null;
-    const top = domains.slice(0, 8); // 限制最多 8 個標籤，避免首繪壓力
+    // 過濾掉「未知領域」
+    const filteredDomains = domains.filter((d: any) => 
+      d && d.name && d.name !== '未知領域' && d.name !== '未知'
+    );
+    if (filteredDomains.length === 0) return null;
+    const top = filteredDomains.slice(0, 8); // 限制最多 8 個標籤，避免首繪壓力
     const labels = top.map((d: any) => d?.name ?? '');
     const data = top.map((d: any) => Math.round(((d?.mastery ?? 0) * 100)));
     return { labels, data };
@@ -552,9 +569,9 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   // 初始化趨勢圖表知識點選項
   private initializeTrendDomains(): void {
     if (this.overview && this.overview.domains) {
-      // 檢查domain對象的結構
+      // 檢查domain對象的結構，並過濾掉「未知領域」
       const domainNames = this.overview.domains
-        .filter((domain: any) => domain && domain.name) // 過濾掉無效的domain
+        .filter((domain: any) => domain && domain.name && domain.name !== '未知領域' && domain.name !== '未知') // 過濾掉無效的domain和未知領域
         .map((domain: any) => domain.name);
       
       this.availableTrendDomains = ['all', ...domainNames];
@@ -1417,8 +1434,10 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
         return;
       }
 
-      // 從init-data中提取領域數據
-      const domains = this.analyticsData.overview.domains;
+      // 從init-data中提取領域數據，過濾掉「未知領域」
+      const domains = this.analyticsData.overview.domains.filter((domain: any) => 
+        domain && domain.name && domain.name !== '未知領域' && domain.name !== '未知'
+      );
 
       // 轉換為深度分析所需的格式
       this.difficultyAnalysisData = {
@@ -1520,7 +1539,11 @@ export class LearningAnalyticsComponent implements OnInit, AfterViewInit {
   // 初始化可用的大知識點列表
   private initializeAvailableMajorConcepts(): void {
     if (this.difficultyAnalysisData && this.difficultyAnalysisData.domain_difficulty_analysis) {
-      const top = this.difficultyAnalysisData.domain_difficulty_analysis.slice(0, 12);
+      // 過濾掉「未知領域」
+      const filtered = this.difficultyAnalysisData.domain_difficulty_analysis.filter((domain: any) => 
+        domain && domain.domain_name && domain.domain_name !== '未知領域' && domain.domain_name !== '未知'
+      );
+      const top = filtered.slice(0, 12);
       this.availableMajorConcepts = ['all', ...top.map((domain: any) => domain.domain_name)];
     } else {
       this.availableMajorConcepts = ['all'];
