@@ -113,6 +113,11 @@ export class QuizCenterComponent implements OnInit {
     // 轉換為陣列並排序
     this.availableSubjects = Array.from(subjects).sort();
     this.availableSchools = Array.from(schools).sort();
+    // 添加 demo 選項到學校列表（如果不存在）
+    if (!this.availableSchools.includes('demo')) {
+      this.availableSchools.push('demo');
+      this.availableSchools.sort();
+    }
     this.availableYears = Array.from(years).sort();
     this.availableDepartments = Array.from(departments).sort();
   }
@@ -126,6 +131,15 @@ export class QuizCenterComponent implements OnInit {
     this.selectedYear = '';
     this.selectedDepartment = '';
     this.actualQuestionCount = 0;
+    
+    // 特殊處理 demo 選項
+    if (this.selectedSchool === 'demo') {
+      // demo 選項固定為 114 年度和 demo 系所
+      this.availableYears = ['114'];
+      this.availableDepartments = ['demo'];
+      this.actualQuestionCount = 7; // demo 固定有 7 題
+      return;
+    }
     
     // 根據選擇的學校篩選年度
     if (this.selectedSchool) {
@@ -150,6 +164,13 @@ export class QuizCenterComponent implements OnInit {
     this.selectedDepartment = '';
     this.actualQuestionCount = 0;
     
+    // 特殊處理 demo 選項
+    if (this.selectedSchool === 'demo') {
+      this.availableDepartments = ['demo'];
+      this.actualQuestionCount = 7; // demo 固定有 7 題
+      return;
+    }
+    
     // 根據選擇的學校和年度篩選系所
     if (this.selectedSchool && this.selectedYear) {
       const filteredExams = this.examData.filter(exam => 
@@ -166,11 +187,16 @@ export class QuizCenterComponent implements OnInit {
   onDepartmentChange(): void {
     // 計算實際題目數量
     if (this.selectedSchool && this.selectedYear && this.selectedDepartment) {
-      this.actualQuestionCount = this.examData.filter(exam => 
-        exam.school === this.selectedSchool && 
-        exam.year === this.selectedYear && 
-        exam.department === this.selectedDepartment
-      ).length;
+      // 特殊處理 demo 選項
+      if (this.selectedSchool === 'demo' && this.selectedYear === '114' && this.selectedDepartment === 'demo') {
+        this.actualQuestionCount = 7; // demo 固定有 7 題
+      } else {
+        this.actualQuestionCount = this.examData.filter(exam => 
+          exam.school === this.selectedSchool && 
+          exam.year === this.selectedYear && 
+          exam.department === this.selectedDepartment
+        ).length;
+      }
     } else {
       this.actualQuestionCount = 0;
     }

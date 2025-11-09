@@ -2588,15 +2588,60 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   checkKatexLoaded(): void {
     // 檢查KaTeX是否正確載入
     const checkKatex = () => {
-      if ((window as any).katex) {
+      if ((window as any).katex && (window as any).renderMathInElement) {
         // KaTeX已載入，觸發變更檢測以重新渲染數學公式
         this.cdr.detectChanges();
       } else {
+        // 如果 KaTeX 未載入，嘗試動態載入
+        if (!(window as any).katexLoading) {
+          this.loadKatex();
+        }
         console.warn('⚠️ KaTeX 未載入，將在1秒後重試');
         setTimeout(checkKatex, 1000);
       }
     };
     checkKatex();
+  }
+
+  loadKatex(): void {
+    // 標記正在載入，避免重複載入
+    (window as any).katexLoading = true;
+    
+    // 檢查是否已經有 script 標籤
+    if (document.querySelector('script[src*="katex"]') || document.querySelector('script[src*="katex.min.js"]')) {
+      (window as any).katexLoading = false;
+      return;
+    }
+
+    // 載入 KaTeX CSS
+    if (!document.querySelector('link[href*="katex"]')) {
+      const cssLink = document.createElement('link');
+      cssLink.rel = 'stylesheet';
+      cssLink.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+      document.head.appendChild(cssLink);
+    }
+
+    // 載入 KaTeX JS
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
+    script.async = true;
+    script.onload = () => {
+      // 載入 auto-render 擴展
+      const autoRenderScript = document.createElement('script');
+      autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js';
+      autoRenderScript.async = true;
+      autoRenderScript.onload = () => {
+        (window as any).katexLoading = false;
+        console.log('✅ KaTeX 載入完成');
+        this.cdr.detectChanges();
+      };
+      document.head.appendChild(autoRenderScript);
+    };
+    script.onerror = () => {
+      (window as any).katexLoading = false;
+      console.error('❌ KaTeX 載入失敗');
+    };
+    document.head.appendChild(script);
   }
 
   renderMathFormula(formula: string): string {
