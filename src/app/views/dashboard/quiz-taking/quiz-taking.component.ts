@@ -23,7 +23,7 @@ interface QuizQuestion {
   question_text: string;
   type: 'single-choice' | 'multiple-choice' | 'fill-in-the-blank' | 'true-false' | 'short-answer' | 'long-answer' | 'choice-answer' | 'draw-answer' | 'coding-answer' | 'group';
   options?: string[];
-  image_file?: string;
+  image_file?: string | string[];
   correct_answer?: any;
   original_exam_id?: string;
   key_points?: string;
@@ -38,7 +38,7 @@ interface SubQuestion {
   options: string[];
   answer: string;
   answer_type: string;
-  image_file?: string[];
+  image_file?: string | string[];
   'detail-answer'?: string;
   'key-points'?: string;
   'difficulty level'?: string;
@@ -958,27 +958,72 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 圖片處理
   hasQuestionImages(): boolean {
     if (!this.currentQuestion?.image_file) return false;
-    const imageFile = typeof this.currentQuestion.image_file === 'string' ? 
-                      this.currentQuestion.image_file.trim() : '';
-    return imageFile !== '';
+    
+    const imageFile = this.currentQuestion.image_file;
+    
+    // 處理陣列類型
+    if (Array.isArray(imageFile)) {
+      return imageFile.length > 0 && imageFile.some(img => {
+        const imgStr = typeof img === 'string' ? img.trim() : '';
+        return imgStr !== '' && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr);
+      });
+    }
+    
+    // 處理字串類型
+    if (typeof imageFile === 'string') {
+      const imgStr = imageFile.trim();
+      return imgStr !== '' && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr);
+    }
+    
+    return false;
   }
 
   getQuestionImageUrls(): string[] {
     if (!this.currentQuestion?.image_file) return [];
     
-    const imageFile = typeof this.currentQuestion.image_file === 'string' ? 
-                      this.currentQuestion.image_file.trim() : '';
-    if (!imageFile) return [];
+    const imageFile = this.currentQuestion.image_file;
+    const urls: string[] = [];
     
-    // 如果是完整URL，直接返回
-    if (imageFile.startsWith('http')) {
-      return [imageFile];
+    // 處理陣列類型
+    if (Array.isArray(imageFile)) {
+      imageFile.forEach(img => {
+        const imgStr = typeof img === 'string' ? img.trim() : '';
+        if (imgStr && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr)) {
+          // 如果是 base64 data URI，直接使用；否則嘗試構建 URL（向後兼容）
+          if (imgStr.startsWith('data:image')) {
+            urls.push(imgStr);
+          } else if (imgStr.startsWith('http')) {
+            urls.push(imgStr);
+          } else {
+            // 向後兼容：如果不是 base64，嘗試使用靜態資源 URL
+            const baseUrl = this.quizService.getBaseUrl();
+            urls.push(`${baseUrl}/static/images/${imgStr}`);
+          }
+        }
+      });
+      return urls;
     }
     
-    // 使用後端的靜態圖片服務
-    const baseUrl = this.quizService.getBaseUrl();
-    const url = `${baseUrl}/static/images/${imageFile}`;
-    return [url];
+    // 處理字串類型
+    if (typeof imageFile === 'string') {
+      const imgStr = imageFile.trim();
+      if (!imgStr || ['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr)) {
+        return [];
+      }
+      
+      // 如果是 base64 data URI，直接使用；否則嘗試構建 URL（向後兼容）
+      if (imgStr.startsWith('data:image')) {
+        return [imgStr];
+      } else if (imgStr.startsWith('http')) {
+        return [imgStr];
+      } else {
+        // 向後兼容：如果不是 base64，嘗試使用靜態資源 URL
+        const baseUrl = this.quizService.getBaseUrl();
+        return [`${baseUrl}/static/images/${imgStr}`];
+      }
+    }
+    
+    return [];
   }
 
   getImageUrl(imageFile: string): string {
@@ -996,6 +1041,77 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     // 使用後端的靜態圖片服務
     const baseUrl = this.quizService.getBaseUrl();
     return `${baseUrl}/static/images/${cleanImageFile}`;
+  }
+
+  // 子題圖片處理
+  hasSubQuestionImages(subQuestion: SubQuestion): boolean {
+    if (!subQuestion?.image_file) return false;
+    
+    const imageFile = subQuestion.image_file;
+    
+    // 處理陣列類型
+    if (Array.isArray(imageFile)) {
+      return imageFile.length > 0 && imageFile.some(img => {
+        const imgStr = typeof img === 'string' ? img.trim() : '';
+        return imgStr !== '' && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr);
+      });
+    }
+    
+    // 處理字串類型（雖然子題通常是陣列，但為了兼容性也處理字串）
+    if (typeof imageFile === 'string') {
+      const imgStr = imageFile.trim();
+      return imgStr !== '' && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr);
+    }
+    
+    return false;
+  }
+
+  getSubQuestionImageUrls(subQuestion: SubQuestion): string[] {
+    if (!subQuestion?.image_file) return [];
+    
+    const imageFile = subQuestion.image_file;
+    const urls: string[] = [];
+    
+    // 處理陣列類型
+    if (Array.isArray(imageFile)) {
+      imageFile.forEach(img => {
+        const imgStr = typeof img === 'string' ? img.trim() : '';
+        if (imgStr && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr)) {
+          // 如果是 base64 data URI，直接使用；否則嘗試構建 URL（向後兼容）
+          if (imgStr.startsWith('data:image')) {
+            urls.push(imgStr);
+          } else if (imgStr.startsWith('http')) {
+            urls.push(imgStr);
+          } else {
+            // 向後兼容：如果不是 base64，嘗試使用靜態資源 URL
+            const baseUrl = this.quizService.getBaseUrl();
+            urls.push(`${baseUrl}/static/images/${imgStr}`);
+          }
+        }
+      });
+      return urls;
+    }
+    
+    // 處理字串類型
+    if (typeof imageFile === 'string') {
+      const imgStr = imageFile.trim();
+      if (!imgStr || ['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr)) {
+        return [];
+      }
+      
+      // 如果是 base64 data URI，直接使用；否則嘗試構建 URL（向後兼容）
+      if (imgStr.startsWith('data:image')) {
+        return [imgStr];
+      } else if (imgStr.startsWith('http')) {
+        return [imgStr];
+      } else {
+        // 向後兼容：如果不是 base64，嘗試使用靜態資源 URL
+        const baseUrl = this.quizService.getBaseUrl();
+        return [`${baseUrl}/static/images/${imgStr}`];
+      }
+    }
+    
+    return [];
   }
 
   onImageError(event: any): void {
