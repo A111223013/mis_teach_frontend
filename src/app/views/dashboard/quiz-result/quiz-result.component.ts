@@ -424,10 +424,6 @@ export class QuizResultComponent implements OnInit, AfterViewChecked {
 
 
 
-  generateAnalysisReport(): void {
-    alert('分析報告功能尚未實現');
-  }
-
   goBackToQuiz(): void {
     this.router.navigate(['/dashboard/quiz-center']);
   }

@@ -17,6 +17,7 @@ import { cilLockLocked, cilLockUnlocked, cilListRich, cilCheckCircle, cilBook, c
 import { DashboardService } from '../../../service/dashboard.service';
 import { SidebarService } from '../../../service/sidebar.service';
 import { WebAiAssistantService } from '../../../service/web-ai-assistant.service';
+import { environment } from '../../../../environments/environment';
 
 interface MistakeQuestion {
   id: string;
@@ -37,6 +38,7 @@ interface MistakeQuestion {
   feedback?: string | object | null; // 可能是 JSON 字符串、對象或 null
   status: 'correct' | 'wrong' | 'unanswered';
   errorCount: number; // 錯誤次數
+  image_file?: string | string[]; // 題目圖片
 }
 
 @Component({
@@ -202,6 +204,10 @@ export class MistakeAnalysisComponent implements OnInit {
                   if (answer.micro_concepts && Array.isArray(answer.micro_concepts) && answer.micro_concepts.length > 0) {
                     existing.question.micro_concepts = answer.micro_concepts;
                   }
+                  // 如果新的 image_file 存在且不為空，則更新
+                  if (answer.image_file && answer.image_file !== '') {
+                    existing.question.image_file = answer.image_file;
+                  }
                 }
               } else {
                 // 新建題目記錄
@@ -223,7 +229,8 @@ export class MistakeAnalysisComponent implements OnInit {
                   type: answer.type || 'unknown',
                   feedback: answer.feedback || null,
                   status: 'wrong',
-                  errorCount: 1
+                  errorCount: 1,
+                  image_file: answer.image_file || ''
                 };
                 
                 questionMap.set(uniqueKey, {
@@ -504,6 +511,99 @@ export class MistakeAnalysisComponent implements OnInit {
     return `<p>${formatted}</p>`;
   }
   
+  // 圖片處理方法
+  hasQuestionImages(question: MistakeQuestion): boolean {
+    if (!question?.image_file) return false;
+    
+    const imageFile = question.image_file;
+    
+    // 處理陣列類型
+    if (Array.isArray(imageFile)) {
+      return imageFile.length > 0 && imageFile.some(img => {
+        const imgStr = typeof img === 'string' ? img.trim() : '';
+        return imgStr !== '' && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷', ''].includes(imgStr);
+      });
+    }
+    
+    // 處理字串類型
+    if (typeof imageFile === 'string') {
+      const imgStr = imageFile.trim();
+      return imgStr !== '' && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷', ''].includes(imgStr);
+    }
+    
+    return false;
+  }
+
+  getQuestionImageUrls(question: MistakeQuestion): string[] {
+    if (!question?.image_file) return [];
+    
+    const imageFile = question.image_file;
+    const urls: string[] = [];
+    
+    // 處理陣列類型
+    if (Array.isArray(imageFile)) {
+      imageFile.forEach(img => {
+        const imgStr = typeof img === 'string' ? img.trim() : '';
+        if (imgStr && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷', ''].includes(imgStr)) {
+          // 如果是 base64 data URI，直接使用；否則嘗試構建 URL（向後兼容）
+          if (imgStr.startsWith('data:image')) {
+            urls.push(imgStr);
+          } else if (imgStr.startsWith('http')) {
+            urls.push(imgStr);
+          } else {
+            // 向後兼容：如果不是 base64，嘗試使用靜態資源 URL
+            const baseUrl = environment.apiBaseUrl || 'http://localhost:5000';
+            urls.push(`${baseUrl}/static/images/${imgStr}`);
+          }
+        }
+      });
+      return urls;
+    }
+    
+    // 處理字串類型
+    if (typeof imageFile === 'string') {
+      const imgStr = imageFile.trim();
+      if (!imgStr || ['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷', ''].includes(imgStr)) {
+        return [];
+      }
+      
+      // 如果是 base64 data URI，直接使用；否則嘗試構建 URL（向後兼容）
+      if (imgStr.startsWith('data:image')) {
+        return [imgStr];
+      } else if (imgStr.startsWith('http')) {
+        return [imgStr];
+      } else {
+        // 向後兼容：如果不是 base64，嘗試使用靜態資源 URL
+        const baseUrl = environment.apiBaseUrl || 'http://localhost:5000';
+        return [`${baseUrl}/static/images/${imgStr}`];
+      }
+    }
+    
+    return [];
+  }
+
+  // 圖片載入狀態管理
+  imageLoadState: Map<string, 'loading' | 'loaded' | 'error'> = new Map();
+
+  onImageError(event: any): void {
+    const imageUrl = event.target.src;
+    this.imageLoadState.set(imageUrl, 'error');
+    event.target.style.display = 'none';
+  }
+
+  onImageLoad(event: any): void {
+    const imageUrl = event.target.src;
+    this.imageLoadState.set(imageUrl, 'loaded');
+  }
+
+  isImageLoaded(imageUrl: string): boolean {
+    return this.imageLoadState.get(imageUrl) === 'loaded';
+  }
+
+  isImageError(imageUrl: string): boolean {
+    return this.imageLoadState.get(imageUrl) === 'error';
+  }
+
   // AI 複習此題 - 使用側邊欄 AI（一般教學導師，不使用 RAG 引導教學）
   reviewQuestionWithAI(): void {
     if (!this.selectedQuestion) return;
