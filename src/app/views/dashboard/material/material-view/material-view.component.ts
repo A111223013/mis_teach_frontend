@@ -1,4 +1,4 @@
-import { Component, ElementRef, AfterViewChecked, OnDestroy } from '@angular/core';
+import { Component, ElementRef, AfterViewChecked, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, Location, ViewportScroller  } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -99,7 +99,8 @@ export class MaterialViewComponent implements AfterViewChecked, OnDestroy {
     private messageBridgeService: MessageBridgeService,
     private viewportScroller: ViewportScroller,
     private noteService: NoteService,
-    private iconSetService: IconSetService
+    private iconSetService: IconSetService,
+    private cdr: ChangeDetectorRef
   ) {
     // 註冊圖標到 IconSetService
     const existingIcons = iconSetService.icons || {};
@@ -156,6 +157,8 @@ export class MaterialViewComponent implements AfterViewChecked, OnDestroy {
     this.materialService.getMaterial(filename).subscribe({
       next: (res) => {
         this.content = res.content;
+        this.rendered = false;
+        this.checkKatexLoaded();
       },
       error: (err) => {
         console.error('讀取教材失敗:', err);
@@ -281,17 +284,93 @@ export class MaterialViewComponent implements AfterViewChecked, OnDestroy {
   }
 
   private renderKaTeX(): void {
-    if ((window as any).renderMathInElement) {
-      (window as any).renderMathInElement(this.elRef.nativeElement.querySelector('#content'), {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\(', right: '\\)', display: false },
-          { left: '\\[', right: '\\]', display: true }
-        ],
-        throwOnError: false
-      });
+    const contentElement = this.elRef.nativeElement.querySelector('#content');
+    if (!contentElement) {
+      return;
     }
+
+    if ((window as any).renderMathInElement) {
+      setTimeout(() => {
+        (window as any).renderMathInElement(contentElement, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '\\[', right: '\\]', display: true }
+          ],
+          throwOnError: false
+        });
+        this.cdr.detectChanges();
+      }, 100);
+    } else {
+      this.checkKatexLoaded();
+    }
+  }
+
+  private checkKatexLoaded(): void {
+    if ((window as any).renderMathInElement) {
+      setTimeout(() => this.renderKaTeX(), 200);
+      return;
+    }
+
+    if ((window as any).katexLoading) {
+      setTimeout(() => this.renderKaTeX(), 500);
+      return;
+    }
+
+    this.loadKatexAssets();
+  }
+
+  private loadKatexAssets(): void {
+    (window as any).katexLoading = true;
+
+    if (!document.querySelector('link[href*="katex"]')) {
+      const cssLink = document.createElement('link');
+      cssLink.rel = 'stylesheet';
+      cssLink.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+      document.head.appendChild(cssLink);
+    }
+
+    const existingKatexScript = document.querySelector('script[src*="katex.min.js"]');
+    if (existingKatexScript) {
+      this.ensureAutoRenderScript();
+      return;
+    }
+
+    const katexScript = document.createElement('script');
+    katexScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
+    katexScript.async = true;
+    katexScript.onload = () => {
+      this.ensureAutoRenderScript();
+    };
+    katexScript.onerror = () => {
+      (window as any).katexLoading = false;
+      console.error('❌ KaTeX 載入失敗');
+    };
+    document.head.appendChild(katexScript);
+  }
+
+  private ensureAutoRenderScript(): void {
+    if (document.querySelector('script[src*="auto-render.min.js"]')) {
+      (window as any).katexLoading = false;
+      this.cdr.detectChanges();
+      this.renderKaTeX();
+      return;
+    }
+
+    const autoRenderScript = document.createElement('script');
+    autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js';
+    autoRenderScript.async = true;
+    autoRenderScript.onload = () => {
+      (window as any).katexLoading = false;
+      this.cdr.detectChanges();
+      this.renderKaTeX();
+    };
+    autoRenderScript.onerror = () => {
+      (window as any).katexLoading = false;
+      console.error('❌ KaTeX auto-render 載入失敗');
+    };
+    document.head.appendChild(autoRenderScript);
   }
 
   private highlightCode(): void {
