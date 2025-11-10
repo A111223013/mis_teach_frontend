@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, AfterViewChecked, Elem
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import {
   CardModule,
   ButtonModule,
@@ -112,6 +113,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   
   private timerSubscription?: Subscription;
   private imageLoadState = new Map<string, 'loading' | 'loaded' | 'error'>();
+  private imageBlobUrls = new Map<string, string>(); // 存儲原始 URL 到 Blob URL 的映射
 
   // 進度提示相關屬性
   isProgressModalVisible: boolean = false;
@@ -140,7 +142,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     private quizService: QuizService,
     private authService: AuthService,
     private aiQuizService: AiQuizService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -290,6 +293,12 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
     this.stopProgressAnimation(); // 確保在組件銷毀時停止動畫
     this.disconnectProgressTracking(); // 確保在組件銷毀時斷開進度追蹤
+    
+    // 清理 Blob URL 以釋放記憶體
+    this.imageBlobUrls.forEach(blobUrl => {
+      URL.revokeObjectURL(blobUrl);
+    });
+    this.imageBlobUrls.clear();
     
     // 保存當前測驗狀態到sessionStorage，以便刷新頁面後復原
     this.saveQuizToSession();
@@ -989,15 +998,30 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       imageFile.forEach(img => {
         const imgStr = typeof img === 'string' ? img.trim() : '';
         if (imgStr && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr)) {
-          // 如果是 base64 data URI，直接使用；否則嘗試構建 URL（向後兼容）
+          // 如果是 base64 data URI，直接使用
           if (imgStr.startsWith('data:image')) {
             urls.push(imgStr);
           } else if (imgStr.startsWith('http')) {
-            urls.push(imgStr);
+            // 如果是完整 URL，檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+            const blobUrl = this.imageBlobUrls.get(imgStr);
+            if (blobUrl) {
+              urls.push(blobUrl);
+            } else {
+              urls.push(imgStr);
+              this.loadImageAsBlob(imgStr);
+            }
           } else {
-            // 向後兼容：如果不是 base64，嘗試使用靜態資源 URL
+            // 構建靜態資源 URL
             const baseUrl = this.quizService.getBaseUrl();
-            urls.push(`${baseUrl}/static/images/${imgStr}`);
+            const imageUrl = `${baseUrl}/static/images/${imgStr}`;
+            // 檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+            const blobUrl = this.imageBlobUrls.get(imageUrl);
+            if (blobUrl) {
+              urls.push(blobUrl);
+            } else {
+              urls.push(imageUrl);
+              this.loadImageAsBlob(imageUrl);
+            }
           }
         }
       });
@@ -1011,19 +1035,73 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
         return [];
       }
       
-      // 如果是 base64 data URI，直接使用；否則嘗試構建 URL（向後兼容）
+      // 如果是 base64 data URI，直接使用
       if (imgStr.startsWith('data:image')) {
         return [imgStr];
       } else if (imgStr.startsWith('http')) {
-        return [imgStr];
+        // 如果是完整 URL，檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+        const blobUrl = this.imageBlobUrls.get(imgStr);
+        if (blobUrl) {
+          return [blobUrl];
+        } else {
+          this.loadImageAsBlob(imgStr);
+          return [imgStr];
+        }
       } else {
-        // 向後兼容：如果不是 base64，嘗試使用靜態資源 URL
+        // 構建靜態資源 URL
         const baseUrl = this.quizService.getBaseUrl();
-        return [`${baseUrl}/static/images/${imgStr}`];
+        const imageUrl = `${baseUrl}/static/images/${imgStr}`;
+        // 檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+        const blobUrl = this.imageBlobUrls.get(imageUrl);
+        if (blobUrl) {
+          return [blobUrl];
+        } else {
+          this.loadImageAsBlob(imageUrl);
+          return [imageUrl];
+        }
       }
     }
     
     return [];
+  }
+
+  // 使用 HttpClient 載入圖片為 Blob
+  private loadImageAsBlob(imageUrl: string): void {
+    // 如果已經在載入中或已載入，跳過
+    if (this.imageBlobUrls.has(imageUrl) || this.imageLoadState.get(imageUrl) === 'loading') {
+      return;
+    }
+    
+    // 標記為載入中
+    this.imageLoadState.set(imageUrl, 'loading');
+    
+    // 使用 HttpClient 載入圖片（會經過 ngrok 攔截器）
+    this.http.get(imageUrl, { 
+      responseType: 'blob',
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    }).subscribe({
+      next: (blob) => {
+        // 檢查 Blob 是否有效
+        if (!blob || blob.size === 0) {
+          this.imageLoadState.set(imageUrl, 'error');
+          this.cdr.detectChanges();
+          return;
+        }
+        
+        // 創建 Blob URL
+        const blobUrl = URL.createObjectURL(blob);
+        this.imageBlobUrls.set(imageUrl, blobUrl);
+        this.imageLoadState.set(imageUrl, 'loaded');
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error(`❌ 題目圖片載入失敗: ${imageUrl}`, err);
+        this.imageLoadState.set(imageUrl, 'error');
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   getImageUrl(imageFile: string): string {
@@ -1077,15 +1155,30 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       imageFile.forEach(img => {
         const imgStr = typeof img === 'string' ? img.trim() : '';
         if (imgStr && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr)) {
-          // 如果是 base64 data URI，直接使用；否則嘗試構建 URL（向後兼容）
+          // 如果是 base64 data URI，直接使用
           if (imgStr.startsWith('data:image')) {
             urls.push(imgStr);
           } else if (imgStr.startsWith('http')) {
-            urls.push(imgStr);
+            // 如果是完整 URL，檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+            const blobUrl = this.imageBlobUrls.get(imgStr);
+            if (blobUrl) {
+              urls.push(blobUrl);
+            } else {
+              urls.push(imgStr);
+              this.loadImageAsBlob(imgStr);
+            }
           } else {
-            // 向後兼容：如果不是 base64，嘗試使用靜態資源 URL
+            // 構建靜態資源 URL
             const baseUrl = this.quizService.getBaseUrl();
-            urls.push(`${baseUrl}/static/images/${imgStr}`);
+            const imageUrl = `${baseUrl}/static/images/${imgStr}`;
+            // 檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+            const blobUrl = this.imageBlobUrls.get(imageUrl);
+            if (blobUrl) {
+              urls.push(blobUrl);
+            } else {
+              urls.push(imageUrl);
+              this.loadImageAsBlob(imageUrl);
+            }
           }
         }
       });
@@ -1099,15 +1192,30 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
         return [];
       }
       
-      // 如果是 base64 data URI，直接使用；否則嘗試構建 URL（向後兼容）
+      // 如果是 base64 data URI，直接使用
       if (imgStr.startsWith('data:image')) {
         return [imgStr];
       } else if (imgStr.startsWith('http')) {
-        return [imgStr];
+        // 如果是完整 URL，檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+        const blobUrl = this.imageBlobUrls.get(imgStr);
+        if (blobUrl) {
+          return [blobUrl];
+        } else {
+          this.loadImageAsBlob(imgStr);
+          return [imgStr];
+        }
       } else {
-        // 向後兼容：如果不是 base64，嘗試使用靜態資源 URL
+        // 構建靜態資源 URL
         const baseUrl = this.quizService.getBaseUrl();
-        return [`${baseUrl}/static/images/${imgStr}`];
+        const imageUrl = `${baseUrl}/static/images/${imgStr}`;
+        // 檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+        const blobUrl = this.imageBlobUrls.get(imageUrl);
+        if (blobUrl) {
+          return [blobUrl];
+        } else {
+          this.loadImageAsBlob(imageUrl);
+          return [imageUrl];
+        }
       }
     }
     
@@ -1116,6 +1224,17 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   onImageError(event: any): void {
     const imageUrl = event.target.src;
+    // 如果 Blob URL 失敗，嘗試使用原始 URL（作為備用）
+    if (imageUrl.startsWith('blob:')) {
+      // 查找對應的原始 URL
+      for (const [originalUrl, blobUrl] of this.imageBlobUrls.entries()) {
+        if (blobUrl === imageUrl) {
+          // 嘗試使用原始 URL
+          event.target.src = originalUrl;
+          return;
+        }
+      }
+    }
     this.imageLoadState.set(imageUrl, 'error');
     event.target.style.display = 'none';
   }
@@ -1135,6 +1254,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   // 重置圖片載入狀態（切換題目時調用）
   private resetImageLoadState(): void {
+    // 注意：不清理 Blob URL，因為可能還會用到（例如返回之前的題目）
     this.imageLoadState.clear();
   }
 

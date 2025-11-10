@@ -1,5 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://127.0.0.1:5000',
-  apiBaseUrl: 'http://127.0.0.1:5000'
+  // ngrok 後端網址：https://d5d74f8444c1.ngrok-free.app
+  apiUrl: 'https://d5d74f8444c1.ngrok-free.app',
+  apiBaseUrl: 'https://d5d74f8444c1.ngrok-free.app'
 };

@@ -12,7 +12,17 @@
       (click)="goToMaterial(c)"
     >
       <div class="course-cover">
-        <img [src]="c.image" [alt]="c.name" />
+        <div *ngIf="!c.image" class="image-loading-placeholder">
+          <div class="spinner-border spinner-border-sm" role="status">
+            <span class="sr-only">載入中...</span>
+          </div>
+        </div>
+        <img 
+          *ngIf="c.image"
+          [src]="c.image" 
+          [alt]="c.name"
+          (error)="onImageError($event, c)"
+          (load)="onImageLoad($event, c)" />
         <div class="course-overlay">
           <span class="view-course">查看課程</span>
         </div>
