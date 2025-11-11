@@ -3,7 +3,9 @@
   display: flex;
   flex-direction: column;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  padding: 2rem 1rem;
+  padding: 1rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .exam-page-layout .row {
@@ -13,10 +15,15 @@
 }
 
 .exam-page-layout .col-md-3,
-.exam-page-layout .col-lg-2,
+.exam-page-layout .col-lg-2 {
+  padding: 0.5rem;
+}
+
 .exam-page-layout .col-md-9,
 .exam-page-layout .col-lg-10 {
-  padding: 0.75rem;
+  padding: 0.5rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .question-nav-panel {
@@ -30,6 +37,7 @@
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
+  box-sizing: border-box;
 }
 
 /* 主要內容區域 */
@@ -42,7 +50,9 @@
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
-  padding: 0;
+  padding: 0.5rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .exam-info {
@@ -149,7 +159,7 @@
 }
 
 .exam-container {
-  padding: 2rem;
+  padding: 1.5rem;
   height: 100%;
   overflow-y: auto;
   flex: 1;
@@ -157,6 +167,9 @@
   background: rgba(255, 255, 255, 0.95);
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .exam-header {
@@ -168,22 +181,47 @@
 
 .question-area {
   margin-bottom: 20px;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  visibility: visible;
+  opacity: 1;
 }
 
 .question-header {
   margin-bottom: 20px;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  visibility: visible;
+  opacity: 1;
 }
 
 .question-info {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  width: 100%;
+  max-width: 100%;
+}
+
+.question-title {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  visibility: visible;
+  opacity: 1;
 }
 
 .question-text {
   font-size: 1.1rem;
   font-weight: 500;
   margin-bottom: 15px;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  visibility: visible;
+  opacity: 1;
 }
 
 .flag-btn {
@@ -286,6 +324,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 200px; /* 確保最小高度 */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 單選題美化樣式 */
@@ -441,6 +482,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 150px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 填空題區域樣式 */
@@ -451,6 +495,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 150px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .text-answer-section .form-control,
@@ -476,6 +523,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 200px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 繪圖工具欄 */
@@ -670,6 +720,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 200px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .code-editor {
@@ -700,6 +753,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 150px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .choice-answer-section .options-list {
@@ -717,6 +773,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 200px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sub-question-item {
@@ -937,6 +996,9 @@ img[src=""]:after {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   min-height: 200px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 數學編輯器左右分佈佈局 */

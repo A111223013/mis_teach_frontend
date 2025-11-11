@@ -275,21 +275,25 @@
             <!-- 選填題 -->
             <div *ngIf="getQuestionType(currentQuestion) === 'choice-answer'" class="choice-answer-section">
               <label class="form-label">選填題：</label>
-              <div class="options-list mb-3">
-                <div *ngFor="let option of currentQuestion.options; let i = index" class="form-check">
+              <div class="options-list mb-3" *ngIf="currentQuestion.options && currentQuestion.options.length > 0">
+                <div *ngFor="let option of currentQuestion.options; let i = index" 
+                     class="form-check"
+                     [class.selected]="isSingleChoiceSelected(option)"
+                     (click)="selectSingleChoice(option)">
                   <input 
                     class="form-check-input" 
                     type="radio" 
                     [name]="'question_' + currentQuestionIndex" 
                     [id]="'choice_option' + currentQuestionIndex + '-' + i"
-                    [checked]="isSingleChoiceSelected(option)"
-                    (change)="selectSingleChoice(option)">
+                    [checked]="isSingleChoiceSelected(option)">
                   <label class="form-check-label" [for]="'choice_option' + currentQuestionIndex + '-' + i">
-                    {{ option }}
+                    <span class="option-text">{{ option }}</span>
                   </label>
                 </div>
               </div>
-        
+              <div *ngIf="!currentQuestion.options || currentQuestion.options.length === 0" class="alert alert-warning">
+                此題目沒有提供選項
+              </div>
             </div>
 
             <!-- 畫圖題 - 移除，統一使用數學公式答題模式 -->

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, throwError, BehaviorSubject } from 'rxjs';
+import { Observable, catchError, throwError, BehaviorSubject, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
 
@@ -79,11 +79,70 @@ export class QuizService {
     this.clearQuizDataFromStorage();
   }
 
-  // 獲取所有考題
+  // 獲取所有考題（完整資料，包含題目內容和圖片）
   getExams(): Observable<any> {
     return this.authService.authenticatedRequest((headers) =>
       this.http.post(`${environment.apiBaseUrl}/quiz/get-exam`, {}, { headers })
     ).pipe(catchError(this.handleError));
+  }
+
+  // 獲取考題篩選選項（輕量級，只包含學校、年度、系所、知識點列表）
+  getExamFilters(): Observable<any> {
+    // 檢查快取（5分鐘有效）
+    const cacheKey = 'exam_filters_cache';
+    const cacheTimestampKey = 'exam_filters_cache_timestamp';
+    const cacheExpiry = 5 * 60 * 1000; // 5分鐘
+    
+    try {
+      const cachedData = localStorage.getItem(cacheKey);
+      const cachedTimestamp = localStorage.getItem(cacheTimestampKey);
+      
+      if (cachedData && cachedTimestamp) {
+        const timestamp = parseInt(cachedTimestamp, 10);
+        const now = Date.now();
+        
+        if (now - timestamp < cacheExpiry) {
+          // 快取有效，直接返回
+          return new Observable(observer => {
+            observer.next(JSON.parse(cachedData));
+            observer.complete();
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('讀取快取失敗:', error);
+    }
+    
+    // 快取無效或不存在，從 API 獲取
+    return this.authService.authenticatedRequest((headers) =>
+      this.http.post(`${environment.apiBaseUrl}/quiz/get-exam-filters`, {}, { headers })
+    ).pipe(
+      // 成功時保存到快取
+      tap((response: any) => {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(response));
+          localStorage.setItem(cacheTimestampKey, Date.now().toString());
+        } catch (error) {
+          console.warn('保存快取失敗:', error);
+        }
+      }),
+      // 錯誤處理：如果 API 失敗，嘗試使用快取（即使過期）
+      catchError((error) => {
+        try {
+          const cachedData = localStorage.getItem(cacheKey);
+          if (cachedData) {
+            console.warn('API 請求失敗，使用過期快取');
+            return new Observable(observer => {
+              observer.next(JSON.parse(cachedData));
+              observer.complete();
+            });
+          }
+        } catch (e) {
+          // 忽略快取錯誤
+        }
+        return throwError(() => error);
+      })
+    );
   }
 
   // 條件查詢考題

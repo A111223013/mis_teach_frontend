@@ -787,6 +787,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (!this.currentQuestion) return;
     this.userAnswers[this.currentQuestionIndex] = option;
     
+    // 觸發變更檢測
+    this.cdr.markForCheck();
+    
     // 保存當前狀態到session
     this.saveQuizToSession();
   }
