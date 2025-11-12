@@ -652,7 +652,9 @@
                           </h6>
                         </div>
                         <div class="math-preview-area">
-                          <div class="math-preview-content" [innerHTML]="renderMathFormula(mathFormulaAnswer)"></div>
+                          <div class="math-preview-content" 
+                               [innerHTML]="renderMathFormula(mathFormulaAnswer)"
+                               #mathPreviewContent></div>
                         </div>
                       </div>
                     </div>

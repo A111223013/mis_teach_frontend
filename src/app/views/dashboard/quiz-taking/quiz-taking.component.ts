@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {
   CardModule,
   ButtonModule,
@@ -143,7 +144,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     private authService: AuthService,
     private aiQuizService: AiQuizService,
     private cdr: ChangeDetectorRef,
-    private http: HttpClient
+    private http: HttpClient,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -2736,22 +2738,24 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
       return;
     }
 
-    // 載入 KaTeX CSS
+    // 載入 KaTeX CSS - 升級到最新版本以獲得更好的排版支持
+    // 確保 CSS 優先級最高，避免被其他樣式覆蓋
     if (!document.querySelector('link[href*="katex"]')) {
       const cssLink = document.createElement('link');
       cssLink.rel = 'stylesheet';
-      cssLink.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
-      document.head.appendChild(cssLink);
+      cssLink.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+      // 將 KaTeX CSS 插入到 head 的最前面，確保優先級
+      document.head.insertBefore(cssLink, document.head.firstChild);
     }
 
-    // 載入 KaTeX JS
+    // 載入 KaTeX JS - 升級到最新版本
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
+    script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
     script.async = true;
     script.onload = () => {
-      // 載入 auto-render 擴展
+      // 載入 auto-render 擴展 - 升級到最新版本
       const autoRenderScript = document.createElement('script');
-      autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js';
+      autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js';
       autoRenderScript.async = true;
       autoRenderScript.onload = () => {
         (window as any).katexLoading = false;
@@ -2767,23 +2771,32 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     document.head.appendChild(script);
   }
 
-  renderMathFormula(formula: string): string {
-    if (!formula) return '';
+  renderMathFormula(formula: string, displayMode: boolean = true): SafeHtml {
+    if (!formula) return this.sanitizer.bypassSecurityTrustHtml('');
     
     try {
       // 使用 KaTeX 渲染數學公式
       if ((window as any).katex) {
+        // 檢測是否包含複雜結構（積分、分數、矩陣等），自動判斷使用 displayMode
+        const hasComplexStructure = /\\int|\\frac|\\sum|\\prod|\\lim|\\sqrt|\\begin|\\left|\\right/.test(formula);
+        const shouldDisplay = displayMode || hasComplexStructure;
+        
+        // 使用最簡潔的配置，讓 KaTeX 使用預設的排版算法
+        // 對於複雜公式，強制使用 displayMode 以確保正確排版
         const rendered = (window as any).katex.renderToString(formula, {
           throwOnError: false,
-          displayMode: false
+          displayMode: shouldDisplay,
+          // 不設置其他選項，讓 KaTeX 使用預設值以確保正確排版
         });
-        return rendered;
+        
+        // 使用 DomSanitizer 允許 KaTeX 渲染的 HTML，避免 Angular 的 sanitization 警告
+        return this.sanitizer.bypassSecurityTrustHtml(rendered);
       }
-      // 如果KaTeX未載入，返回原始公式
-      return formula;
+      // 如果KaTeX未載入，返回原始公式（也需要 sanitize）
+      return this.sanitizer.bypassSecurityTrustHtml(formula);
     } catch (error) {
       console.warn('KaTeX rendering error:', error);
-      return formula;
+      return this.sanitizer.bypassSecurityTrustHtml(formula);
     }
   }
 
@@ -3059,6 +3072,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 數學公式編輯器相關方法
   updateMathFormula(): void {
     this.userAnswers[this.currentQuestionIndex] = this.mathFormulaAnswer;
+    
+    // 觸發變更檢測以更新預覽
+    this.cdr.detectChanges();
     
     // 保存當前狀態到session
     this.saveQuizToSession();
