@@ -38,8 +38,10 @@ export class QuizCenterComponent implements OnInit {
   availableSchools: string[] = [];
   availableYears: string[] = [];
   availableDepartments: string[] = [];
-  examData: any[] = [];
+  examData: any[] = []; // 保留以維持向後相容，但不再用於篩選
   subjectCountMap: Map<string, number> = new Map();
+  private schoolYearDeptCounts: { [key: string]: number } = {}; // 學校-年度-系所組合的題目數量統計
+  private allYears: string[] = []; // 保存所有年度（用於重置）
   
   // 知識點測驗
   selectedTopic: string = '';
@@ -73,48 +75,51 @@ export class QuizCenterComponent implements OnInit {
   }
 
   loadRealData(): void {
-    this.quizService.getExams().subscribe({
+    // 使用輕量級 API 獲取篩選選項（不包含題目內容和圖片）
+    this.quizService.getExamFilters().subscribe({
       next: (response: any) => {
-        if (response && response.exams) {
-          this.examData = response.exams;
-          this.processExamData();
+        if (response && response.filters) {
+          const filters = response.filters;
+          
+          // 直接使用 API 返回的篩選選項
+          this.availableSubjects = filters.subjects || [];
+          this.availableSchools = filters.schools || [];
+          this.availableYears = filters.years || [];
+          this.allYears = [...(filters.years || [])]; // 保存所有年度
+          this.availableDepartments = filters.departments || [];
+          
+          // 設置知識點統計
+          if (filters.subject_counts) {
+            this.subjectCountMap.clear();
+            Object.entries(filters.subject_counts).forEach(([subject, count]) => {
+              this.subjectCountMap.set(subject, count as number);
+            });
+          }
+          
+          // 保存學校-年度-系所組合的題目數量統計（用於快速計算）
+          this.schoolYearDeptCounts = filters.school_year_dept_counts || {};
+          
+          // 添加 demo 選項到學校列表（如果不存在）
+          if (!this.availableSchools.includes('demo')) {
+            this.availableSchools.push('demo');
+            this.availableSchools.sort();
+          }
+          
+          // 觸發變更檢測
+          this.cdr.detectChanges();
         }
       },
       error: (error: any) => {
-        console.error('載入考題資料失敗:', error);
+        console.error('載入篩選選項失敗:', error);
         // AuthService會自動處理401錯誤
       }
     });
   }
 
+  // 不再需要 processExamData，因為 API 已經處理好資料
   processExamData(): void {
-    // 重置資料
-    const subjects = new Set<string>();
-    const schools = new Set<string>();
-    const years = new Set<string>();
-    const departments = new Set<string>();
-    this.subjectCountMap.clear();
-
-    // 處理考題資料
-    this.examData.forEach(exam => {
-      // 收集知識點/科目
-      const subject = exam.key_points || exam['主要學科'] || '其他';
-      if (subject && subject !== '其他') {
-        subjects.add(subject);
-        this.subjectCountMap.set(subject, (this.subjectCountMap.get(subject) || 0) + 1);
-      }
-
-      // 收集學校、年度、系所
-      if (exam.school) schools.add(exam.school);
-      if (exam.year) years.add(exam.year);
-      if (exam.department) departments.add(exam.department);
-    });
-
-    // 轉換為陣列並排序
-    this.availableSubjects = Array.from(subjects).sort();
-    this.availableSchools = Array.from(schools).sort();
-    this.availableYears = Array.from(years).sort();
-    this.availableDepartments = Array.from(departments).sort();
+    // 此方法保留以維持向後相容，但不再使用
+    // 資料現在直接從 getExamFilters API 獲取
   }
 
   getSubjectCount(subject: string): number {
@@ -127,21 +132,28 @@ export class QuizCenterComponent implements OnInit {
     this.selectedDepartment = '';
     this.actualQuestionCount = 0;
     
-    // 根據選擇的學校篩選年度
+    // 特殊處理 demo 選項
+    if (this.selectedSchool === 'demo') {
+      // demo 選項固定為 114 年度和 demo 系所
+      this.availableYears = ['114'];
+      this.availableDepartments = ['demo'];
+      this.actualQuestionCount = 7; // demo 固定有 7 題
+      return;
+    }
+    
+    // 根據選擇的學校篩選年度（使用統計資料）
     if (this.selectedSchool) {
-      const schoolExams = this.examData.filter(exam => exam.school === this.selectedSchool);
       const years = new Set<string>();
-      schoolExams.forEach(exam => {
-        if (exam.year) years.add(exam.year);
+      Object.keys(this.schoolYearDeptCounts).forEach(key => {
+        const [school, year] = key.split('|');
+        if (school === this.selectedSchool) {
+          years.add(year);
+        }
       });
       this.availableYears = Array.from(years).sort();
     } else {
       // 重置為所有年度
-      const years = new Set<string>();
-      this.examData.forEach(exam => {
-        if (exam.year) years.add(exam.year);
-      });
-      this.availableYears = Array.from(years).sort();
+      this.availableYears = [...this.allYears];
     }
   }
 
@@ -150,27 +162,36 @@ export class QuizCenterComponent implements OnInit {
     this.selectedDepartment = '';
     this.actualQuestionCount = 0;
     
-    // 根據選擇的學校和年度篩選系所
+    // 特殊處理 demo 選項
+    if (this.selectedSchool === 'demo') {
+      this.availableDepartments = ['demo'];
+      this.actualQuestionCount = 7; // demo 固定有 7 題
+      return;
+    }
+    
+    // 根據選擇的學校和年度篩選系所（使用統計資料）
     if (this.selectedSchool && this.selectedYear) {
-      const filteredExams = this.examData.filter(exam => 
-        exam.school === this.selectedSchool && exam.year === this.selectedYear
-      );
       const departments = new Set<string>();
-      filteredExams.forEach(exam => {
-        if (exam.department) departments.add(exam.department);
+      Object.keys(this.schoolYearDeptCounts).forEach(key => {
+        const [school, year, dept] = key.split('|');
+        if (school === this.selectedSchool && year === this.selectedYear) {
+          departments.add(dept);
+        }
       });
       this.availableDepartments = Array.from(departments).sort();
     }
   }
 
   onDepartmentChange(): void {
-    // 計算實際題目數量
+    // 計算實際題目數量（使用統計資料）
     if (this.selectedSchool && this.selectedYear && this.selectedDepartment) {
-      this.actualQuestionCount = this.examData.filter(exam => 
-        exam.school === this.selectedSchool && 
-        exam.year === this.selectedYear && 
-        exam.department === this.selectedDepartment
-      ).length;
+      // 特殊處理 demo 選項
+      if (this.selectedSchool === 'demo' && this.selectedYear === '114' && this.selectedDepartment === 'demo') {
+        this.actualQuestionCount = 7; // demo 固定有 7 題
+      } else {
+        const key = `${this.selectedSchool}|${this.selectedYear}|${this.selectedDepartment}`;
+        this.actualQuestionCount = this.schoolYearDeptCounts[key] || 0;
+      }
     } else {
       this.actualQuestionCount = 0;
     }

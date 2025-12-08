@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -89,7 +89,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   currentQuestionIndex = 0;
 
   // 新增：學習進度追蹤
-  learningStage: 'core_concept_confirmation' | 'related_concept_guidance' | 'application_understanding' | 'understanding_verification' = 'core_concept_confirmation';
+  learningStage: 'core_concept_confirmation' | 'related_concept_guidance' | 'application_understanding' | 'understanding_verification' | 'completed' = 'core_concept_confirmation';
   understandingLevel: number = 0;
   learningProgress: Array<{
     stage: string;
@@ -121,7 +121,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       topic: '',
       options: [],
       image_file: '',
-      question_type: '',
+      type: 'single-choice',
       is_marked: false
     };
   }
@@ -152,7 +152,8 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     private route: ActivatedRoute,
     private router: Router,
     private aiTutoringService: AiTutoringService,
-    private aiQuizService: AiQuizService
+    private aiQuizService: AiQuizService,
+    private cdr: ChangeDetectorRef
   ) {
     this.checkMobile();
   }
@@ -194,7 +195,10 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   ngAfterViewChecked(): void {
-    this.scrollToBottom();
+    // 移除自動滾動，只在有新消息時才滾動
+    // this.scrollToBottom(); // 已移除，避免查看歷史對話時被強制滾到底部
+    // 自動觸發 LaTeX 渲染
+    this.renderMathInElement();
   }
 
   checkMobile(): void {
@@ -283,7 +287,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
               topic: queryParams.topic || '',
               options: [],
               image_file: '',
-              question_type: queryParams.examType || 'general',
+              type: queryParams.examType || 'general',
               is_marked: false
             };
 
@@ -370,7 +374,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
               topic: queryParams.topic || '',
               options: [],
               image_file: '',
-              question_type: queryParams.examType || 'general',
+              type: queryParams.examType || 'general',
               is_marked: false
             };
 
@@ -430,14 +434,26 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       timestamp: new Date().toISOString()
     });
     
-    setTimeout(() => this.scrollToBottom(), 100);
+    // 添加新消息後才自動滾動到底部
+    setTimeout(() => this.scrollToBottom(true), 100);
   }
 
-  scrollToBottom(): void {
-    if (this.chatContainer) {
-      const element = this.chatContainer.nativeElement;
-      element.scrollTop = element.scrollHeight;
+  scrollToBottom(force: boolean = false): void {
+    if (!this.chatContainer) return;
+    
+    const element = this.chatContainer.nativeElement;
+    
+    // 如果用戶正在查看歷史消息（不在底部），且不是強制滾動，則不滾動
+    if (!force) {
+      const isNearBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 100;
+      if (!isNearBottom) {
+        // 用戶正在查看歷史對話，不自動滾動
+        return;
+      }
     }
+    
+    // 強制滾動或已經在底部附近，則滾動到底部
+    element.scrollTop = element.scrollHeight;
   }
 
   async sendMessage(): Promise<void> {
@@ -451,7 +467,15 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       `題目：${this.currentQuestion.question_text}\n\n用戶問題：${message}` :
       message;
     
-    this.addMessage('user', message);
+    // 顯示用戶訊息（格式化支援LaTeX）
+    const formattedUserMessage = this.formatMarkdownToHTML(message);
+    this.addMessage('user', formattedUserMessage);
+    
+    // 觸發LaTeX渲染
+    setTimeout(() => {
+      this.renderMathInElement();
+      this.cdr.detectChanges();
+    }, 50);
 
     this.isLoading = true;
 
@@ -672,13 +696,25 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.showQuestionDetailModal = true;
   }
   
+  closeQuestionModal(): void {
+    this.showQuestionDetailModal = false;
+  }
+  
   showUserAnswerModal(): void {
     this.showUserAnswerDetailModal = true;
+  }
+  
+  closeUserAnswerModal(): void {
+    this.showUserAnswerDetailModal = false;
   }
   
   showCorrectAnswerModal(): void {
     this.showCorrectAnswerDetailModal = true;
     this.generateAnswerAnalysis();
+  }
+  
+  closeCorrectAnswerModal(): void {
+    this.showCorrectAnswerDetailModal = false;
   }
 
   async generateAnswerAnalysis() {
@@ -687,7 +723,20 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     try {
       this.currentQuestionAnswerAnalysis = null; // 重置分析內容
       
-      const analysisMessage = `請分析這道題目：${this.currentQuestion.question_text}\n\n正確答案：${this.currentQuestion.correct_answer}\n\n請提供詳細的答案分析，包括：\n1. 題目考察的知識點\n2. 解題思路和步驟\n3. 相關概念說明\n4. 常見錯誤和注意事項`;
+      // 優化提示詞：要求AI生成親切自然的解析
+      const analysisMessage = `請以親切、自然、易懂的語氣，詳細解析這道題目：
+
+題目：${this.currentQuestion.question_text}
+
+正確答案：${this.currentQuestion.correct_answer}
+
+請用像朋友聊天一樣的語氣，詳細說明：
+1. 這道題目在考什麼概念？（用簡單的話解釋）
+2. 為什麼答案是這樣？（說明答案的邏輯）
+3. 如何思考這道題？（給出解題思路）
+4. 有什麼需要注意的地方嗎？（提醒常見錯誤）
+
+請用**自然段落**的方式回答，語氣要親切友善，就像一位耐心的老師在解釋給學生聽。可以使用**粗體**標記重點，用換行讓內容更容易閱讀。`;
 
       const response = await this.aiTutoringService.sendTutoringMessage(
         analysisMessage, 
@@ -696,9 +745,30 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       ).toPromise();
       
       if (response?.success && response.response) {
-        this.currentQuestionAnswerAnalysis = response.response;
+        let analysisText = '';
+        
+        // 處理嵌套的response結構
+        if (typeof response.response === 'object') {
+          const responseData = response.response as any;
+          if (responseData.response) {
+            analysisText = responseData.response;
+          } else {
+            analysisText = responseData.text || responseData.message || responseData.content || JSON.stringify(response.response);
+          }
+        } else {
+          analysisText = response.response;
+        }
+        
+        // 將Markdown轉換為HTML（支援粗體、換行、LaTeX等）
+        this.currentQuestionAnswerAnalysis = this.formatMarkdownToHTML(analysisText);
+        
+        // 觸發LaTeX渲染
+        setTimeout(() => {
+          this.renderMathInElement();
+          this.cdr.detectChanges();
+        }, 100);
       } else {
-        this.currentQuestionAnswerAnalysis = '無法生成答案分析，請重試。';
+        this.currentQuestionAnswerAnalysis = '<p class="text-muted">無法生成答案分析，請重試。</p>';
       }
     } catch (error) {
       console.error('生成答案分析失敗:', error);
@@ -795,13 +865,44 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   getLearningStageDisplayName(stage: string): string {
-    const stageNames = {
+    const stageNames: { [key: string]: string } = {
       'core_concept_confirmation': '核心概念確認',
       'related_concept_guidance': '相關概念引導',
       'application_understanding': '應用理解',
-      'understanding_verification': '理解驗證'
+      'understanding_verification': '理解驗證',
+      'completed': '學習完成',
+      'unknown': '未知階段'
     };
-    return stageNames[stage as keyof typeof stageNames] || stage;
+    return stageNames[stage] || stage;
+  }
+
+  // 獲取當前應該顯示的階段名稱（如果達到階段上限，顯示下一個階段）
+  getCurrentDisplayStage(): string {
+    const stageRanges: { [key: string]: { min: number; max: number } } = {
+      'core_concept_confirmation': { min: 0, max: 39 },
+      'related_concept_guidance': { min: 40, max: 69 },
+      'application_understanding': { min: 70, max: 89 },
+      'understanding_verification': { min: 90, max: 98 },
+      'completed': { min: 99, max: 99 }
+    };
+
+    const stageOrder = ['core_concept_confirmation', 'related_concept_guidance', 'application_understanding', 'understanding_verification', 'completed'];
+    
+    const currentRange = stageRanges[this.learningStage];
+    if (!currentRange) {
+      return this.getLearningStageDisplayName(this.learningStage);
+    }
+
+    // 如果當前分數達到階段上限，顯示下一個階段
+    if (this.understandingLevel >= currentRange.max && this.learningStage !== 'completed') {
+      const currentIndex = stageOrder.indexOf(this.learningStage);
+      if (currentIndex >= 0 && currentIndex < stageOrder.length - 1) {
+        const nextStage = stageOrder[currentIndex + 1];
+        return this.getLearningStageDisplayName(nextStage);
+      }
+    }
+
+    return this.getLearningStageDisplayName(this.learningStage);
   }
 
   // 新增：獲取題目完成度百分比（用於進度條）
@@ -898,24 +999,137 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
     return 0;
   }
+  
+  // 新增：獲取階段進度條目（用於圖表顯示）
+  getStageProgressEntries(stageProgress: any): Array<{stageName: string, count: number, percentage: number}> {
+    if (!stageProgress) return [];
+    
+    const stageNames: { [key: string]: string } = {
+      'core_concept_confirmation': '核心概念確認',
+      'related_concept_guidance': '相關概念引導',
+      'application_understanding': '應用理解',
+      'understanding_verification': '理解驗證',
+      'completed': '學習完成'
+    };
+    
+    const total = Object.values(stageProgress).reduce((sum: number, count: any) => sum + (count as number), 0);
+    
+    return Object.entries(stageProgress).map(([stage, count]) => ({
+      stageName: stageNames[stage] || stage,
+      count: count as number,
+      percentage: total > 0 ? ((count as number) / total * 100) : 0
+    }));
+  }
 
-  // 新增：匯出學習報告
+  // 新增：匯出學習報告（Word格式）
   exportLearningReport(): void {
     if (!this.learningReport) return;
     
-    const reportData = {
-      ...this.learningReport,
-      exportTime: new Date().toISOString(),
-      sessionId: this.sessionId
-    };
+    // 生成HTML格式的報告
+    const reportHTML = this.generateReportHTML();
     
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+    // 使用 html-docx-js 或其他庫生成 Word 文檔
+    // 如果沒有安裝庫，則下載 HTML 格式
+    const blob = new Blob([reportHTML], { type: 'application/msword' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `learning_report_${this.sessionId}_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `學習報告_${new Date().toISOString().split('T')[0]}.doc`;
     a.click();
     window.URL.revokeObjectURL(url);
+  }
+  
+  // 生成報告 HTML
+  private generateReportHTML(): string {
+    if (!this.learningReport) return '';
+    
+    const report = this.learningReport;
+    const stageProgress = report.stageProgress || {};
+    const stageNames = {
+      'core_concept_confirmation': '核心概念確認',
+      'related_concept_guidance': '相關概念引導',
+      'application_understanding': '應用理解',
+      'understanding_verification': '理解驗證',
+      'completed': '學習完成'
+    };
+    
+    let html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>學習進度報告</title>
+  <style>
+    body { font-family: 'Microsoft YaHei', Arial, sans-serif; padding: 20px; line-height: 1.6; }
+    h1 { color: #1976d2; border-bottom: 3px solid #1976d2; padding-bottom: 10px; }
+    h2 { color: #424242; margin-top: 30px; }
+    .info-box { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    .progress-bar { background: #e0e0e0; height: 30px; border-radius: 5px; margin: 10px 0; }
+    .progress-fill { background: #4caf50; height: 100%; border-radius: 5px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    th { background: #1976d2; color: white; }
+    .recommendation { background: #fff3cd; padding: 10px; margin: 5px 0; border-left: 4px solid #ffc107; }
+  </style>
+</head>
+<body>
+  <h1>📊 學習進度報告</h1>
+  
+  <h2>📝 題目資訊</h2>
+  <div class="info-box">
+    ${report.currentQuestion?.question_text || '題目載入中...'}
+  </div>
+  
+  <h2>📈 學習狀態</h2>
+  <table>
+    <tr>
+      <th>項目</th>
+      <th>內容</th>
+    </tr>
+    <tr>
+      <td>學習階段</td>
+      <td>${this.getLearningStageDisplayName(report.learningStage)}</td>
+    </tr>
+    <tr>
+      <td>理解程度</td>
+      <td>${report.understandingLevel}/100 分</td>
+    </tr>
+    <tr>
+      <td>總學習時間</td>
+      <td>${report.totalLearningTime} 分鐘</td>
+    </tr>
+  </table>
+  
+  <h2>📊 階段進度</h2>
+  <table>
+    <tr>
+      <th>學習階段</th>
+      <th>停留次數</th>
+    </tr>
+    ${Object.entries(stageProgress).map(([stage, count]) => `
+    <tr>
+      <td>${stageNames[stage as keyof typeof stageNames] || stage}</td>
+      <td>${count} 次</td>
+    </tr>
+    `).join('')}
+  </table>
+  
+  <h2>💡 學習建議</h2>
+  ${report.recommendations.map((rec: string) => `
+    <div class="recommendation">
+      <strong>💡</strong> ${rec}
+    </div>
+  `).join('')}
+  
+  <hr>
+  <p style="text-align: center; color: #757575; margin-top: 30px;">
+    報告生成時間：${new Date().toLocaleString('zh-TW')}
+  </p>
+</body>
+</html>
+    `;
+    
+    return html;
   }
 
   // 新增：開始新的學習會話
@@ -1212,12 +1426,21 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
         
         // 確保內容不為空且不是[object Object]
         if (cleanResponse && cleanResponse.trim() && !cleanResponse.includes('[object Object]')) {
+          // 將Markdown格式轉換為HTML（包含LaTeX支持）
+          const formattedResponse = this.formatMarkdownToHTML(cleanResponse);
+          
           // 添加到對話歷史
           this.chatMessages.push({
             type: 'ai',
-            content: cleanResponse,
+            content: formattedResponse,  // 使用格式化後的回應（包含LaTeX標記）
             timestamp: new Date().toISOString()
           });
+          
+          // 觸發LaTeX渲染（延遲確保DOM更新）
+          setTimeout(() => {
+            this.renderMathInElement();
+            this.cdr.detectChanges();
+          }, 100);
         } else {
           console.error('❌ AI回應內容無效:', cleanResponse);
           this.handleError('AI回應內容無效');
@@ -1225,23 +1448,58 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
         }
         
         // 更新學習狀態 - 從後端返回的 response 對象中提取數據
-        const responseData = aiResponse.response;
+        // 後端返回格式：{ success: true, response: { response: '...', smart_score: ..., ... } }
+        // 所以 tutoringData 應該直接是 aiResponse.response
+        let tutoringData: any = null;
         
-        // 提取理解程度和學習階段
-        const backendUnderstandingLevel = responseData?.understanding_level;
-        const backendLearningStage = responseData?.learning_stage;
+        // 後端在 chat_with_ai 中返回：{ success: true, response: {...} }
+        // 而 handle_tutoring_conversation 返回的對象包含：{ response: '...', smart_score: ..., ... }
+        if (aiResponse.response && typeof aiResponse.response === 'object') {
+          tutoringData = aiResponse.response;
+        } 
+        // 備用：檢查 data.response（如果API包裝方式改變）
+        else if (aiResponse.data && typeof aiResponse.data === 'object') {
+          if (aiResponse.data.response && typeof aiResponse.data.response === 'object') {
+            tutoringData = aiResponse.data.response;
+          } else {
+            tutoringData = aiResponse.data;
+          }
+        }
         
-        // 優先使用後端返回的數據
-        if (backendUnderstandingLevel !== undefined && typeof backendUnderstandingLevel === 'number') {
+        // 提取理解程度和學習階段（優先使用新的字段名）
+        const backendSmartScore = tutoringData?.smart_score;
+        const backendRawScore = tutoringData?.raw_score;
+        const backendUnderstandingLevel = tutoringData?.understanding_level;
+        const backendLearningStage = tutoringData?.learning_stage;
+        const conversationCount = tutoringData?.conversation_count;
+        
+        // 優先使用後端返回的數據（使用 smart_score）
+        let scoreUpdated = false;
+        if (backendSmartScore !== undefined && backendSmartScore !== null && typeof backendSmartScore === 'number') {
+          this.understandingLevel = Math.max(0, Math.min(100, backendSmartScore));
+          scoreUpdated = true;
+          console.log(`✅ 使用 smart_score 更新理解程度: ${this.understandingLevel}`);
+        } else if (backendUnderstandingLevel !== undefined && backendUnderstandingLevel !== null && typeof backendUnderstandingLevel === 'number') {
+          // 兼容舊格式
           this.understandingLevel = Math.max(0, Math.min(100, backendUnderstandingLevel));
+          scoreUpdated = true;
+          console.log(`✅ 使用 understanding_level 更新理解程度: ${this.understandingLevel}`);
         }
         
         if (backendLearningStage && typeof backendLearningStage === 'string') {
           this.learningStage = backendLearningStage as any;
+          console.log(`✅ 更新學習階段: ${this.learningStage}`);
         }
         
-        // 如果後端沒有提供數據，嘗試從回應內容中提取分數
-        if (backendUnderstandingLevel === undefined) {
+        // 記錄原始評分和智能評分的差異（用於調試）
+        if (backendRawScore !== undefined && backendRawScore !== null) {
+          console.log(`📊 評分信息 - 原始評分: ${backendRawScore}, 智能評分: ${this.understandingLevel}, 對話次數: ${conversationCount}`);
+        } else {
+          console.warn('⚠️ 後端沒有返回 raw_score（可能AI回應中沒有評分格式）');
+        }
+        
+        // 如果後端沒有提供數據，嘗試從回應內容中提取分數（備用方案）
+        if (backendUnderstandingLevel === undefined && backendSmartScore === undefined) {
           console.warn('⚠️ 後端沒有提供理解程度數據，嘗試從回應內容中提取');
           
           const scoreMatch = cleanResponse.match(/(\d+)\s*分|(\d+)\s*points?|理解程度[：:]\s*(\d+)/i);
@@ -1262,7 +1520,7 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
         }
         
         this.isLoading = false;
-        this.scrollToBottom();
+        this.scrollToBottom(true); // 強制滾動到底部（新消息）
         
       } else {
         this.handleError('AI回應格式錯誤');
@@ -1271,6 +1529,38 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       console.error('❌ 處理AI回應失敗:', error);
       this.handleError('處理AI回應時發生錯誤');
     }
+  }
+  
+  // 將Markdown格式轉換為HTML（支援粗體、換行、LaTeX等）
+  private formatMarkdownToHTML(text: string): string {
+    if (!text) return '';
+    
+    // 先處理LaTeX數學公式（在處理其他格式之前）
+    // 轉換 $$...$$ 為 display math
+    text = text.replace(/\$\$(.*?)\$\$/g, '<div class="math-display">$$$1$$</div>');
+    // 轉換 $...$ 為 inline math
+    text = text.replace(/\$(.*?)\$/g, '<span class="math-inline">$$$1$$</span>');
+    // 轉換 \(...\) 為 inline math
+    text = text.replace(/\\\((.*?)\\\)/g, '<span class="math-inline">$$$1$$</span>');
+    // 轉換 \[...\] 為 display math
+    text = text.replace(/\\\[(.*?)\\\]/g, '<div class="math-display">$$$1$$</div>');
+    
+    // 轉換Markdown粗體 **文字** 為 <strong>文字</strong>
+    text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    
+    // 轉換Markdown斜體 *文字* 為 <em>文字</em>（但不能是數學公式中的$）
+    text = text.replace(/(?<!\$)\*([^*]+?)\*(?!\$)/g, '<em>$1</em>');
+    
+    // 轉換換行符號為HTML換行
+    text = text.replace(/\n\n/g, '</p><p>');
+    text = text.replace(/\n/g, '<br>');
+    
+    // 包裹段落
+    if (!text.startsWith('<p>')) {
+      text = '<p>' + text + '</p>';
+    }
+    
+    return text;
   }
   
   // 清理AI回應，移除多餘信息
@@ -1338,21 +1628,20 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
     });
     
     this.isLoading = false;
-    this.scrollToBottom();
+    this.scrollToBottom(true); // 強制滾動（錯誤消息）
   }
   
   // 處理學習完成
   private handleLearningCompletion(): void {
+    this.currentQuestionCompleted = true;
     this.chatMessages.push({
       type: 'ai',
-      content: '🎉 恭喜！您已經完全掌握這個概念，可以進入下一題了！',
+      content: '🎉 恭喜！您已經完全掌握這個概念，理解程度達到 99 分！可以進入下一題了！',
       timestamp: new Date().toISOString()
     });
     
-    // 自動進入下一題
-    setTimeout(() => {
-      this.nextQuestion();
-    }, 2000);
+    // 不再自動進入下一題，讓用戶點擊按鈕
+    this.scrollToBottom(true); // 強制滾動（完成消息）
   }
 
   // 新增：顯示AI分析結果
@@ -1410,5 +1699,124 @@ export class AiTutoringComponent implements OnInit, OnDestroy, AfterViewChecked 
       console.error('❌ 處理AI回應時發生錯誤:', error);
       return 'AI回應處理失敗，請重試';
     }
+  }
+
+  // ==================== LaTeX 渲染相關方法 ====================
+  
+  // 渲染題目文本中的 LaTeX 數學公式
+  renderQuestionText(questionText: string): string {
+    if (!questionText) {
+      return '';
+    }
+
+    // 將 LaTeX 語法轉換為 HTML 格式供 KaTeX 渲染
+    return questionText
+      .replace(/\$\$(.*?)\$\$/g, '<div class="math-display">$$$1$$</div>')
+      .replace(/\$(.*?)\$/g, '<span class="math-inline">$$$1$$</span>')
+      .replace(/\\\((.*?)\\\)/g, '<span class="math-inline">$$$1$$</span>')
+      .replace(/\\\[(.*?)\\\]/g, '<div class="math-display">$$$1$$</div>');
+  }
+
+  // 渲染數學公式
+  renderMathFormula(formula: string): string {
+    if (!formula) return '';
+    
+    try {
+      // 使用 KaTeX 渲染數學公式
+      if ((window as any).katex) {
+        const rendered = (window as any).katex.renderToString(formula, {
+          throwOnError: false,
+          displayMode: false
+        });
+        return rendered;
+      }
+      // 如果KaTeX未載入，返回原始公式
+      return formula;
+    } catch (error) {
+      console.warn('KaTeX rendering error:', error);
+      return formula;
+    }
+  }
+
+  // 渲染元素中的數學公式
+  renderMathInElement(): void {
+    // 檢查 KaTeX 是否載入
+    if (!(window as any).renderMathInElement) {
+      return;
+    }
+    
+    // 使用 KaTeX 的 auto-render 功能
+    setTimeout(() => {
+      try {
+        (window as any).renderMathInElement(document.body, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '\\[', right: '\\]', display: true }
+          ],
+          throwOnError: false
+        });
+        
+        // 觸發變更檢測以確保所有數學公式都正確渲染
+        this.cdr.detectChanges();
+      } catch (error) {
+        console.error('❌ LaTeX 渲染失敗:', error);
+      }
+    }, 100);
+  }
+
+  // ==================== 圖片顯示相關方法 ====================
+  
+  // 檢查是否為畫圖答案
+  isDrawingAnswer(answer: string, questionType?: string): boolean {
+    // 如果題目類型是 draw-answer 且答案是 base64 圖片
+    if (questionType === 'draw-answer' && !!answer && answer.startsWith('data:image/')) {
+      return true;
+    }
+    
+    // 如果答案本身是 base64 圖片，也應該顯示為圖片
+    if (!!answer && answer.startsWith('data:image/')) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  // 獲取答案顯示內容
+  getAnswerDisplay(answer: string, questionType?: string): string {
+    if (!answer || answer === '') {
+      return '未作答';
+    }
+    
+    // 檢查是否為畫圖答案
+    if (this.isDrawingAnswer(answer, questionType)) {
+      return '[畫圖答案]';
+    }
+    
+    // 處理其他類型的答案
+    if (typeof answer === 'string') {
+      // 處理 LONG_ANSWER_ 引用
+      if (answer.startsWith('LONG_ANSWER_')) {
+        return '[長答案載入中...]';
+      }
+      
+      // 處理 JSON 格式
+      if (answer.startsWith('[') || answer.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(answer);
+          if (Array.isArray(parsed)) {
+            return parsed.join(', ');
+          }
+          return parsed.toString();
+        } catch (e) {
+          return answer;
+        }
+      }
+      
+      return answer;
+    }
+    
+    return String(answer);
   }
 }

@@ -1,24 +1,26 @@
 <!-- Sidebar Removed -->
 <!-- <app-default-sidebar></app-default-sidebar> -->
 
-<!-- Main Content Wrapper -->
-<!-- Removed d-flex to allow header to span full width -->
-<div class="wrapper flex-column min-vh-100 bg-light">
-  <!-- Header -->
-  <!-- Removed mb-4, add shadow or border if needed -->
-  <app-default-header class="d-print-none header-sticky"></app-default-header>
-  
-  <!-- Body Content -->
-  <!-- Adjusted padding potentially -->
-  <div class="body flex-grow-1 px-3 py-4">
-    <c-container breakpoint="lg" class="h-auto">
-      <router-outlet></router-outlet>
-    </c-container>
+<!-- Main Layout Container -->
+<div class="main-layout-container">
+  <!-- Main Content Wrapper -->
+  <div class="main-content-wrapper flex-column min-vh-100 bg-light" 
+       [class.sidebar-open]="isSidebarOpen"
+       [style.margin-right.px]="isSidebarOpen ? sidebarWidth : 0">
+    <!-- Header -->
+    <app-default-header class="d-print-none header-sticky"></app-default-header>
+    
+    <!-- Body Content -->
+    <div class="body flex-grow-1 px-3 py-4">
+      <c-container breakpoint="lg" class="h-auto">
+        <router-outlet></router-outlet>
+      </c-container>
+    </div>
+    
+    <!-- Footer -->
+    <app-default-footer></app-default-footer>
   </div>
-  
-  <!-- Footer -->
-  <app-default-footer></app-default-footer>
-</div>
 
-<!-- Web AI 助手懸浮窗口 -->
-<app-web-ai-assistant></app-web-ai-assistant>
+  <!-- Web AI 助手側邊欄 -->
+  <app-web-ai-assistant></app-web-ai-assistant>
+</div>

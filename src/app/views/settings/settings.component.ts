@@ -70,6 +70,8 @@ export class SettingsComponent implements OnInit {
   bindingStatus = '';
   qrCodeGenerated = false;
   currentBindingToken = '';
+  private bindingPollInterval: any = null;
+  private isBindingCompleted: boolean = false;
 
   constructor(
     private iconSetService: IconSetService,
@@ -236,30 +238,69 @@ export class SettingsComponent implements OnInit {
   }
 
   startBindingPolling(bindingToken: string): void {
+    // 先清除之前的輪詢
+    this.stopBindingPolling();
+    // 重置綁定完成標誌
+    this.isBindingCompleted = false;
+    
     // 每 3 秒檢查一次綁定狀態，最多檢查 60 次（3分鐘）
     let pollCount = 0;
     const maxPolls = 60; // 3分鐘 = 60次 * 3秒
     
-    const pollInterval = setInterval(() => {
+    this.bindingPollInterval = setInterval(() => {
+      // 如果已經完成綁定，立即停止
+      if (this.isBindingCompleted) {
+        this.stopBindingPolling();
+        return;
+      }
+      
       pollCount++;
       
       if (pollCount > maxPolls) {
         console.log('綁定檢查超時，停止輪詢');
-        clearInterval(pollInterval);
+        this.stopBindingPolling();
         this.bindingStatus = '綁定超時，請重新生成 QR Code';
         this.showQRCode = false;
         return;
       }
       
-      this.checkBindingStatus(bindingToken, pollInterval);
+      this.checkBindingStatus(bindingToken, this.bindingPollInterval);
     }, 3000);
   }
 
+  stopBindingPolling(): void {
+    if (this.bindingPollInterval) {
+      clearInterval(this.bindingPollInterval);
+      this.bindingPollInterval = null;
+    }
+    // 重置綁定完成標誌
+    this.isBindingCompleted = false;
+  }
+
   checkBindingStatus(bindingToken: string, pollInterval: any): void {
+    // 如果已經完成綁定，不再檢查
+    if (this.isBindingCompleted) {
+      return;
+    }
+    
     this.settingsService.checkLineBinding(bindingToken).subscribe({
       next: (response) => {
+        // 如果已經完成綁定，不再處理
+        if (this.isBindingCompleted) {
+          return;
+        }
+        
         if (response.bound === true) {
-          clearInterval(pollInterval);
+          // 設置綁定完成標誌
+          this.isBindingCompleted = true;
+          
+          // 停止輪詢（清除所有引用）
+          this.stopBindingPolling();
+          // 確保清除傳入的 pollInterval（以防萬一）
+          if (pollInterval) {
+            clearInterval(pollInterval);
+          }
+          
           this.userProfile.lineId = response.lineId || '已綁定';
           this.showQRCode = false;
           this.bindingStatus = '';
@@ -273,7 +314,10 @@ export class SettingsComponent implements OnInit {
       error: (error) => {
         console.error('檢查綁定狀態失敗:', error);
         // 發生錯誤時也停止輪詢，避免無限重試
-        clearInterval(pollInterval);
+        this.stopBindingPolling();
+        if (pollInterval) {
+          clearInterval(pollInterval);
+        }
         this.bindingStatus = '檢查綁定狀態時發生錯誤';
       }
     });
@@ -293,6 +337,9 @@ export class SettingsComponent implements OnInit {
   }
 
   cancelLineBinding(): void {
+    // 停止輪詢
+    this.stopBindingPolling();
+    
     this.showQRCode = false;
     this.bindingStatus = '';
     this.qrCodeGenerated = false;
@@ -308,6 +355,8 @@ export class SettingsComponent implements OnInit {
     if (confirm('確定要解除 Line 綁定嗎？')) {
       this.userProfile.lineId = '';
       this.saveMessage = 'Line 綁定已解除';
+      // 立即儲存設定以清除 lineId
+      this.saveProfile();
     }
   }
 

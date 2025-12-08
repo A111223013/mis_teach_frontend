@@ -1,34 +1,36 @@
-<div *ngIf="domain; else noDomain">
-  <div class="row justify-content-center">
-    <div class="col-md-5 mb-4" *ngFor="let b of blocks">
-      <c-card class="h-100 c-card-hover">
-        
-        <!-- 標題 -->
-        <c-card-header class="text-center fw-bold bg-primary text-white">
-          {{ b.title }}
-        </c-card-header>
+<div *ngIf="domain" class="course-detail-container">
+  <!-- 返回按鈕 -->
+  <div class="header-section">
+    <button class="back-button" (click)="goBack()">
+      <i class="cil-arrow-left"></i>
+      <span>返回書架</span>
+    </button>
+    <h1 class="course-title">{{ domain.name }}</h1>
+  </div>
 
-        <!-- 內容帶動畫 -->
-        <c-card-body class="text-center">
-          <ul 
-            class="list-unstyled mt-3"
-            [@expandCollapse]="b.expanded ? 'expanded' : 'collapsed'">
-            <li *ngFor="let mc of getMicroConceptsByBlock(b)">
-              <a [routerLink]="['/dashboard/material-view', mc.name]">
-                {{ mc.name }}
-              </a>
-              <span *ngIf="mc.dependencies?.length">
-                （依賴：{{ mc.dependencies.join(', ') }}）
-              </span>
-            </li>
-          </ul>
-        </c-card-body>
-
-      </c-card>
+  <!-- 章節列表 -->
+  <div class="chapters-container">
+    <div *ngFor="let b of blocks" class="chapter-card">
+      <div class="chapter-header" (click)="toggleChapter(b)">
+        <h2>{{ b.title }}</h2>
+        <i class="cil" [class.cil-chevron-bottom]="!b.expanded" [class.cil-chevron-top]="b.expanded"></i>
+      </div>
+      <div class="chapter-content" [@expandCollapse]="b.expanded ? 'expanded' : 'collapsed'">
+        <ul class="concepts-list">
+          <li *ngFor="let mc of getMicroConceptsByBlock(b)" class="concept-item">
+            <a [routerLink]="['/dashboard/material-view', mc.name]">
+              <i class="cil-document"></i>
+              <span>{{ mc.name }}</span>
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 </div>
 
 <ng-template #noDomain>
-  <p class="text-center">查無此知識點</p>
+  <div class="no-content">
+    <p>查無此知識點</p>
+  </div>
 </ng-template>

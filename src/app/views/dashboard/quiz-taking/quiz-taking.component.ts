@@ -2,6 +2,8 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, AfterViewChecked, Elem
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {
   CardModule,
   ButtonModule,
@@ -23,7 +25,7 @@ interface QuizQuestion {
   question_text: string;
   type: 'single-choice' | 'multiple-choice' | 'fill-in-the-blank' | 'true-false' | 'short-answer' | 'long-answer' | 'choice-answer' | 'draw-answer' | 'coding-answer' | 'group';
   options?: string[];
-  image_file?: string;
+  image_file?: string | string[];
   correct_answer?: any;
   original_exam_id?: string;
   key_points?: string;
@@ -38,7 +40,7 @@ interface SubQuestion {
   options: string[];
   answer: string;
   answer_type: string;
-  image_file?: string[];
+  image_file?: string | string[];
   'detail-answer'?: string;
   'key-points'?: string;
   'difficulty level'?: string;
@@ -112,6 +114,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   
   private timerSubscription?: Subscription;
   private imageLoadState = new Map<string, 'loading' | 'loaded' | 'error'>();
+  private imageBlobUrls = new Map<string, string>(); // 存儲原始 URL 到 Blob URL 的映射
 
   // 進度提示相關屬性
   isProgressModalVisible: boolean = false;
@@ -140,7 +143,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     private quizService: QuizService,
     private authService: AuthService,
     private aiQuizService: AiQuizService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private http: HttpClient,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -290,6 +295,12 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
     this.stopProgressAnimation(); // 確保在組件銷毀時停止動畫
     this.disconnectProgressTracking(); // 確保在組件銷毀時斷開進度追蹤
+    
+    // 清理 Blob URL 以釋放記憶體
+    this.imageBlobUrls.forEach(blobUrl => {
+      URL.revokeObjectURL(blobUrl);
+    });
+    this.imageBlobUrls.clear();
     
     // 保存當前測驗狀態到sessionStorage，以便刷新頁面後復原
     this.saveQuizToSession();
@@ -778,6 +789,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (!this.currentQuestion) return;
     this.userAnswers[this.currentQuestionIndex] = option;
     
+    // 觸發變更檢測
+    this.cdr.markForCheck();
+    
     // 保存當前狀態到session
     this.saveQuizToSession();
   }
@@ -958,27 +972,141 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 圖片處理
   hasQuestionImages(): boolean {
     if (!this.currentQuestion?.image_file) return false;
-    const imageFile = typeof this.currentQuestion.image_file === 'string' ? 
-                      this.currentQuestion.image_file.trim() : '';
-    return imageFile !== '';
+    
+    const imageFile = this.currentQuestion.image_file;
+    
+    // 處理陣列類型
+    if (Array.isArray(imageFile)) {
+      return imageFile.length > 0 && imageFile.some(img => {
+        const imgStr = typeof img === 'string' ? img.trim() : '';
+        return imgStr !== '' && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr);
+      });
+    }
+    
+    // 處理字串類型
+    if (typeof imageFile === 'string') {
+      const imgStr = imageFile.trim();
+      return imgStr !== '' && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr);
+    }
+    
+    return false;
   }
 
   getQuestionImageUrls(): string[] {
     if (!this.currentQuestion?.image_file) return [];
     
-    const imageFile = typeof this.currentQuestion.image_file === 'string' ? 
-                      this.currentQuestion.image_file.trim() : '';
-    if (!imageFile) return [];
+    const imageFile = this.currentQuestion.image_file;
+    const urls: string[] = [];
     
-    // 如果是完整URL，直接返回
-    if (imageFile.startsWith('http')) {
-      return [imageFile];
+    // 處理陣列類型
+    if (Array.isArray(imageFile)) {
+      imageFile.forEach(img => {
+        const imgStr = typeof img === 'string' ? img.trim() : '';
+        if (imgStr && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr)) {
+          // 如果是 base64 data URI，直接使用
+          if (imgStr.startsWith('data:image')) {
+            urls.push(imgStr);
+          } else if (imgStr.startsWith('http')) {
+            // 如果是完整 URL，檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+            const blobUrl = this.imageBlobUrls.get(imgStr);
+            if (blobUrl) {
+              urls.push(blobUrl);
+            } else {
+              urls.push(imgStr);
+              this.loadImageAsBlob(imgStr);
+            }
+          } else {
+            // 構建靜態資源 URL
+            const baseUrl = this.quizService.getBaseUrl();
+            const imageUrl = `${baseUrl}/static/images/${imgStr}`;
+            // 檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+            const blobUrl = this.imageBlobUrls.get(imageUrl);
+            if (blobUrl) {
+              urls.push(blobUrl);
+            } else {
+              urls.push(imageUrl);
+              this.loadImageAsBlob(imageUrl);
+            }
+          }
+        }
+      });
+      return urls;
     }
     
-    // 使用後端的靜態圖片服務
-    const baseUrl = this.quizService.getBaseUrl();
-    const url = `${baseUrl}/static/images/${imageFile}`;
-    return [url];
+    // 處理字串類型
+    if (typeof imageFile === 'string') {
+      const imgStr = imageFile.trim();
+      if (!imgStr || ['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr)) {
+        return [];
+      }
+      
+      // 如果是 base64 data URI，直接使用
+      if (imgStr.startsWith('data:image')) {
+        return [imgStr];
+      } else if (imgStr.startsWith('http')) {
+        // 如果是完整 URL，檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+        const blobUrl = this.imageBlobUrls.get(imgStr);
+        if (blobUrl) {
+          return [blobUrl];
+        } else {
+          this.loadImageAsBlob(imgStr);
+          return [imgStr];
+        }
+      } else {
+        // 構建靜態資源 URL
+        const baseUrl = this.quizService.getBaseUrl();
+        const imageUrl = `${baseUrl}/static/images/${imgStr}`;
+        // 檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+        const blobUrl = this.imageBlobUrls.get(imageUrl);
+        if (blobUrl) {
+          return [blobUrl];
+        } else {
+          this.loadImageAsBlob(imageUrl);
+          return [imageUrl];
+        }
+      }
+    }
+    
+    return [];
+  }
+
+  // 使用 HttpClient 載入圖片為 Blob
+  private loadImageAsBlob(imageUrl: string): void {
+    // 如果已經在載入中或已載入，跳過
+    if (this.imageBlobUrls.has(imageUrl) || this.imageLoadState.get(imageUrl) === 'loading') {
+      return;
+    }
+    
+    // 標記為載入中
+    this.imageLoadState.set(imageUrl, 'loading');
+    
+    // 使用 HttpClient 載入圖片（會經過 ngrok 攔截器）
+    this.http.get(imageUrl, { 
+      responseType: 'blob',
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    }).subscribe({
+      next: (blob) => {
+        // 檢查 Blob 是否有效
+        if (!blob || blob.size === 0) {
+          this.imageLoadState.set(imageUrl, 'error');
+          this.cdr.detectChanges();
+          return;
+        }
+        
+        // 創建 Blob URL
+        const blobUrl = URL.createObjectURL(blob);
+        this.imageBlobUrls.set(imageUrl, blobUrl);
+        this.imageLoadState.set(imageUrl, 'loaded');
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error(`❌ 題目圖片載入失敗: ${imageUrl}`, err);
+        this.imageLoadState.set(imageUrl, 'error');
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   getImageUrl(imageFile: string): string {
@@ -998,8 +1126,120 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     return `${baseUrl}/static/images/${cleanImageFile}`;
   }
 
+  // 子題圖片處理
+  hasSubQuestionImages(subQuestion: SubQuestion): boolean {
+    if (!subQuestion?.image_file) return false;
+    
+    const imageFile = subQuestion.image_file;
+    
+    // 處理陣列類型
+    if (Array.isArray(imageFile)) {
+      return imageFile.length > 0 && imageFile.some(img => {
+        const imgStr = typeof img === 'string' ? img.trim() : '';
+        return imgStr !== '' && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr);
+      });
+    }
+    
+    // 處理字串類型（雖然子題通常是陣列，但為了兼容性也處理字串）
+    if (typeof imageFile === 'string') {
+      const imgStr = imageFile.trim();
+      return imgStr !== '' && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr);
+    }
+    
+    return false;
+  }
+
+  getSubQuestionImageUrls(subQuestion: SubQuestion): string[] {
+    if (!subQuestion?.image_file) return [];
+    
+    const imageFile = subQuestion.image_file;
+    const urls: string[] = [];
+    
+    // 處理陣列類型
+    if (Array.isArray(imageFile)) {
+      imageFile.forEach(img => {
+        const imgStr = typeof img === 'string' ? img.trim() : '';
+        if (imgStr && !['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr)) {
+          // 如果是 base64 data URI，直接使用
+          if (imgStr.startsWith('data:image')) {
+            urls.push(imgStr);
+          } else if (imgStr.startsWith('http')) {
+            // 如果是完整 URL，檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+            const blobUrl = this.imageBlobUrls.get(imgStr);
+            if (blobUrl) {
+              urls.push(blobUrl);
+            } else {
+              urls.push(imgStr);
+              this.loadImageAsBlob(imgStr);
+            }
+          } else {
+            // 構建靜態資源 URL
+            const baseUrl = this.quizService.getBaseUrl();
+            const imageUrl = `${baseUrl}/static/images/${imgStr}`;
+            // 檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+            const blobUrl = this.imageBlobUrls.get(imageUrl);
+            if (blobUrl) {
+              urls.push(blobUrl);
+            } else {
+              urls.push(imageUrl);
+              this.loadImageAsBlob(imageUrl);
+            }
+          }
+        }
+      });
+      return urls;
+    }
+    
+    // 處理字串類型
+    if (typeof imageFile === 'string') {
+      const imgStr = imageFile.trim();
+      if (!imgStr || ['沒有圖片', '不需要圖片', '不須圖片', '不須照片', '沒有考卷'].includes(imgStr)) {
+        return [];
+      }
+      
+      // 如果是 base64 data URI，直接使用
+      if (imgStr.startsWith('data:image')) {
+        return [imgStr];
+      } else if (imgStr.startsWith('http')) {
+        // 如果是完整 URL，檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+        const blobUrl = this.imageBlobUrls.get(imgStr);
+        if (blobUrl) {
+          return [blobUrl];
+        } else {
+          this.loadImageAsBlob(imgStr);
+          return [imgStr];
+        }
+      } else {
+        // 構建靜態資源 URL
+        const baseUrl = this.quizService.getBaseUrl();
+        const imageUrl = `${baseUrl}/static/images/${imgStr}`;
+        // 檢查是否有 Blob URL，否則返回原始 URL 並觸發載入
+        const blobUrl = this.imageBlobUrls.get(imageUrl);
+        if (blobUrl) {
+          return [blobUrl];
+        } else {
+          this.loadImageAsBlob(imageUrl);
+          return [imageUrl];
+        }
+      }
+    }
+    
+    return [];
+  }
+
   onImageError(event: any): void {
     const imageUrl = event.target.src;
+    // 如果 Blob URL 失敗，嘗試使用原始 URL（作為備用）
+    if (imageUrl.startsWith('blob:')) {
+      // 查找對應的原始 URL
+      for (const [originalUrl, blobUrl] of this.imageBlobUrls.entries()) {
+        if (blobUrl === imageUrl) {
+          // 嘗試使用原始 URL
+          event.target.src = originalUrl;
+          return;
+        }
+      }
+    }
     this.imageLoadState.set(imageUrl, 'error');
     event.target.style.display = 'none';
   }
@@ -1019,6 +1259,7 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   // 重置圖片載入狀態（切換題目時調用）
   private resetImageLoadState(): void {
+    // 注意：不清理 Blob URL，因為可能還會用到（例如返回之前的題目）
     this.imageLoadState.clear();
   }
 
@@ -1130,6 +1371,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 提交測驗
   submitQuiz(): void {
     console.debug('[submitQuiz] 進入 submitQuiz 方法');
+    
+    // 關閉確認 modal
+    this.showSubmitConfirmation = false;
     
     // 清除session數據，因為測驗即將完成
     this.clearQuizSession();
@@ -1717,17 +1961,23 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   canvasHeight = 500;
   showCanvasSizeModal = false;
   private cursorCircle?: HTMLElement;
+  private activePointerId?: number;
 
-  startDrawing(event: MouseEvent): void {
+  startDrawing(event: PointerEvent): void {
+    event.preventDefault();
     if (!this.canvas || !this.ctx) {
       this.setupCanvas();
     }
     
     if (this.ctx) {
       this.isDrawing = true;
-      const rect = this.canvas!.getBoundingClientRect();
+      this.activePointerId = event.pointerId;
+      try { this.canvas?.setPointerCapture(event.pointerId); } catch {}
+      
+      // 改善觸控座標計算
+      const coords = this.getCanvasCoordinates(event);
       this.ctx.beginPath();
-      this.ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+      this.ctx.moveTo(coords.x, coords.y);
       
       // 更新游標位置
       this.updateCursorPosition(event);
@@ -1737,28 +1987,92 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
   }
 
-  draw(event: MouseEvent): void {
+  private getPointerDynamics(event: PointerEvent): { pressure: number; tilt: number; type: string } {
+    const type = (event.pointerType || 'mouse').toString();
+    let pressure = typeof event.pressure === 'number' ? event.pressure : 0;
+    if (!pressure || pressure === 0) {
+      pressure = type === 'mouse' ? 0.5 : 1.0;
+    }
+    const tiltX = (event as any).tiltX ?? 0;
+    const tiltY = (event as any).tiltY ?? 0;
+    const tilt = Math.min(1, Math.sqrt(tiltX * tiltX + tiltY * tiltY) / 90);
+    return { pressure, tilt, type };
+  }
+
+  // 改善觸控座標計算，考慮畫布縮放和設備像素比
+  private getCanvasCoordinates(event: PointerEvent): { x: number; y: number } {
+    if (!this.canvas) {
+      return { x: 0, y: 0 };
+    }
+
+    const rect = this.canvas.getBoundingClientRect();
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    
+    // 獲取觸控點座標
+    let clientX: number, clientY: number;
+    
+    if ((event as any).touches && (event as any).touches.length > 0) {
+      // 觸控事件
+      clientX = (event as any).touches[0].clientX;
+      clientY = (event as any).touches[0].clientY;
+    } else if ((event as any).changedTouches && (event as any).changedTouches.length > 0) {
+      // 觸控變化事件
+      clientX = (event as any).changedTouches[0].clientX;
+      clientY = (event as any).changedTouches[0].clientY;
+    } else {
+      // 滑鼠或筆事件
+      clientX = event.clientX;
+      clientY = event.clientY;
+    }
+    
+    // 計算相對於畫布的座標
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    // 考慮畫布的實際尺寸和顯示尺寸的比例
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    
+    return {
+      x: x * scaleX,
+      y: y * scaleY
+    };
+  }
+
+  draw(event: PointerEvent): void {
+    if (this.activePointerId !== undefined && event.pointerId !== this.activePointerId) {
+      return;
+    }
+    event.preventDefault();
     if (!this.isDrawing || !this.ctx || !this.canvas) {
       return;
     }
     
-    const rect = this.canvas.getBoundingClientRect();
-    this.ctx.lineWidth = this.brushSize;
+    // 改善觸控座標計算
+    const coords = this.getCanvasCoordinates(event);
+    const dyn = this.getPointerDynamics(event);
+    const pressureFactor = 0.2 + dyn.pressure * 0.8;
+    const tiltFactor = 1 + dyn.tilt * 0.2;
+    const dynamicLineWidth = Math.max(0.5, this.brushSize * pressureFactor * tiltFactor);
+    this.ctx.lineWidth = dynamicLineWidth;
     this.ctx.lineCap = 'round';
     
     // 根據模式設置樣式
     if (this.isEraserMode) {
       this.ctx.globalCompositeOperation = 'destination-out';
       this.ctx.strokeStyle = 'rgba(0,0,0,1)';
+      this.ctx.globalAlpha = 1;
     } else {
       this.ctx.globalCompositeOperation = 'source-over';
+      const alpha = 0.4 + dyn.pressure * 0.6;
+      this.ctx.globalAlpha = alpha;
       this.ctx.strokeStyle = this.brushColor;
     }
     
-    this.ctx.lineTo(event.clientX - rect.left, event.clientY - rect.top);
+    this.ctx.lineTo(coords.x, coords.y);
     this.ctx.stroke();
     this.ctx.beginPath();
-    this.ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+    this.ctx.moveTo(coords.x, coords.y);
     
     // 更新游標位置
     this.updateCursorPosition(event);
@@ -1773,6 +2087,8 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     if (this.ctx) {
       this.isDrawing = false;
       this.ctx.beginPath();
+      try { if (this.activePointerId !== undefined) { this.canvas?.releasePointerCapture(this.activePointerId); } } catch {}
+      this.activePointerId = undefined;
       
       // 結束繪圖時最後儲存一次
       this.autoSaveDrawing();
@@ -1881,14 +2197,28 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   // 更新游標圓圈位置
-  private updateCursorPosition(event: MouseEvent): void {
+  private updateCursorPosition(event: PointerEvent): void {
     if (!this.cursorCircle || !this.canvas) return;
 
     const rect = this.canvas.getBoundingClientRect();
     const containerRect = this.canvas.parentElement!.getBoundingClientRect();
     
-    const x = event.clientX - containerRect.left;
-    const y = event.clientY - containerRect.top;
+    // 使用統一的座標計算方法
+    let clientX: number, clientY: number;
+    
+    if ((event as any).touches && (event as any).touches.length > 0) {
+      clientX = (event as any).touches[0].clientX;
+      clientY = (event as any).touches[0].clientY;
+    } else if ((event as any).changedTouches && (event as any).changedTouches.length > 0) {
+      clientX = (event as any).changedTouches[0].clientX;
+      clientY = (event as any).changedTouches[0].clientY;
+    } else {
+      clientX = event.clientX;
+      clientY = event.clientY;
+    }
+    
+    const x = clientX - containerRect.left;
+    const y = clientY - containerRect.top;
 
     this.cursorCircle.style.left = x + 'px';
     this.cursorCircle.style.top = y + 'px';
@@ -1994,6 +2324,14 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
         this.ctx.strokeStyle = this.brushColor;
         this.ctx.lineWidth = this.brushSize;
         this.ctx.lineCap = 'round';
+        
+        // 禁用瀏覽器在畫布上的捲動/雙指縮放/橫向拖曳等預設行為
+        try {
+          (this.canvas as any).style.touchAction = 'none';
+          (this.canvas as any).style.msTouchAction = 'none';
+          (this.canvas as any).style.userSelect = 'none';
+          (this.canvas as any).oncontextmenu = (e: Event) => { e.preventDefault(); return false; };
+        } catch {}
         
         // 創建游標圓圈
         this.createCursorCircle();
@@ -2297,6 +2635,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     
     // **關鍵：確保 Canvas 始終有白色背景**
     this.ensureCanvasWhiteBackground();
+    
+    // 調整 textarea 高度
+    this.adjustAllTextareas();
   }
   
   private ensureCanvasWhiteBackground(): void {
@@ -2372,10 +2713,14 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   checkKatexLoaded(): void {
     // 檢查KaTeX是否正確載入
     const checkKatex = () => {
-      if ((window as any).katex) {
+      if ((window as any).katex && (window as any).renderMathInElement) {
         // KaTeX已載入，觸發變更檢測以重新渲染數學公式
         this.cdr.detectChanges();
       } else {
+        // 如果 KaTeX 未載入，嘗試動態載入
+        if (!(window as any).katexLoading) {
+          this.loadKatex();
+        }
         console.warn('⚠️ KaTeX 未載入，將在1秒後重試');
         setTimeout(checkKatex, 1000);
       }
@@ -2383,23 +2728,75 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
     checkKatex();
   }
 
-  renderMathFormula(formula: string): string {
-    if (!formula) return '';
+  loadKatex(): void {
+    // 標記正在載入，避免重複載入
+    (window as any).katexLoading = true;
+    
+    // 檢查是否已經有 script 標籤
+    if (document.querySelector('script[src*="katex"]') || document.querySelector('script[src*="katex.min.js"]')) {
+      (window as any).katexLoading = false;
+      return;
+    }
+
+    // 載入 KaTeX CSS - 升級到最新版本以獲得更好的排版支持
+    // 確保 CSS 優先級最高，避免被其他樣式覆蓋
+    if (!document.querySelector('link[href*="katex"]')) {
+      const cssLink = document.createElement('link');
+      cssLink.rel = 'stylesheet';
+      cssLink.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+      // 將 KaTeX CSS 插入到 head 的最前面，確保優先級
+      document.head.insertBefore(cssLink, document.head.firstChild);
+    }
+
+    // 載入 KaTeX JS - 升級到最新版本
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
+    script.async = true;
+    script.onload = () => {
+      // 載入 auto-render 擴展 - 升級到最新版本
+      const autoRenderScript = document.createElement('script');
+      autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js';
+      autoRenderScript.async = true;
+      autoRenderScript.onload = () => {
+        (window as any).katexLoading = false;
+        console.log('✅ KaTeX 載入完成');
+        this.cdr.detectChanges();
+      };
+      document.head.appendChild(autoRenderScript);
+    };
+    script.onerror = () => {
+      (window as any).katexLoading = false;
+      console.error('❌ KaTeX 載入失敗');
+    };
+    document.head.appendChild(script);
+  }
+
+  renderMathFormula(formula: string, displayMode: boolean = true): SafeHtml {
+    if (!formula) return this.sanitizer.bypassSecurityTrustHtml('');
     
     try {
       // 使用 KaTeX 渲染數學公式
       if ((window as any).katex) {
+        // 檢測是否包含複雜結構（積分、分數、矩陣等），自動判斷使用 displayMode
+        const hasComplexStructure = /\\int|\\frac|\\sum|\\prod|\\lim|\\sqrt|\\begin|\\left|\\right/.test(formula);
+        const shouldDisplay = displayMode || hasComplexStructure;
+        
+        // 使用最簡潔的配置，讓 KaTeX 使用預設的排版算法
+        // 對於複雜公式，強制使用 displayMode 以確保正確排版
         const rendered = (window as any).katex.renderToString(formula, {
           throwOnError: false,
-          displayMode: false
+          displayMode: shouldDisplay,
+          // 不設置其他選項，讓 KaTeX 使用預設值以確保正確排版
         });
-        return rendered;
+        
+        // 使用 DomSanitizer 允許 KaTeX 渲染的 HTML，避免 Angular 的 sanitization 警告
+        return this.sanitizer.bypassSecurityTrustHtml(rendered);
       }
-      // 如果KaTeX未載入，返回原始公式
-      return formula;
+      // 如果KaTeX未載入，返回原始公式（也需要 sanitize）
+      return this.sanitizer.bypassSecurityTrustHtml(formula);
     } catch (error) {
       console.warn('KaTeX rendering error:', error);
-      return formula;
+      return this.sanitizer.bypassSecurityTrustHtml(formula);
     }
   }
 
@@ -2624,12 +3021,12 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   ];
 
   // 數學繪圖相關方法 - 使用統一的繪圖邏輯
-  startMathDrawing(event: MouseEvent): void {
+  startMathDrawing(event: PointerEvent): void {
     // 使用統一的繪圖邏輯
     this.startDrawing(event);
   }
 
-  drawMath(event: MouseEvent): void {
+  drawMath(event: PointerEvent): void {
     // 使用統一的繪圖邏輯
     this.draw(event);
   }
@@ -2675,6 +3072,9 @@ export class QuizTakingComponent implements OnInit, OnDestroy, AfterViewChecked 
   // 數學公式編輯器相關方法
   updateMathFormula(): void {
     this.userAnswers[this.currentQuestionIndex] = this.mathFormulaAnswer;
+    
+    // 觸發變更檢測以更新預覽
+    this.cdr.detectChanges();
     
     // 保存當前狀態到session
     this.saveQuizToSession();
@@ -2917,4 +3317,29 @@ mathTemplates = [
     '\\hbar', '\\ell', '\\wp', '\\Re', '\\Im', '\\aleph', '\\beth', '\\gimel',
     '\\daleth', '\\backslash', '\\setminus', '\\smallsetminus'
   ];
+
+  // 自動調整 textarea 高度
+  autoResizeTextarea(event: Event): void {
+    const textarea = event.target as HTMLTextAreaElement;
+    if (textarea) {
+      // 重置高度以計算正確的 scrollHeight
+      textarea.style.height = 'auto';
+      // 設置新高度
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+  }
+
+  // 初始化時調整所有 textarea 高度
+  private adjustAllTextareas(): void {
+    setTimeout(() => {
+      const textareas = document.querySelectorAll('.auto-resize-textarea');
+      textareas.forEach((textarea: Element) => {
+        const htmlTextarea = textarea as HTMLTextAreaElement;
+        if (htmlTextarea.value) {
+          htmlTextarea.style.height = 'auto';
+          htmlTextarea.style.height = htmlTextarea.scrollHeight + 'px';
+        }
+      });
+    }, 100);
+  }
 }

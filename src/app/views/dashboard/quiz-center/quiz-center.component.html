@@ -112,36 +112,45 @@
             <c-card class="mb-4 border-info">
               <c-card-body>
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                  <h6 class="mb-0">選擇學校</h6>
+                  <h6 class="mb-0">🏫 選擇學校</h6>
                 </div>
                 
-                <div class="mb-3">
-                  <select class="form-select school-select" [(ngModel)]="selectedSchool" (ngModelChange)="onSchoolChange()">
-                    <option value="">請選擇學校</option>
-                    <option *ngFor="let school of availableSchools" [value]="school">{{ school }}</option>
-                  </select>
+                <div class="option-grid">
+                  <div 
+                    *ngFor="let school of availableSchools" 
+                    class="option-card"
+                    [class.selected]="selectedSchool === school"
+                    (click)="selectedSchool = school; onSchoolChange()">
+                    <div class="option-text">{{ school }}</div>
+                  </div>
                 </div>
                 
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                  <h6 class="mb-0">選擇年度</h6>
+                <div class="d-flex justify-content-between align-items-center mb-3" *ngIf="selectedSchool">
+                  <h6 class="mb-0">📅 選擇年度</h6>
                 </div>
                 
-                <div class="mb-3">
-                  <select class="form-select year-select" [(ngModel)]="selectedYear" (ngModelChange)="onYearChange()">
-                    <option value="">請選擇年度</option>
-                    <option *ngFor="let year of availableYears" [value]="year">{{ year }}年</option>
-                  </select>
+                <div class="option-grid" *ngIf="selectedSchool">
+                  <div 
+                    *ngFor="let year of availableYears" 
+                    class="option-card"
+                    [class.selected]="selectedYear === year"
+                    (click)="selectedYear = year; onYearChange()">
+                    <div class="option-text">{{ year }}年</div>
+                  </div>
                 </div>
                 
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                  <h6 class="mb-0">選擇系所</h6>
+                <div class="d-flex justify-content-between align-items-center mb-3" *ngIf="selectedSchool && selectedYear">
+                  <h6 class="mb-0">🎓 選擇系所</h6>
                 </div>
                 
-                <div class="mb-4">
-                  <select class="form-select dept-select" [(ngModel)]="selectedDepartment" (ngModelChange)="onDepartmentChange()">
-                    <option value="">請選擇系所</option>
-                    <option *ngFor="let dept of availableDepartments" [value]="dept">{{ dept }}</option>
-                  </select>
+                <div class="option-grid" *ngIf="selectedSchool && selectedYear">
+                  <div 
+                    *ngFor="let dept of availableDepartments" 
+                    class="option-card"
+                    [class.selected]="selectedDepartment === dept"
+                    (click)="selectedDepartment = dept; onDepartmentChange()">
+                    <div class="option-text">{{ dept }}</div>
+                  </div>
                 </div>
                 
                 <div *ngIf="selectedSchool && selectedYear && selectedDepartment && actualQuestionCount > 0" class="alert alert-info mb-4">

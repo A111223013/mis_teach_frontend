@@ -91,12 +91,6 @@
               placement="top">
               <c-icon name="cilBook" class="me-2"></c-icon> 開始學習 {{ getStatValue('wrong') }} 道錯題
             </button>
-            <button
-              type="button"
-              class="btn btn-outline-secondary"
-              (click)="generateAnalysisReport()">
-              <c-icon name="cilChart" class="me-2"></c-icon> 分析報告
-            </button>
           </div>
         </c-card-body>
       </c-card>
@@ -111,11 +105,6 @@
             <c-icon name="cilCheckCircle" class="me-2"></c-icon> 恭喜！完美答題
           </h5>
           <p class="text-muted mb-3">您沒有錯題，表現優秀！</p>
-          <button
-            type="button"
-            class="btn btn-outline-success"
-            (click)="generateAnalysisReport()">
-            查看分析報告 </button>
         </c-card-body>
       </c-card>
     </c-col>
@@ -265,8 +254,7 @@
       <div class="mb-4">
         <h6 class="text-muted">題目內容</h6>
         <div class="p-3 bg-light rounded">
-          <div *ngIf="selectedQuestion.question_text">
-            {{ selectedQuestion.question_text }}
+          <div *ngIf="selectedQuestion.question_text" class="question-text" [innerHTML]="renderQuestionText(selectedQuestion.question_text)">
           </div>
           <div *ngIf="!selectedQuestion.question_text" class="text-muted">
             <i class="cilInfo"></i> 題目內容載入中...
@@ -286,9 +274,24 @@
               [class.text-danger]="!selectedQuestion.is_correct && selectedQuestion.user_answer !== '未作答'"
               [class.text-success]="selectedQuestion.is_correct"
               [class.text-secondary]="selectedQuestion.user_answer === '未作答'">
-              <span *ngIf="selectedQuestion.user_answer && selectedQuestion.user_answer !== ''">
-                {{ getAnswerDisplay(selectedQuestion.user_answer) }}
+              
+              <!-- 畫圖答案顯示 -->
+              <div *ngIf="selectedQuestion.user_answer && selectedQuestion.user_answer !== '' && isDrawingAnswer(selectedQuestion.user_answer, selectedQuestion.type)">
+                <div class="mb-2">
+                  <strong>畫圖答案：</strong>
+                </div>
+                <img [src]="selectedQuestion.user_answer" 
+                     alt="用戶畫圖答案" 
+                     class="img-fluid rounded border"
+                     style="max-width: 100%; max-height: 300px;">
+              </div>
+              
+              <!-- 文字答案顯示 -->
+              <span *ngIf="selectedQuestion.user_answer && selectedQuestion.user_answer !== '' && !isDrawingAnswer(selectedQuestion.user_answer, selectedQuestion.type)">
+                {{ getAnswerDisplay(selectedQuestion.user_answer, selectedQuestion.type) }}
               </span>
+              
+              <!-- 未作答顯示 -->
               <span *ngIf="!selectedQuestion.user_answer || selectedQuestion.user_answer === ''" class="text-muted">
                 <i class="cilInfo"></i> 此題未作答
               </span>

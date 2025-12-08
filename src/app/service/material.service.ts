@@ -7,7 +7,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class MaterialService {
-  private baseUrl = 'http://localhost:5000/materials'; // 後端 Flask API
+  private readonly baseUrl = `${environment.apiBaseUrl}/materials`;
 
   constructor(private http: HttpClient) {}
 
@@ -18,7 +18,7 @@ export class MaterialService {
 
   // 取得知識點列表
   getKeyPoints(): Observable<{ key_points: string[] }> {
-    return this.http.get<{ key_points: string[] }>(`${environment.apiBaseUrl}/materials/key_points`);
+    return this.http.get<{ key_points: string[] }>(`${this.baseUrl}/key_points`);
   }
 
   // 取得大知識點列表

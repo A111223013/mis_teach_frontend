@@ -1,28 +1,45 @@
-import { Component, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, ElementRef, AfterViewChecked, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, Location, ViewportScroller  } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MarkdownModule } from 'ngx-markdown';
 import { MaterialService } from '../../../../service/material.service';
 import { AiChatService } from '../../../../service/ai-chat.service';
 import { AiQuizService } from '../../../../service/ai-quiz.service';
 import { MessageBridgeService } from '../../../../service/message-bridge.service';
+import { NoteService, Highlight, Note } from '../../../../service/note.service';
 import { 
   CardComponent,
   CardModule   
 } from '@coreui/angular';
+import { IconDirective, IconSetService } from '@coreui/icons-angular';
+import { 
+  cilArrowLeft, 
+  cilPen,
+  cilNotes, 
+  cilTrash, 
+  cilX, 
+  cilPencil, 
+  cilSpeech,
+  cilArrowTop,
+  cilArrowBottom,
+  cilReload
+} from '@coreui/icons';
 
 @Component({
   selector: 'app-material-view',
   standalone: true,
   imports: [
     CommonModule, 
+    FormsModule,
     MarkdownModule,
     CardModule,
+    IconDirective,
   ],
   templateUrl: './material-view.component.html',
   styleUrls: ['./material-view.component.scss']
 })
-export class MaterialViewComponent implements AfterViewChecked {
+export class MaterialViewComponent implements AfterViewChecked, OnDestroy {
   filename: string = '';
   content: string = '';
   private rendered = false;
@@ -31,6 +48,11 @@ export class MaterialViewComponent implements AfterViewChecked {
   selectedText: string = '';
   showButtons: boolean = false;
   buttonPosition: { x: number, y: number } = { x: 0, y: 0 };
+  
+  // 顏色選擇相關屬性
+  showColorPicker: boolean = false;
+  colorPickerPosition: { x: number, y: number } = { x: 0, y: 0 };
+  selectedRange: Range | null = null;
   
   // 螢光筆相關屬性
   highlighterMode: boolean = false;
@@ -44,7 +66,28 @@ export class MaterialViewComponent implements AfterViewChecked {
     { name: '橙色', value: '#FFA500' },
     { name: '紫色', value: '#DDA0DD' }
   ];
-  private highlights: any[] = []; // 儲存劃記資料
+  private highlights: Highlight[] = []; // 儲存劃記資料
+
+  // 筆記相關屬性
+  notes: Note[] = [];
+  showNotePanel: boolean = false;
+  editingNote: Note | null = null;
+  noteTitle: string = '';
+  noteText: string = '';
+  selectedHighlightId: string | null = null; // 當前選中的劃記ID，用於建立關聯筆記
+  activeHighlightId: string | null = null; // 當前高亮的劃記ID
+  highlightedNoteId: string | null = null; // 當前高亮的筆記ID
+  
+  // 浮動面板相關屬性
+  notePanelMinimized: boolean = false;
+  notePanelPosition: { x: number, y: number } = { x: 0, y: 0 };
+  notePanelSize: { width: number, height: number } = { width: 400, height: 600 };
+  private isDragging: boolean = false;
+  private isResizing: boolean = false;
+  private dragStartPos: { x: number, y: number } = { x: 0, y: 0 };
+  private resizeStartPos: { x: number, y: number, width: number, height: number } = { x: 0, y: 0, width: 0, height: 0 };
+  private mouseMoveHandler = this.onMouseMove.bind(this);
+  private mouseUpHandler = this.onMouseUp.bind(this);
 
   constructor(
     private route: ActivatedRoute,
@@ -54,8 +97,29 @@ export class MaterialViewComponent implements AfterViewChecked {
     private aiChatService: AiChatService,
     private aiQuizService: AiQuizService,
     private messageBridgeService: MessageBridgeService,
-    private viewportScroller: ViewportScroller
-  ) {}
+    private viewportScroller: ViewportScroller,
+    private noteService: NoteService,
+    private iconSetService: IconSetService,
+    private cdr: ChangeDetectorRef
+  ) {
+    // 註冊圖標到 IconSetService
+    const existingIcons = iconSetService.icons || {};
+    iconSetService.icons = {
+      ...existingIcons,
+      ...{
+        cilArrowLeft,
+        cilPen,
+        cilNotes,
+        cilTrash,
+        cilX,
+        cilPencil,
+        cilSpeech,
+        cilArrowTop,
+        cilArrowBottom,
+        cilReload
+      }
+    };
+  }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe(params => {
@@ -63,8 +127,9 @@ export class MaterialViewComponent implements AfterViewChecked {
       if (file) {
         this.filename = file;
         this.loadMaterial(file);
-        // 載入已儲存的劃記
+        // 載入已儲存的劃記和筆記
         this.loadHighlights();
+        this.loadNotes();
       }
     });
     
@@ -73,12 +138,27 @@ export class MaterialViewComponent implements AfterViewChecked {
     
     // 添加螢光筆事件監聽器
     this.setupHighlighter();
+    
+    // 初始化浮動面板位置（右上角，避免遮擋網站助手）
+    this.resetNotePanelPosition();
+    
+    // 添加全局滑鼠事件監聽器
+    document.addEventListener('mousemove', this.mouseMoveHandler);
+    document.addEventListener('mouseup', this.mouseUpHandler);
+  }
+  
+  ngOnDestroy(): void {
+    // 移除全局事件監聽器
+    document.removeEventListener('mousemove', this.mouseMoveHandler);
+    document.removeEventListener('mouseup', this.mouseUpHandler);
   }
 
   loadMaterial(filename: string) {
     this.materialService.getMaterial(filename).subscribe({
       next: (res) => {
         this.content = res.content;
+        this.rendered = false;
+        this.checkKatexLoaded();
       },
       error: (err) => {
         console.error('讀取教材失敗:', err);
@@ -204,17 +284,93 @@ export class MaterialViewComponent implements AfterViewChecked {
   }
 
   private renderKaTeX(): void {
-    if ((window as any).renderMathInElement) {
-      (window as any).renderMathInElement(this.elRef.nativeElement.querySelector('#content'), {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\(', right: '\\)', display: false },
-          { left: '\\[', right: '\\]', display: true }
-        ],
-        throwOnError: false
-      });
+    const contentElement = this.elRef.nativeElement.querySelector('#content');
+    if (!contentElement) {
+      return;
     }
+
+    if ((window as any).renderMathInElement) {
+      setTimeout(() => {
+        (window as any).renderMathInElement(contentElement, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '\\[', right: '\\]', display: true }
+          ],
+          throwOnError: false
+        });
+        this.cdr.detectChanges();
+      }, 100);
+    } else {
+      this.checkKatexLoaded();
+    }
+  }
+
+  private checkKatexLoaded(): void {
+    if ((window as any).renderMathInElement) {
+      setTimeout(() => this.renderKaTeX(), 200);
+      return;
+    }
+
+    if ((window as any).katexLoading) {
+      setTimeout(() => this.renderKaTeX(), 500);
+      return;
+    }
+
+    this.loadKatexAssets();
+  }
+
+  private loadKatexAssets(): void {
+    (window as any).katexLoading = true;
+
+    if (!document.querySelector('link[href*="katex"]')) {
+      const cssLink = document.createElement('link');
+      cssLink.rel = 'stylesheet';
+      cssLink.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
+      document.head.appendChild(cssLink);
+    }
+
+    const existingKatexScript = document.querySelector('script[src*="katex.min.js"]');
+    if (existingKatexScript) {
+      this.ensureAutoRenderScript();
+      return;
+    }
+
+    const katexScript = document.createElement('script');
+    katexScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';
+    katexScript.async = true;
+    katexScript.onload = () => {
+      this.ensureAutoRenderScript();
+    };
+    katexScript.onerror = () => {
+      (window as any).katexLoading = false;
+      console.error('❌ KaTeX 載入失敗');
+    };
+    document.head.appendChild(katexScript);
+  }
+
+  private ensureAutoRenderScript(): void {
+    if (document.querySelector('script[src*="auto-render.min.js"]')) {
+      (window as any).katexLoading = false;
+      this.cdr.detectChanges();
+      this.renderKaTeX();
+      return;
+    }
+
+    const autoRenderScript = document.createElement('script');
+    autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js';
+    autoRenderScript.async = true;
+    autoRenderScript.onload = () => {
+      (window as any).katexLoading = false;
+      this.cdr.detectChanges();
+      this.renderKaTeX();
+    };
+    autoRenderScript.onerror = () => {
+      (window as any).katexLoading = false;
+      console.error('❌ KaTeX auto-render 載入失敗');
+    };
+    document.head.appendChild(autoRenderScript);
   }
 
   private highlightCode(): void {
@@ -245,6 +401,10 @@ export class MaterialViewComponent implements AfterViewChecked {
     
     if (selectedText.length >= 5) {
       this.selectedText = selectedText;
+      // 重要：立即保存 Range（clone），避免點擊工具列時選取被清除
+      if (selection.rangeCount > 0) {
+        this.selectedRange = selection.getRangeAt(0).cloneRange();
+      }
       this.showButtons = true;
       
       // 獲取選擇範圍的位置
@@ -266,6 +426,7 @@ export class MaterialViewComponent implements AfterViewChecked {
       
       // 在 console 顯示選中的文字
       console.log('選中的文字:', selectedText);
+      console.log('[DEBUG] 已保存 selectedRange:', !!this.selectedRange);
     } else {
       this.hideButtons();
     }
@@ -274,7 +435,9 @@ export class MaterialViewComponent implements AfterViewChecked {
   // 隱藏按鈕
   private hideButtons(): void {
     this.showButtons = false;
+    this.showColorPicker = false;
     this.selectedText = '';
+    this.selectedRange = null;
   }
 
   // 詢問功能
@@ -402,8 +565,25 @@ export class MaterialViewComponent implements AfterViewChecked {
   }
 
   // 創建劃記
-  private createHighlight(range: Range, text: string): void {
+  private createHighlight(range: Range, text: string): string | null {
     const highlightId = 'highlight_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    
+    console.log('[DEBUG] createHighlight 開始, highlightId:', highlightId);
+    console.log('[DEBUG] 選擇的文字:', text);
+    console.log('[DEBUG] Range 資訊:', {
+      startContainer: range.startContainer,
+      endContainer: range.endContainer,
+      startOffset: range.startOffset,
+      endOffset: range.endOffset
+    });
+    
+    try {
+      // 檢查 Range 是否有效
+      if (!range || range.collapsed) {
+        console.warn('[DEBUG] Range 無效或已折疊');
+        this.showNotification('選擇範圍無效，請重新選擇');
+        return null;
+      }
     
     // 創建劃記元素
     const highlightElement = document.createElement('mark');
@@ -412,37 +592,249 @@ export class MaterialViewComponent implements AfterViewChecked {
     highlightElement.style.padding = '2px 4px';
     highlightElement.style.borderRadius = '3px';
     highlightElement.style.cursor = 'pointer';
+      highlightElement.style.position = 'relative';
+    highlightElement.style.display = 'inline-block';
     highlightElement.setAttribute('data-highlight-id', highlightId);
     highlightElement.setAttribute('data-highlight-color', this.selectedColor);
     highlightElement.setAttribute('data-highlight-text', text);
     
-    // 添加右鍵選單功能
-    highlightElement.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      this.showHighlightContextMenu(e, highlightId);
-    });
-    
-    try {
-      // 將選擇的內容包裝在劃記元素中
-      range.surroundContents(highlightElement);
+      // 使用更安全的方法處理跨節點的選擇
+      let success = false;
       
-      // 儲存劃記資料
-      const highlightData = {
-        id: highlightId,
+      try {
+        // 嘗試使用 surroundContents（適用於單一文字節點）
+      range.surroundContents(highlightElement);
+        success = true;
+        console.log('[DEBUG] 使用 surroundContents 成功');
+      } catch (error) {
+        console.log('[DEBUG] surroundContents 失敗，改用 extractContents 方法:', error);
+        // 如果 surroundContents 失敗，使用 extractContents 和 insertNode
+        try {
+          const contents = range.extractContents();
+          highlightElement.appendChild(contents);
+          range.insertNode(highlightElement);
+          success = true;
+          console.log('[DEBUG] 使用 extractContents 方法成功');
+        } catch (error2) {
+          console.error('[DEBUG] extractContents 也失敗:', error2);
+          // 最後的備選方案：使用文字替換
+          const commonAncestor = range.commonAncestorContainer;
+          if (commonAncestor.nodeType === Node.TEXT_NODE) {
+            // 單一文字節點
+            const textNode = commonAncestor as Text;
+            const parent = textNode.parentNode;
+            if (parent) {
+              const beforeText = textNode.textContent!.substring(0, range.startOffset);
+              const selectedText = textNode.textContent!.substring(range.startOffset, range.endOffset);
+              const afterText = textNode.textContent!.substring(range.endOffset);
+              
+              highlightElement.textContent = selectedText;
+              
+              parent.insertBefore(document.createTextNode(beforeText), textNode);
+              parent.insertBefore(highlightElement, textNode);
+              parent.insertBefore(document.createTextNode(afterText), textNode);
+              parent.removeChild(textNode);
+              success = true;
+              console.log('[DEBUG] 使用文字替換方法成功');
+            }
+          } else {
+            // 跨節點情況：使用更複雜的處理
+            console.log('[DEBUG] 處理跨節點選擇');
+            success = this.highlightCrossNodes(range, highlightElement, text);
+          }
+        }
+      }
+      
+      if (!success) {
+        console.error('[DEBUG] 所有劃記方法都失敗');
+        this.showNotification('劃記失敗，請選擇連續的文字');
+        return null;
+      }
+      
+      // 確保劃記元素已經添加到 DOM
+      const actualHighlightElement = document.querySelector(`[data-highlight-id="${highlightId}"]`) as HTMLElement;
+      if (!actualHighlightElement) {
+        console.error('[DEBUG] 警告: 劃記元素未成功添加到 DOM');
+        // 嘗試再次查找
+        setTimeout(() => {
+          const retryElement = document.querySelector(`[data-highlight-id="${highlightId}"]`) as HTMLElement;
+          if (retryElement) {
+            console.log('[DEBUG] 延遲找到劃記元素，添加事件監聽器');
+            this.attachHighlightEvents(retryElement, highlightId);
+          }
+        }, 100);
+      } else {
+        // 使用統一的函數添加事件監聽器
+        this.attachHighlightEvents(actualHighlightElement, highlightId);
+      }
+      
+      // 儲存劃記資料到 MongoDB
+      const highlightData: Omit<Highlight, '_id' | 'user' | 'type' | 'created_at' | 'updated_at'> = {
+        filename: this.filename,
+        highlight_id: highlightId,
         text: text,
-        color: this.selectedColor,
-        timestamp: new Date().toISOString(),
-        filename: this.filename
+        color: this.selectedColor
       };
       
-      this.highlights.push(highlightData);
-      this.saveHighlights();
+      console.log('[DEBUG] 準備儲存劃記到 MongoDB:', highlightData);
+      this.noteService.saveHighlight(highlightData).subscribe({
+        next: (res) => {
+          console.log('[DEBUG] 劃記儲存成功:', res);
+          if (res.success && res.highlight) {
+            // 更新本地劃記列表
+            const existingIndex = this.highlights.findIndex(h => h.highlight_id === highlightId);
+            if (existingIndex >= 0) {
+              this.highlights[existingIndex] = res.highlight;
+              console.log('[DEBUG] 更新現有劃記, index:', existingIndex);
+            } else {
+              this.highlights.push(res.highlight);
+              console.log('[DEBUG] 添加新劃記到列表, 總數:', this.highlights.length);
+            }
+            // 劃記建立後，重新載入筆記以更新標記
+            console.log('[DEBUG] 劃記建立後，重新載入筆記以更新標記');
+            // 延遲一下確保 DOM 已更新
+            setTimeout(() => {
+              this.loadNotes();
+              // 再次更新標記，確保劃記元素已存在
+              setTimeout(() => {
+                this.updateHighlightNoteMarkers();
+              }, 200);
+            }, 100);
+          }
+        },
+        error: (err) => {
+          console.error('儲存劃記失敗:', err);
+          this.showNotification('儲存劃記失敗，請重試');
+        }
+      });
       
       this.showNotification(`已劃記: "${text.substring(0, 20)}${text.length > 20 ? '...' : ''}"`);
+      return highlightId;
       
     } catch (error) {
-      console.error('創建劃記失敗:', error);
+      console.error('[DEBUG] 創建劃記失敗:', error);
       this.showNotification('劃記失敗，請重新選擇文字');
+      return null;
+    }
+  }
+
+  // 處理跨節點的劃記
+  private highlightCrossNodes(range: Range, highlightElement: HTMLElement, text: string): boolean {
+    console.log('[DEBUG] highlightCrossNodes 開始處理跨節點選擇');
+    
+    try {
+      const startContainer = range.startContainer;
+      const endContainer = range.endContainer;
+      
+      // 如果起始和結束在同一個文字節點
+      if (startContainer === endContainer && startContainer.nodeType === Node.TEXT_NODE) {
+        const textNode = startContainer as Text;
+        const parent = textNode.parentNode;
+        if (!parent) return false;
+        
+        const beforeText = text.substring(0, range.startOffset);
+        const selectedText = text.substring(range.startOffset, range.endOffset);
+        const afterText = text.substring(range.endOffset);
+        
+        // 分割文字節點
+        if (range.startOffset > 0) {
+          const beforeNode = textNode.splitText(range.startOffset);
+          textNode.textContent = beforeText;
+        }
+        
+        const selectedNode = range.startContainer as Text;
+        if (range.endOffset < selectedNode.textContent!.length) {
+          selectedNode.splitText(range.endOffset - range.startOffset);
+        }
+        
+        highlightElement.textContent = selectedText;
+        parent.replaceChild(highlightElement, selectedNode);
+        return true;
+      }
+      
+      // 跨多個節點的情況：使用更簡單的方法
+      // 找到包含選擇範圍的最小容器
+      const commonAncestor = range.commonAncestorContainer;
+      let container: Node = commonAncestor;
+      
+      // 向上查找，找到合適的容器
+      while (container && container.nodeType !== Node.ELEMENT_NODE) {
+        container = container.parentNode!;
+      }
+      
+      if (!container) return false;
+      
+      // 使用文字匹配的方式
+      const containerElement = container as HTMLElement;
+      const allText = containerElement.textContent || '';
+      const startIndex = allText.indexOf(text);
+      
+      if (startIndex === -1) {
+        console.warn('[DEBUG] 無法在容器中找到匹配的文字');
+        return false;
+      }
+      
+      // 使用 TreeWalker 找到文字節點並替換
+      const walker = document.createTreeWalker(
+        container,
+        NodeFilter.SHOW_TEXT,
+        null
+      );
+      
+      let currentIndex = 0;
+      let node;
+      let foundStart = false;
+      let startNode: Text | null = null;
+      let startOffset = 0;
+      
+      while (node = walker.nextNode()) {
+        const nodeText = node.textContent || '';
+        const nodeLength = nodeText.length;
+        
+        if (!foundStart && currentIndex + nodeLength > startIndex) {
+          foundStart = true;
+          startNode = node as Text;
+          startOffset = startIndex - currentIndex;
+        }
+        
+        if (foundStart && currentIndex + nodeLength >= startIndex + text.length) {
+          // 找到結束位置
+          const endOffset = startIndex + text.length - currentIndex;
+          
+          // 分割節點並創建劃記
+          if (startNode) {
+            if (startNode === node) {
+              // 在同一個節點內
+              const beforeText = nodeText.substring(0, startOffset);
+              const selectedText = nodeText.substring(startOffset, endOffset);
+              const afterText = nodeText.substring(endOffset);
+              
+              highlightElement.textContent = selectedText;
+              
+              const parent = startNode.parentNode;
+              if (parent) {
+                if (beforeText) {
+                  parent.insertBefore(document.createTextNode(beforeText), startNode);
+                }
+                parent.insertBefore(highlightElement, startNode);
+                if (afterText) {
+                  parent.insertBefore(document.createTextNode(afterText), startNode);
+                }
+                parent.removeChild(startNode);
+                return true;
+              }
+            }
+          }
+          break;
+        }
+        
+        currentIndex += nodeLength;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('[DEBUG] highlightCrossNodes 錯誤:', error);
+      return false;
     }
   }
 
@@ -457,7 +849,96 @@ export class MaterialViewComponent implements AfterViewChecked {
     const selectedText = selection.toString().trim();
     const range = selection.getRangeAt(0);
     
-    this.createHighlight(range, selectedText);
+    console.log('[DEBUG] highlightSelectedText 被調用');
+    console.log('[DEBUG] 選中的文字:', selectedText);
+    console.log('[DEBUG] Range 資訊:', {
+      startContainer: range.startContainer,
+      endContainer: range.endContainer,
+      collapsed: range.collapsed
+    });
+    
+    // 顯示顏色選擇器
+    this.showColorPicker = true;
+    this.colorPickerPosition = {
+      x: this.buttonPosition.x + 100,
+      y: this.buttonPosition.y
+    };
+    
+    // 儲存選中的範圍和文字
+    // 重要：需要克隆 Range，因為當選擇被清除時 Range 會失效
+    this.selectedText = selectedText;
+    this.selectedRange = range.cloneRange();
+    console.log('[DEBUG] 已儲存選中的範圍和文字，等待用戶選擇顏色');
+  }
+
+  // 選擇顏色並劃記
+  selectColorAndHighlight(color: string): void {
+    console.log('[DEBUG] selectColorAndHighlight 被調用, 顏色:', color);
+    console.log('[DEBUG] selectedRange:', this.selectedRange ? '存在' : '不存在');
+    console.log('[DEBUG] selectedText:', this.selectedText);
+    
+    if (this.selectedRange && this.selectedText) {
+      // 檢查 Range 是否仍然有效
+      try {
+        const testRange = this.selectedRange.cloneRange();
+        const testText = testRange.toString();
+        console.log('[DEBUG] Range 測試文字:', testText);
+        
+        if (testText.trim().length < 2) {
+          console.warn('[DEBUG] Range 已失效，嘗試重新獲取選擇');
+          const selection = window.getSelection();
+          if (selection && selection.rangeCount > 0) {
+            this.selectedRange = selection.getRangeAt(0).cloneRange();
+            this.selectedText = selection.toString().trim();
+            console.log('[DEBUG] 重新獲取選擇成功:', this.selectedText);
+          } else {
+            this.showNotification('選擇已失效，請重新選擇文字');
+            this.hideButtons();
+            this.showColorPicker = false;
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('[DEBUG] Range 測試失敗:', error);
+        this.showNotification('選擇已失效，請重新選擇文字');
+        this.hideButtons();
+        this.showColorPicker = false;
+        return;
+      }
+      
+      this.selectedColor = color;
+      console.log('[DEBUG] 開始建立劃記');
+      this.createHighlight(this.selectedRange, this.selectedText);
+      this.hideButtons();
+      this.showColorPicker = false;
+    } else {
+      console.warn('[DEBUG] selectedRange 或 selectedText 不存在');
+      this.showNotification('請先選擇要劃記的文字');
+    }
+  }
+
+  // 直接用目前選擇建立筆記：劃記文字作為標題
+  createNoteFromSelection(): void {
+    // 若先前保存的 Range/文字不存在，嘗試從目前選取恢復一次
+    if (!this.selectedRange || !this.selectedText) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0 && sel.toString().trim().length > 0) {
+        this.selectedRange = sel.getRangeAt(0).cloneRange();
+        this.selectedText = sel.toString().trim();
+      }
+    }
+    if (!this.selectedRange || !this.selectedText) {
+      this.showNotification('請先選擇要劃記與筆記的文字');
+      return;
+    }
+    // 使用目前顏色建立劃記
+    const id = this.createHighlight(this.selectedRange, this.selectedText);
+    if (id) {
+      this.selectedHighlightId = id;
+      this.noteTitle = this.selectedText.length > 50 ? this.selectedText.substring(0, 50) + '…' : this.selectedText;
+      this.noteText = '';
+      this.showNotePanel = true;
+    }
     this.hideButtons();
   }
 
@@ -487,6 +968,7 @@ export class MaterialViewComponent implements AfterViewChecked {
     // 添加選單項目
     const items = [
       { text: '更改顏色', action: () => this.changeHighlightColor(highlightId) },
+      { text: '建立筆記', action: () => this.createNoteForHighlight(highlightId) },
       { text: '移除劃記', action: () => this.removeHighlight(highlightId) }
     ];
 
@@ -527,17 +1009,59 @@ export class MaterialViewComponent implements AfterViewChecked {
   private changeHighlightColor(highlightId: string): void {
     const highlightElement = document.querySelector(`[data-highlight-id="${highlightId}"]`) as HTMLElement;
     if (highlightElement) {
-      highlightElement.style.backgroundColor = this.selectedColor;
-      highlightElement.setAttribute('data-highlight-color', this.selectedColor);
+      // 顯示顏色選擇器
+      this.showColorPicker = true;
+      const rect = highlightElement.getBoundingClientRect();
+      this.colorPickerPosition = {
+        x: rect.left + rect.width / 2,
+        y: rect.bottom + 10
+      };
+      this.selectedHighlightId = highlightId;
       
-      // 更新儲存的資料
-      const highlightData = this.highlights.find(h => h.id === highlightId);
+      // 監聽顏色選擇
+      setTimeout(() => {
+        const colorSelectHandler = (color: string) => {
+          this.selectedColor = color;
+          highlightElement.style.backgroundColor = color;
+          highlightElement.setAttribute('data-highlight-color', color);
+          
+          // 更新儲存的資料到 MongoDB
+          const highlightData = this.highlights.find(h => h.highlight_id === highlightId);
       if (highlightData) {
-        highlightData.color = this.selectedColor;
-        this.saveHighlights();
-      }
-      
+            const updateData: Omit<Highlight, '_id' | 'user' | 'type' | 'created_at' | 'updated_at'> = {
+              filename: this.filename,
+              highlight_id: highlightId,
+              text: highlightData.text,
+              color: color
+            };
+            this.noteService.saveHighlight(updateData).subscribe({
+              next: (res) => {
+                if (res.success && res.highlight) {
+                  const index = this.highlights.findIndex(h => h.highlight_id === highlightId);
+                  if (index >= 0) {
+                    this.highlights[index] = res.highlight;
+                  }
+                }
+              },
+              error: (err) => {
+                console.error('更新劃記顏色失敗:', err);
+              }
+            });
+          }
+          
+          this.showColorPicker = false;
+          this.selectedHighlightId = null;
       this.showNotification('劃記顏色已更改');
+        };
+        
+        // 臨時綁定顏色選擇事件
+        const colorButtons = document.querySelectorAll('.color-btn');
+        colorButtons.forEach((btn, index) => {
+          btn.addEventListener('click', () => {
+            colorSelectHandler(this.highlightColors[index].value);
+          }, { once: true });
+        });
+      }, 100);
     }
   }
 
@@ -552,9 +1076,18 @@ export class MaterialViewComponent implements AfterViewChecked {
         parent.normalize(); // 合併相鄰的文字節點
       }
       
-      // 從儲存中移除
-      this.highlights = this.highlights.filter(h => h.id !== highlightId);
-      this.saveHighlights();
+      // 從 MongoDB 和本地列表中移除
+      this.noteService.deleteHighlight(this.filename, highlightId).subscribe({
+        next: (res) => {
+          if (res.success) {
+            this.highlights = this.highlights.filter(h => h.highlight_id !== highlightId);
+          }
+        },
+        error: (err) => {
+          console.error('刪除劃記失敗:', err);
+          this.showNotification('刪除劃記失敗，請重試');
+        }
+      });
       
       this.showNotification('劃記已移除');
     }
@@ -563,6 +1096,9 @@ export class MaterialViewComponent implements AfterViewChecked {
   // 清除所有劃記
   clearAllHighlights(): void {
     if (confirm('確定要清除所有劃記嗎？此操作無法復原。')) {
+      this.noteService.clearAllHighlights(this.filename).subscribe({
+        next: (res) => {
+          if (res.success) {
       const highlightElements = document.querySelectorAll('.text-highlight');
       highlightElements.forEach(element => {
         const parent = element.parentNode;
@@ -573,8 +1109,14 @@ export class MaterialViewComponent implements AfterViewChecked {
       });
       
       this.highlights = [];
-      this.saveHighlights();
-      this.showNotification('所有劃記已清除');
+            this.showNotification(res.message || '所有劃記已清除');
+          }
+        },
+        error: (err) => {
+          console.error('清除劃記失敗:', err);
+          this.showNotification('清除劃記失敗，請重試');
+        }
+      });
     }
   }
 
@@ -604,44 +1146,442 @@ export class MaterialViewComponent implements AfterViewChecked {
     this.showNotification('劃記內容已匯出');
   }
 
-  // 儲存劃記到本地儲存
+  // 儲存劃記到 MongoDB
   private saveHighlights(): void {
-    const key = `highlights_${this.filename}`;
-    localStorage.setItem(key, JSON.stringify(this.highlights));
+    // 只儲存最後一個劃記（避免重複儲存）
+    // 實際的儲存操作在 createHighlight 中進行
   }
 
-  // 從本地儲存載入劃記
+  // 從 MongoDB 載入劃記
   private loadHighlights(): void {
-    const key = `highlights_${this.filename}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        this.highlights = JSON.parse(saved);
+    console.log('[DEBUG] 開始載入劃記, filename:', this.filename);
+    this.noteService.getHighlights(this.filename).subscribe({
+      next: (res) => {
+        console.log('[DEBUG] 劃記載入成功:', res);
+        console.log('[DEBUG] 劃記數量:', res.highlights?.length || 0);
+        console.log('[DEBUG] 劃記列表:', res.highlights);
+        this.highlights = res.highlights;
         // 在內容載入後恢復劃記
-        setTimeout(() => this.restoreHighlights(), 1000);
-      } catch (error) {
-        console.error('載入劃記失敗:', error);
+        console.log('[DEBUG] 等待 1 秒後恢復劃記顯示');
+        setTimeout(() => {
+          console.log('[DEBUG] 開始恢復劃記顯示');
+          this.restoreHighlights();
+          // 載入筆記並更新標記
+          console.log('[DEBUG] 恢復劃記後，載入筆記');
+          this.loadNotes();
+        }, 1000);
+      },
+      error: (err) => {
+        console.error('[DEBUG] 載入劃記失敗:', err);
         this.highlights = [];
       }
-    }
+    });
+  }
+
+  // 載入筆記
+  private loadNotes(): void {
+    console.log('[DEBUG] 開始載入筆記, filename:', this.filename);
+    this.noteService.getNotes(this.filename).subscribe({
+      next: (res) => {
+        console.log('[DEBUG] 筆記載入成功:', res);
+        console.log('[DEBUG] 筆記數量:', res.notes?.length || 0);
+        console.log('[DEBUG] 筆記列表:', res.notes);
+        this.notes = res.notes;
+        // 更新劃記上的筆記標記
+        console.log('[DEBUG] 開始更新劃記標記, 當前劃記數量:', this.highlights.length);
+        this.updateHighlightNoteMarkers();
+      },
+      error: (err) => {
+        console.error('[DEBUG] 載入筆記失敗:', err);
+        this.notes = [];
+      }
+    });
+  }
+
+  // 更新劃記上的筆記標記
+  private updateHighlightNoteMarkers(): void {
+    console.log('[DEBUG] updateHighlightNoteMarkers 開始執行');
+    console.log('[DEBUG] 當前筆記數量:', this.notes.length);
+    console.log('[DEBUG] 當前劃記數量:', this.highlights.length);
+    
+    // 清除所有現有標記
+    const existingMarkers = document.querySelectorAll('.note-marker');
+    console.log('[DEBUG] 清除現有標記數量:', existingMarkers.length);
+    existingMarkers.forEach(marker => marker.remove());
+    
+    // 為有關聯筆記的劃記添加標記
+    let markerCount = 0;
+    this.notes.forEach((note, index) => {
+      console.log(`[DEBUG] 處理筆記 ${index + 1}:`, {
+        note_id: note._id,
+        highlight_id: note.highlight_id,
+        title: note.title
+      });
+      
+      if (note.highlight_id) {
+        console.log(`[DEBUG] 筆記 ${index + 1} 有關聯劃記, highlight_id:`, note.highlight_id);
+        const highlightElement = document.querySelector(`[data-highlight-id="${note.highlight_id}"]`) as HTMLElement;
+        console.log(`[DEBUG] 查找劃記元素結果:`, highlightElement ? '找到' : '未找到');
+        
+        if (highlightElement) {
+          const existingMarker = highlightElement.querySelector('.note-marker');
+          console.log(`[DEBUG] 劃記元素上已有標記:`, existingMarker ? '是' : '否');
+          
+          if (!existingMarker) {
+            console.log(`[DEBUG] 為劃記 ${note.highlight_id} 添加標記`);
+            const marker = document.createElement('span');
+            marker.className = 'note-marker';
+            // 使用 SVG 圖標（簡化版本，直接使用 Unicode 或 CSS）
+            marker.innerHTML = '📝';
+            marker.title = '此劃記有筆記';
+            marker.style.cssText = `
+              position: absolute;
+              top: calc(100% + 4px); /* 在框的下方 */
+              left: 50%;
+              transform: translateX(-50%);
+              width: 18px;
+              height: 18px;
+              background: #3b82f6;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 12px;
+              cursor: pointer;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              z-index: 1000;
+            `;
+            marker.addEventListener('click', (e) => {
+              e.stopPropagation();
+              console.log('[DEBUG] 點擊筆記標記, highlight_id:', note.highlight_id);
+              this.showNoteForHighlight(note.highlight_id!);
+            });
+            
+            // 確保劃記元素是相對定位
+            if (highlightElement.style.position !== 'relative') {
+              highlightElement.style.position = 'relative';
+            }
+            highlightElement.appendChild(marker);
+            markerCount++;
+            console.log(`[DEBUG] 標記已添加到劃記 ${note.highlight_id}`);
+          }
+        } else {
+          console.warn(`[DEBUG] 警告: 找不到對應的劃記元素, highlight_id:`, note.highlight_id);
+          // 列出所有現有的劃記 ID
+          const allHighlights = document.querySelectorAll('[data-highlight-id]');
+          const highlightIds: string[] = [];
+          allHighlights.forEach(el => {
+            const id = el.getAttribute('data-highlight-id');
+            if (id) highlightIds.push(id);
+          });
+          console.log('[DEBUG] 頁面上現有的劃記 ID:', highlightIds);
+        }
+      } else {
+        console.log(`[DEBUG] 筆記 ${index + 1} 沒有關聯劃記`);
+      }
+    });
+    
+    console.log(`[DEBUG] updateHighlightNoteMarkers 完成, 共添加 ${markerCount} 個標記`);
   }
 
   // 恢復劃記顯示
   private restoreHighlights(): void {
-    if (this.highlights.length === 0) return;
+    console.log('[DEBUG] restoreHighlights 開始執行');
+    console.log('[DEBUG] 需要恢復的劃記數量:', this.highlights.length);
+    
+    if (this.highlights.length === 0) {
+      console.log('[DEBUG] 沒有劃記需要恢復');
+      return;
+    }
 
     const contentElement = this.elRef.nativeElement.querySelector('#content');
-    if (!contentElement) return;
+    if (!contentElement) {
+      console.warn('[DEBUG] 找不到內容元素 #content');
+      return;
+    }
 
+    console.log('[DEBUG] 找到內容元素，開始恢復劃記');
+    let restoredCount = 0;
     // 這裡需要實現更複雜的文字匹配邏輯
     // 由於DOM結構可能已改變，我們使用文字內容匹配
-    this.highlights.forEach(highlight => {
-      this.restoreSingleHighlight(highlight, contentElement);
+    this.highlights.forEach((highlight, index) => {
+      console.log(`[DEBUG] 恢復劃記 ${index + 1}/${this.highlights.length}:`, {
+        highlight_id: highlight.highlight_id,
+        text: highlight.text.substring(0, 30) + '...',
+        color: highlight.color
+      });
+      const restored = this.restoreSingleHighlight(highlight, contentElement);
+      if (restored) restoredCount++;
+    });
+    
+    console.log(`[DEBUG] 劃記恢復完成, 成功恢復 ${restoredCount}/${this.highlights.length} 個`);
+  }
+
+  // ========== 筆記功能 ==========
+
+  // 切換筆記面板
+  toggleNotePanel(): void {
+    this.showNotePanel = !this.showNotePanel;
+    if (this.showNotePanel) {
+      this.loadNotes();
+    }
+  }
+
+  // 為選中的劃記建立筆記
+  createNoteForHighlight(highlightId: string): void {
+    this.selectedHighlightId = highlightId;
+    this.editingNote = null;
+    this.noteTitle = this.getHighlightText(highlightId) || '';
+    this.noteText = '';
+    this.showNotePanel = true;
+  }
+
+  // 建立新筆記
+  createNote(): void {
+    if (!this.noteText.trim()) {
+      this.showNotification('請輸入筆記內容');
+      return;
+    }
+
+    const fallbackTitle = this.selectedHighlightId ? (this.getHighlightText(this.selectedHighlightId) || '') : '';
+    const noteData: Omit<Note, '_id' | 'user' | 'type' | 'created_at' | 'updated_at'> = {
+      filename: this.filename,
+      text: this.noteText,
+      title: this.noteTitle || fallbackTitle || `筆記 ${new Date().toLocaleString('zh-TW')}`,
+      highlight_id: this.selectedHighlightId || undefined
+    };
+
+      console.log('[DEBUG] 建立筆記, 資料:', noteData);
+      this.noteService.createNote(noteData).subscribe({
+        next: (res) => {
+          console.log('[DEBUG] 筆記建立成功:', res);
+          if (res.success && res.note) {
+            console.log('[DEBUG] 新增的筆記:', res.note);
+            console.log('[DEBUG] 筆記關聯的劃記 ID:', res.note.highlight_id);
+            this.notes.unshift(res.note);
+            console.log('[DEBUG] 筆記列表更新後數量:', this.notes.length);
+            this.noteTitle = '';
+            this.noteText = '';
+            this.selectedHighlightId = null;
+            // 更新劃記標記
+            console.log('[DEBUG] 筆記建立後，更新劃記標記');
+            this.updateHighlightNoteMarkers();
+            // 高亮相關劃記
+            if (res.note.highlight_id) {
+              console.log('[DEBUG] 高亮相關劃記:', res.note.highlight_id);
+              this.highlightRelatedHighlight(res.note.highlight_id);
+            }
+            this.showNotification('筆記已建立');
+          }
+        },
+      error: (err) => {
+        console.error('建立筆記失敗:', err);
+        this.showNotification('建立筆記失敗，請重試');
+      }
     });
   }
 
+  // 編輯筆記
+  editNote(note: Note): void {
+    this.editingNote = note;
+    this.noteTitle = note.title;
+    this.noteText = note.text;
+    this.selectedHighlightId = note.highlight_id || null;
+    this.showNotePanel = true;
+  }
+
+  // 更新筆記
+  updateNote(): void {
+    if (!this.editingNote || !this.noteText.trim()) {
+      this.showNotification('請輸入筆記內容');
+      return;
+    }
+
+    this.noteService.updateNote(this.editingNote._id!, {
+      text: this.noteText,
+      title: this.noteTitle || this.editingNote.title
+    }).subscribe({
+      next: (res) => {
+        if (res.success && res.note) {
+          const index = this.notes.findIndex(n => n._id === this.editingNote!._id);
+          if (index >= 0) {
+            this.notes[index] = res.note;
+          }
+          // 更新劃記標記
+          this.updateHighlightNoteMarkers();
+          this.cancelEditNote();
+          this.showNotification('筆記已更新');
+        }
+      },
+      error: (err) => {
+        console.error('更新筆記失敗:', err);
+        this.showNotification('更新筆記失敗，請重試');
+      }
+    });
+  }
+
+  // 取消編輯筆記
+  cancelEditNote(): void {
+    this.editingNote = null;
+    this.noteTitle = '';
+    this.noteText = '';
+    this.selectedHighlightId = null;
+  }
+
+  // 刪除筆記
+  deleteNote(note: Note): void {
+    if (!confirm('確定要刪除這則筆記嗎？')) {
+      return;
+    }
+
+    if (!note._id) {
+      this.showNotification('筆記ID不存在');
+      return;
+    }
+
+    this.noteService.deleteNote(note._id).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.notes = this.notes.filter(n => n._id !== note._id);
+          // 更新劃記標記
+          this.updateHighlightNoteMarkers();
+          this.showNotification('筆記已刪除');
+        }
+      },
+      error: (err) => {
+        console.error('刪除筆記失敗:', err);
+        this.showNotification('刪除筆記失敗，請重試');
+      }
+    });
+  }
+
+  // 顯示劃記的相關筆記
+  showNoteForHighlight(highlightId: string): void {
+    console.log('[DEBUG] showNoteForHighlight, highlightId:', highlightId);
+    console.log('[DEBUG] 當前筆記列表:', this.notes);
+    const relatedNote = this.notes.find(n => n.highlight_id === highlightId);
+    console.log('[DEBUG] 找到相關筆記:', relatedNote ? '是' : '否');
+    
+    if (relatedNote) {
+      console.log('[DEBUG] 相關筆記詳情:', relatedNote);
+      // 開啟筆記面板
+      this.showNotePanel = true;
+      // 高亮相關筆記
+      this.highlightedNoteId = relatedNote._id || null;
+      console.log('[DEBUG] 設定高亮筆記 ID:', this.highlightedNoteId);
+      // 高亮相關劃記
+      this.highlightRelatedHighlight(highlightId);
+      // 滾動到筆記位置
+      setTimeout(() => {
+        const noteElement = document.querySelector(`[data-note-id="${relatedNote._id}"]`);
+        console.log('[DEBUG] 查找筆記元素:', noteElement ? '找到' : '未找到');
+        if (noteElement) {
+          noteElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // 添加閃爍效果
+          (noteElement as HTMLElement).classList.add('note-flash');
+          setTimeout(() => {
+            (noteElement as HTMLElement).classList.remove('note-flash');
+          }, 1000);
+        }
+      }, 100);
+    } else {
+      console.warn('[DEBUG] 警告: 找不到關聯的筆記, highlightId:', highlightId);
+    }
+  }
+
+  // 高亮相關劃記
+  highlightRelatedHighlight(highlightId: string): void {
+    // 清除之前的高亮
+    document.querySelectorAll('.text-highlight.active').forEach(el => {
+      el.classList.remove('active');
+    });
+    
+    const highlightElement = document.querySelector(`[data-highlight-id="${highlightId}"]`) as HTMLElement;
+    if (highlightElement) {
+      highlightElement.classList.add('active');
+      this.activeHighlightId = highlightId;
+      
+      // 滾動到劃記位置
+      highlightElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // 3秒後移除高亮
+      setTimeout(() => {
+        highlightElement.classList.remove('active');
+        this.activeHighlightId = null;
+      }, 3000);
+    }
+  }
+
+  // 顯示快速動作提示
+  private showQuickActionHint(element: HTMLElement, highlightId: string): void {
+    // 移除現有提示
+    const existingHint = document.querySelector('.quick-action-hint');
+    if (existingHint) {
+      existingHint.remove();
+    }
+
+    const hint = document.createElement('div');
+    hint.className = 'quick-action-hint';
+    hint.innerHTML = `
+      <div class="hint-content">
+        <p>雙擊建立筆記</p>
+        <p class="hint-subtitle">右鍵查看更多選項</p>
+      </div>
+    `;
+    hint.style.cssText = `
+      position: fixed;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      z-index: 10000;
+      pointer-events: none;
+      animation: fadeInOut 2s ease-in-out;
+    `;
+
+    const rect = element.getBoundingClientRect();
+    hint.style.left = `${rect.left + rect.width / 2}px`;
+    hint.style.top = `${rect.top - 50}px`;
+    hint.style.transform = 'translateX(-50%)';
+
+    document.body.appendChild(hint);
+
+    setTimeout(() => {
+      hint.remove();
+    }, 2000);
+  }
+
+  // 從筆記跳轉到劃記
+  scrollToHighlight(note: Note): void {
+    if (note.highlight_id) {
+      this.highlightRelatedHighlight(note.highlight_id);
+      this.highlightedNoteId = note._id || null;
+    }
+  }
+
+  // 獲取劃記文字
+  getHighlightText(highlightId: string): string {
+    const highlight = this.highlights.find(h => h.highlight_id === highlightId);
+    if (highlight) {
+      const text = highlight.text;
+      return text.length > 30 ? text.substring(0, 30) + '...' : text;
+    }
+    return '';
+  }
+
   // 恢復單個劃記
-  private restoreSingleHighlight(highlight: any, container: HTMLElement): void {
+  private restoreSingleHighlight(highlight: Highlight, container: HTMLElement): boolean {
+    console.log(`[DEBUG] restoreSingleHighlight 開始, highlight_id: ${highlight.highlight_id}`);
+    
+    // 先檢查是否已經存在
+    const existing = document.querySelector(`[data-highlight-id="${highlight.highlight_id}"]`);
+    if (existing) {
+      console.log(`[DEBUG] 劃記 ${highlight.highlight_id} 已存在，跳過恢復`);
+      return true;
+    }
+    
     const walker = document.createTreeWalker(
       container,
       NodeFilter.SHOW_TEXT,
@@ -649,14 +1589,20 @@ export class MaterialViewComponent implements AfterViewChecked {
     );
 
     let node;
+    let found = false;
     while (node = walker.nextNode()) {
       const text = node.textContent || '';
       if (text.includes(highlight.text)) {
+        console.log(`[DEBUG] 找到包含劃記文字的節點, 文字長度: ${text.length}`);
         // 找到包含劃記文字的節點，進行劃記
         const regex = new RegExp(highlight.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-        const newHTML = text.replace(regex, `<mark class="text-highlight" data-highlight-id="${highlight.id}" data-highlight-color="${highlight.color}" data-highlight-text="${highlight.text}" style="background-color: ${highlight.color}; padding: 2px 4px; border-radius: 3px; cursor: pointer;">$&</mark>`);
+        const newHTML = text.replace(
+          regex,
+          `<mark class="text-highlight" data-highlight-id="${highlight.highlight_id}" data-highlight-color="${highlight.color}" data-highlight-text="${highlight.text}" style="background-color: ${highlight.color}; padding: 2px 4px; border-radius: 3px; cursor: pointer; position: relative; display: inline-block;">$&</mark>`
+        );
         
         if (newHTML !== text) {
+          console.log(`[DEBUG] 成功替換文字，建立劃記元素`);
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = newHTML;
           
@@ -667,9 +1613,150 @@ export class MaterialViewComponent implements AfterViewChecked {
             }
             parent.removeChild(node);
           }
+          
+          // 為恢復的劃記添加事件監聽器
+          const highlightElement = document.querySelector(`[data-highlight-id="${highlight.highlight_id}"]`) as HTMLElement;
+          if (highlightElement) {
+            console.log(`[DEBUG] 為恢復的劃記添加事件監聽器`);
+            this.attachHighlightEvents(highlightElement, highlight.highlight_id);
+          }
+          
+          // 恢復後更新標記
+          setTimeout(() => {
+            this.updateHighlightNoteMarkers();
+          }, 100);
+          
+          found = true;
           break;
         }
       }
     }
+    
+    if (!found) {
+      console.warn(`[DEBUG] 警告: 無法找到劃記文字 "${highlight.text.substring(0, 30)}..." 在頁面中`);
+    }
+    
+    return found;
+  }
+
+  // 為劃記添加事件監聽器
+  private attachHighlightEvents(highlightElement: HTMLElement, highlightId: string): void {
+    console.log(`[DEBUG] attachHighlightEvents 為劃記 ${highlightId} 添加事件`);
+    
+    // 添加右鍵選單功能
+    highlightElement.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.showHighlightContextMenu(e, highlightId);
+    });
+    
+    // 添加點擊事件
+    highlightElement.addEventListener('click', (e) => {
+      if (e.detail === 2) { // 雙擊：建立筆記
+        console.log(`[DEBUG] 雙擊劃記 ${highlightId}，建立筆記`);
+        this.createNoteForHighlight(highlightId);
+      } else if (e.detail === 1) { // 單擊：顯示相關筆記或快速預覽
+        const relatedNote = this.notes.find(n => n.highlight_id === highlightId);
+        if (relatedNote) {
+          console.log(`[DEBUG] 單擊劃記 ${highlightId}，找到相關筆記`);
+          this.showNoteForHighlight(highlightId);
+        } else {
+          console.log(`[DEBUG] 單擊劃記 ${highlightId}，沒有相關筆記，顯示提示`);
+          // 顯示快速動作提示
+          this.showQuickActionHint(highlightElement, highlightId);
+        }
+      }
+    });
+    
+    // 添加懸停效果
+    highlightElement.addEventListener('mouseenter', () => {
+      highlightElement.style.transform = 'scale(1.02)';
+      highlightElement.style.transition = 'all 0.2s ease';
+    });
+    highlightElement.addEventListener('mouseleave', () => {
+      highlightElement.style.transform = 'scale(1)';
+    });
+  }
+  
+  // ========== 浮動面板拖動和調整大小功能 ==========
+  
+  // 重置面板位置到右上角（避免遮擋網站助手）
+  resetNotePanelPosition(): void {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    // 預設位置：右上角，但留出網站助手的空間（約 400px）
+    this.notePanelPosition = {
+      x: viewportWidth - this.notePanelSize.width - 420, // 留出網站助手空間
+      y: 100
+    };
+  }
+  
+  // 開始拖動
+  startDrag(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('.panel-icon-btn, .close-btn')) {
+      return; // 如果是點擊按鈕，不觸發拖動
+    }
+    event.preventDefault();
+    this.isDragging = true;
+    this.dragStartPos = {
+      x: event.clientX - this.notePanelPosition.x,
+      y: event.clientY - this.notePanelPosition.y
+    };
+  }
+  
+  // 開始調整大小
+  startResize(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isResizing = true;
+    this.resizeStartPos = {
+      x: event.clientX,
+      y: event.clientY,
+      width: this.notePanelSize.width,
+      height: this.notePanelSize.height
+    };
+  }
+  
+  // 滑鼠移動處理
+  onMouseMove(event: MouseEvent): void {
+    if (this.isDragging) {
+      const newX = event.clientX - this.dragStartPos.x;
+      const newY = event.clientY - this.dragStartPos.y;
+      
+      // 限制在視窗範圍內
+      const maxX = window.innerWidth - this.notePanelSize.width;
+      const maxY = window.innerHeight - (this.notePanelMinimized ? 60 : this.notePanelSize.height);
+      
+      this.notePanelPosition = {
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      };
+    } else if (this.isResizing) {
+      const deltaX = event.clientX - this.resizeStartPos.x;
+      const deltaY = event.clientY - this.resizeStartPos.y;
+      
+      const newWidth = Math.max(300, Math.min(800, this.resizeStartPos.width + deltaX));
+      const newHeight = Math.max(400, Math.min(window.innerHeight - 100, this.resizeStartPos.height + deltaY));
+      
+      this.notePanelSize = {
+        width: newWidth,
+        height: newHeight
+      };
+      
+      // 調整位置，避免超出視窗
+      const maxX = window.innerWidth - this.notePanelSize.width;
+      const maxY = window.innerHeight - this.notePanelSize.height;
+      if (this.notePanelPosition.x > maxX) {
+        this.notePanelPosition.x = maxX;
+      }
+      if (this.notePanelPosition.y > maxY) {
+        this.notePanelPosition.y = maxY;
+      }
+    }
+  }
+  
+  // 滑鼠釋放處理
+  onMouseUp(event: MouseEvent): void {
+    this.isDragging = false;
+    this.isResizing = false;
   }
 }

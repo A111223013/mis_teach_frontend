@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { IconModule, IconDirective, IconSetService } from '@coreui/icons-angular';
+import { cilMagnifyingGlass, cilX, cilCalendar, cilArrowRight, cilNewspaper } from '@coreui/icons';
 import { NewsService, NewsItem } from '../../../service/news.service';
 
 interface Tag {
@@ -21,7 +23,7 @@ interface CardData {
 @Component({
   selector: 'app-news',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, IconModule, IconDirective],
   templateUrl: './news.component.html',
   styleUrl: './news.component.scss'
 })
@@ -43,7 +45,17 @@ export class NewsComponent implements OnInit {
   // 載入狀態
   loading: boolean = false;
 
-  constructor(private newsService: NewsService) {}
+  constructor(
+    private newsService: NewsService,
+    private iconSetService: IconSetService
+  ) {
+    // 註冊圖標
+    const existingIcons = iconSetService.icons || {};
+    iconSetService.icons = {
+      ...existingIcons,
+      ...{ cilMagnifyingGlass, cilX, cilCalendar, cilArrowRight, cilNewspaper }
+    };
+  }
 
   ngOnInit() {
     this.loadNews();

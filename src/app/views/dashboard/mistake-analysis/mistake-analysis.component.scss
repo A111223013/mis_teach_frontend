@@ -1,28 +1,247 @@
 .mistake-analysis-container {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 1.5rem 1rem;
 }
 
-.stat-card {
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+/* 頁面標題區 */
+.page-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 1.5rem 0;
+  
+  .page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 0.5rem;
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .page-subtitle {
+    font-size: 1rem;
+    color: #64748b;
+    margin: 0;
+    font-weight: 400;
+  }
+}
+
+.question-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #e0e0e0;
+  margin-bottom: 1rem;
+}
+
+.question-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.question-header {
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.75rem;
+}
+
+.question-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.5rem;
 }
 
 .question-text {
-  font-weight: 500;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  font-size: 1rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.answer-section {
+  .bg-danger-subtle {
+    background-color: #f8d7da;
+  }
+  
+  .bg-success-subtle {
+    background-color: #d1e7dd;
+  }
+  
+  .bg-light {
+    background-color: #f8f9fa;
+  }
+}
+
+.question-actions {
+  border-top: 1px solid #e0e0e0;
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.ai-explanation-content {
+  line-height: 1.8;
+  
+  p {
+    margin-bottom: 1rem;
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
+  strong {
+    color: #495057;
+    font-weight: 600;
+  }
+}
+
+/* 篩選區域 */
+.filter-section {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+/* 搜尋容器 */
+.search-container {
+  margin-bottom: 1rem;
+}
+
+.search-wrapper {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 0.5rem;
+  transition: all 0.3s ease;
+  
+  &:focus-within {
+    box-shadow: 0 4px 16px rgba(220, 53, 69, 0.15);
+    transform: translateY(-1px);
+  }
+}
+
+.search-icon-wrapper {
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  color: #94a3b8;
+}
+
+.search-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 0.75rem 0;
+  font-size: 1rem;
+  color: #1e293b;
+  background: transparent;
+  
+  &::placeholder {
+    color: #94a3b8;
+  }
+}
+
+.clear-btn {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* 下拉選單區域 */
+.filter-dropdowns {
+  .form-select {
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    
+    &:focus {
+      border-color: #dc3545;
+      box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15);
+    }
+  }
+  
+  .btn {
+    border-radius: 8px;
+    font-size: 0.9rem;
+    padding: 0.625rem 0.75rem;
+    
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+/* 圖片顯示樣式 */
+.image-container {
+  position: relative;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f9fa;
+  border-radius: 8px;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.mistake-card {
-  transition: transform 0.2s;
-  border: 1px solid #f1f1f1;
+.image-container img {
+  max-width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
-.mistake-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+.image-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #6c757d;
+}
+
+.image-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #dc3545;
+  text-align: center;
+}
+
+.image-error i {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
 } 

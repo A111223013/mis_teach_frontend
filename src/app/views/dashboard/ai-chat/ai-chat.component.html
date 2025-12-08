@@ -5,7 +5,7 @@
   <div class="page-header">
     <div class="header-content">
       <div class="ai-avatar">
-        <img src="assets/logo.png" alt="AI Assistant" class="avatar-image">
+        <img src="assets/logo.jpg" alt="AI Assistant" class="avatar-image">
       </div>
       <div class="header-text">
         <h4 class="title">AI 導師</h4>
@@ -74,10 +74,10 @@
             <!-- AI助理訊息 -->
             <div *ngIf="message.type === 'assistant'" class="assistant-bubble">
               <div class="assistant-avatar">
-                <img src="assets/logo.png" alt="AI Assistant" class="avatar-image">
+                <img src="assets/logo.jpg" alt="AI Assistant" class="avatar-image">
               </div>
               <div class="assistant-content">
-                <div class="message-text" [innerHTML]="message.content | markdown"></div>
+                <div class="message-text" [innerHTML]="transformMarkdown(message.content)"></div>
                 
                 <!-- 考卷生成後的開始測驗按鈕 -->
                 <div *ngIf="message.content && isQuizGenerationMessage(message.content)" class="quiz-actions mt-3">
@@ -115,7 +115,7 @@
           <div class="message-content">
             <div class="assistant-bubble">
               <div class="assistant-avatar">
-                <img src="assets/logo.png" alt="AI Assistant" class="avatar-image">
+                <img src="assets/logo.jpg" alt="AI Assistant" class="avatar-image">
               </div>
               <div class="assistant-content">
                 <div class="typing-indicator">

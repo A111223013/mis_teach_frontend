@@ -1,47 +1,58 @@
 .exam-page-layout {
-  height: calc(100vh - 120px);
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: #fff;
-  border-radius: 0;
-  box-shadow: none;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 1rem;
+  width: 100%;
+  max-width: 100%;
 }
 
-/* 移除 Bootstrap 默認的間距和邊框 */
 .exam-page-layout .row {
   margin: 0;
   --bs-gutter-x: 0;
+  flex-wrap: nowrap;
 }
 
 .exam-page-layout .col-md-3,
-.exam-page-layout .col-lg-2,
+.exam-page-layout .col-lg-2 {
+  padding: 0.5rem;
+}
+
 .exam-page-layout .col-md-9,
 .exam-page-layout .col-lg-10 {
-  padding: 0;
+  padding: 0.5rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .question-nav-panel {
-  background-color: #f8f9fa;
-  padding: 15px;
-  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 1.5rem;
+  height: calc(100vh - 160px);
   overflow-y: auto;
-  border-right: 1px solid #e9ecef;
+  border-right: 2px solid #e2e8f0;
   flex-shrink: 0;
   min-width: 200px;
-  border-radius: 0;
-  box-shadow: none;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  box-sizing: border-box;
 }
 
 /* 主要內容區域 */
 .col-md-9.col-lg-10 {
-  height: 100%;
+  height: calc(100vh - 160px);
   overflow-y: auto;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  background-color: #fff;
-  border-radius: 0;
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 0.5rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .exam-info {
@@ -61,29 +72,43 @@
 }
 
 .question-nav-btn {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #dee2e6;
-  background-color: #fff;
+  border: 2px solid #e2e8f0;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   position: relative;
   padding: 0;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.question-nav-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  border-color: #3b82f6;
 }
 
 .question-nav-btn.current {
-  border-color: #321fdb;
-  background-color: #e7f2ff;
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
 }
 
 .question-nav-btn.answered {
-  background-color: #d1e7dd;
-  border-color: #a3cfbb;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #10b981;
+  color: white;
 }
 
 .question-nav-btn.flagged {
-  border-color: #ffc107;
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
 }
 
 .flag-indicator {
@@ -134,15 +159,17 @@
 }
 
 .exam-container {
-  padding: 20px;
+  padding: 1.5rem;
   height: 100%;
   overflow-y: auto;
   flex: 1;
-  min-height: 0; /* 確保flex子元素可以縮小 */
-  background-color: #fff;
-  border-radius: 0;
-  box-shadow: none;
-  border: none;
+  min-height: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .exam-header {
@@ -154,22 +181,47 @@
 
 .question-area {
   margin-bottom: 20px;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  visibility: visible;
+  opacity: 1;
 }
 
 .question-header {
   margin-bottom: 20px;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  visibility: visible;
+  opacity: 1;
 }
 
 .question-info {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  width: 100%;
+  max-width: 100%;
+}
+
+.question-title {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  visibility: visible;
+  opacity: 1;
 }
 
 .question-text {
   font-size: 1.1rem;
   font-weight: 500;
   margin-bottom: 15px;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  visibility: visible;
+  opacity: 1;
 }
 
 .flag-btn {
@@ -272,6 +324,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 200px; /* 確保最小高度 */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 單選題美化樣式 */
@@ -427,6 +482,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 150px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 填空題區域樣式 */
@@ -437,6 +495,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 150px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .text-answer-section .form-control,
@@ -462,6 +523,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 200px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 繪圖工具欄 */
@@ -629,6 +693,13 @@ img[src=""]:after {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   transition: box-shadow 0.2s ease;
   position: relative;
+  /* 改善觸控體驗 */
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .drawing-canvas:hover {
@@ -649,6 +720,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 200px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .code-editor {
@@ -679,6 +753,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 150px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .choice-answer-section .options-list {
@@ -696,6 +773,9 @@ img[src=""]:after {
   border-radius: 8px;
   background-color: #f8f9fa;
   min-height: 200px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sub-question-item {
@@ -916,6 +996,9 @@ img[src=""]:after {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   min-height: 200px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 數學編輯器左右分佈佈局 */
@@ -979,21 +1062,28 @@ img[src=""]:after {
 
 .math-preview-area {
   flex: 1;
-  padding: 20px;
+  padding: 25px;  /* 增加內邊距 */
   overflow-y: auto;
+  overflow-x: auto;  /* 支持橫向滾動 */
   background-color: white;
   min-height: 200px;
+  /* 移除 flex 和 align-items，避免影響 KaTeX 排版 */
+  display: block;
 }
 
+/* 預覽內容容器 - 完全使用 KaTeX 預設樣式 */
 .math-preview-content {
   min-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  line-height: 1.8;
-  color: #333;
+  width: 100%;
+  padding: 20px;
+  overflow-x: auto;
+  overflow-y: auto;
+  /* 完全移除所有可能干擾 KaTeX 的樣式 */
+  /* 不設置 display、line-height、font-size 等，讓 KaTeX 完全控制 */
 }
+
+/* 確保 KaTeX 上下標正確顯示 - 完全移除所有可能干擾的樣式 */
+/* 讓 KaTeX 使用其預設的上下標定位算法 */
 
 /* 預覽區域上方的工具選擇 */
 .math-tools-above-preview {
@@ -1388,20 +1478,14 @@ img[src=""]:after {
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border: 2px solid #dee2e6;
   min-height: 80px;
-  display: flex;
-  flex-direction: column;
+  /* 移除 flex，避免影響 KaTeX 排版 */
+  display: block;
   border-radius: 8px;
+  padding: 15px;
 }
 
-.math-preview-content {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  font-size: 16px;
-  line-height: 1.6;
-}
+/* 移除重複的 .math-preview-content 定義，使用統一的樣式 */
+/* 這個樣式已經在上面定義過了，這裡不再重複定義 */
 
 /* 數學符號工具列 */
 .math-symbols-toolbar {
@@ -1481,46 +1565,71 @@ img[src=""]:after {
 /* 響應式設計 - 手機 */
 @media (max-width: 768px) {
   .exam-page-layout {
-    height: calc(100vh - 80px);
-    flex-direction: column;
+    padding: 0.5rem;
+  }
+  
+  .exam-page-layout .row {
+    flex-wrap: wrap;
   }
   
   .question-nav-panel {
+    width: 100%;
     height: auto;
-    max-height: 120px;
+    max-height: 140px;
     border-right: none;
-    border-bottom: 1px solid #eee;
-    overflow-y: auto;
+    border-bottom: 2px solid #e2e8f0;
+    border-radius: 12px 12px 0 0;
+    padding: 1rem;
   }
   
   .question-grid {
-    gap: 4px;
-    justify-content: center;
+    gap: 0.5rem;
+    justify-content: flex-start;
   }
   
   .question-nav-btn {
-    width: 35px;
-    height: 35px;
-    font-size: 12px;
+    width: 42px;
+    height: 42px;
+    font-size: 0.9rem;
   }
   
   .legend {
-    display: none; /* 在小螢幕上隱藏圖例以節省空間 */
+    display: none;
   }
   
   .col-md-9.col-lg-10 {
-    height: calc(100vh - 200px);
-    overflow-y: auto;
-    padding: 10px;
+    width: 100%;
+    height: auto;
+    min-height: calc(100vh - 220px);
+    overflow-y: visible;
+    padding: 0.5rem;
   }
   
   .exam-container {
-    padding: 10px;
+    padding: 1rem;
   }
   
   .question-text {
-    font-size: 1rem;
-    line-height: 1.5;
+    font-size: 1.05rem;
+    line-height: 1.6;
+  }
+  
+  .exam-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    
+    h2 {
+      font-size: 1.3rem;
+    }
+  }
+  
+  .options-list .form-check {
+    padding: 14px 16px;
+  }
+  
+  .options-list .form-check-label {
+    font-size: 0.95rem;
   }
   
   .math-drawing-canvas {
@@ -1560,6 +1669,13 @@ img[src=""]:after {
   .drawing-canvas {
     max-width: 100%;
     height: auto;
+    /* 改善觸控體驗 */
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
   }
   
   .symbols-grid,
@@ -1597,7 +1713,7 @@ img[src=""]:after {
   
   .math-preview-content {
     min-height: 100px;
-    font-size: 1rem;
+    /* 不設置 font-size，讓 KaTeX 使用預設大小 */
   }
   
   .math-tools-above-preview {
@@ -1707,59 +1823,8 @@ img[src=""]:after {
   }
 }
 
-/* KaTeX 樣式調整 */
-.katex {
-  font-size: 1.1em;
-  line-height: 1.2;
-}
-
-.katex-display {
-  margin: 1em 0;
-}
-
-/* 改善分數顯示 */
-.katex .frac-line {
-  border-bottom-width: 0.04em;
-}
-
-.katex .frac-num {
-  padding: 0 0.1em;
-}
-
-.katex .frac-den {
-  padding: 0 0.1em;
-}
-
-/* 改善上標下標顯示 */
-.katex .msupsub {
-  text-align: left;
-}
-
-.katex .msubsup {
-  text-align: left;
-}
-
-/* 改善根號顯示 */
-.katex .sqrt {
-  display: inline-block;
-  border-top: 0.08em solid;
-  border-right: 0.08em solid;
-  margin-right: 0.15em;
-  margin-left: 0.15em;
-}
-
-/* 數學公式預覽區域樣式 */
-.math-preview-content .katex {
-  font-size: 1.2em;
-  line-height: 1.3;
-}
-
-/* 工具按鈕中的數學符號樣式 */
-.quick-tool-btn .katex,
-.template-btn .katex {
-  font-size: 0.9em;
-  line-height: 1.1;
-}
+/* 預覽區域的 KaTeX - 完全使用 KaTeX 預設樣式，不添加任何自定義樣式 */
+/* 移除所有可能干擾 KaTeX 內部排版的樣式 */
 
 /* 數學公式答題區域的動畫效果 */
 .math-answer-section {

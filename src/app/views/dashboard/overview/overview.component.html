@@ -9,8 +9,8 @@
             <h1 class="welcome-title fw-bold text-primary">歡迎回來，{{userName}}!</h1>
             <p class="welcome-subtitle text-muted mb-0">今天是 {{currentDate | date:'yyyy-MM-dd'}}，繼續加油！</p>
           </div>
+          <!-- 每日簽到卡片 
           <div class="col-md-4 text-end">
-            <!-- 每日簽到卡片 -->
             <div class="checkin-card">
               <div class="checkin-icon-wrapper" [class.checked]="checkinStatus.checked_today" 
                    (click)="performCheckin()" [class.clickable]="!checkinStatus.checked_today">
@@ -27,6 +27,7 @@
               </div>
             </div>
           </div>
+          -->
         </div>
       </c-card-body>
     </c-card>

@@ -1,64 +1,87 @@
 <div class="news-container">
+  <!-- 頁面標題 -->
+  <div class="page-header">
+    <h1 class="page-title">科技趨勢</h1>
+    <p class="page-subtitle">掌握最新的資訊科技動態與趨勢</p>
+  </div>
+
   <!-- 搜尋欄 -->
   <div class="search-container">
-    <div class="search-box">
+    <div class="search-wrapper">
+      <div class="search-icon-wrapper">
+        <svg cIcon name="cilMagnifyingGlass" class="search-icon"></svg>
+      </div>
       <input 
         type="text" 
         [(ngModel)]="searchTerm" 
-        placeholder="搜尋新聞標題..."
+        placeholder="搜尋新聞標題、內容或標籤..."
         class="search-input"
         (keyup.enter)="onSearch()">
-      <button class="search-btn" (click)="onSearch()">
-        <i class="cil-magnifying-glass"></i> 搜尋
-      </button>
       @if (searchTerm) {
-        <button class="clear-btn" (click)="clearSearch()">
-          <i class="cil-x"></i> 清除
+        <button class="clear-btn" (click)="clearSearch()" type="button" title="清除搜尋">
+          <svg cIcon name="cilX"></svg>
         </button>
       }
+      <button class="search-btn" (click)="onSearch()" type="button">
+        搜尋
+      </button>
     </div>
   </div>
 
   <!-- 載入指示器 -->
   @if (loading) {
     <div class="loading-container">
-      <div class="spinner-border" role="status">
-        <span class="visually-hidden">載入中...</span>
+      <div class="loading-spinner">
+        <div class="spinner"></div>
       </div>
       <p class="loading-text">載入新聞中...</p>
     </div>
   }
 
   <!-- 卡片容器 -->
-  <div class="c-card-container">
+  <div class="news-grid">
     @for (card of cards; track card.headline) {
-      <a [href]="card.url" target="_blank" class="card-link">
-        <div class="c-card">
-          <div class="c-card-header">
+      <a [href]="card.url" target="_blank" class="news-card-link" rel="noopener noreferrer">
+        <article class="news-card">
+          <!-- 卡片圖片/標頭 -->
+          <div class="news-card-image">
             @if (card.headerType === 'image') {
-              <div class="header-image-wrapper">
-                <img [src]="card.headerContent" alt="卡片標頭圖片" class="header-image" 
-                     onerror="this.onerror=null; this.style.display='none';">
-              </div>
+              <img [src]="card.headerContent" [alt]="card.headline" class="card-image" 
+                   onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'400\' height=\'250\'%3E%3Crect fill=\'%23f0f0f0\' width=\'400\' height=\'250\'/%3E%3Ctext fill=\'%23999\' font-family=\'sans-serif\' font-size=\'18\' x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\'%3E無圖片%3C/text%3E%3C/svg%3E';">
+              <div class="image-overlay"></div>
             } @else {
-              <div class="header-text-wrapper">
-                <pre>{{ card.headerContent }}</pre>
+              <div class="card-image-placeholder">
+                <svg cIcon name="cilNewspaper" class="placeholder-icon"></svg>
+              </div>
+            }
+            <!-- 標籤 -->
+            @if (card.tags && card.tags.length > 0) {
+              <div class="news-card-tags">
+                @for (tag of card.tags.slice(0, 3); track tag.text) {
+                  <span class="news-tag">{{ tag.text }}</span>
+                }
               </div>
             }
           </div>
-          <div class="c-card-body">
-            <div class="c-card-tags">
-              @for (tag of card.tags; track tag.text) {
-                <span class="tag">{{ tag.text }}</span>
-              }
+          
+          <!-- 卡片內容 -->
+          <div class="news-card-content">
+            <h3 class="news-card-title">{{ card.headline }}</h3>
+            <p class="news-card-summary">{{ card.subheadline }}</p>
+          </div>
+          
+          <!-- 卡片底部 -->
+          <div class="news-card-footer">
+            <div class="news-meta">
+              <svg cIcon name="cilCalendar" class="meta-icon"></svg>
+              <time class="news-date">{{ card.date }}</time>
             </div>
-            <h3 class="c-card-headline">{{ card.headline }}</h3>
-            <p class="c-card-subheadline">{{ card.subheadline }}</p>
+            <div class="news-read-more">
+              閱讀更多
+              <svg cIcon name="cilArrowRight" class="arrow-icon"></svg>
+            </div>
           </div>
-          <div class="c-card-footer">
-            <span class="c-card-date">{{ card.date }}</span>
-          </div>
-        </div>
+        </article>
       </a>
     }
   </div>
@@ -67,10 +90,10 @@
   @if (!loading && cards.length > 0) {
     <div class="pagination-container">
       <nav aria-label="新聞分頁">
-        <ul class="pagination">
+        <ul class="pagination justify-content-center mb-0">
           <!-- 上一頁按鈕 -->
           <li class="page-item" [class.disabled]="!hasPrev">
-            <a class="page-link" (click)="goToPage(currentPage - 1)" [class.disabled]="!hasPrev">
+            <a class="page-link" (click)="goToPage(currentPage - 1)" [attr.aria-disabled]="!hasPrev" tabindex="-1">
               上一頁
             </a>
           </li>
@@ -92,7 +115,7 @@
           
           <!-- 下一頁按鈕 -->
           <li class="page-item" [class.disabled]="!hasNext">
-            <a class="page-link" (click)="goToPage(currentPage + 1)" [class.disabled]="!hasNext">
+            <a class="page-link" (click)="goToPage(currentPage + 1)" [attr.aria-disabled]="!hasNext">
               下一頁
             </a>
           </li>

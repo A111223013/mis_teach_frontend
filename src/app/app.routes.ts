@@ -16,10 +16,6 @@ export const routes: Routes = [
             {
                 path: '',
                 loadChildren: () => import('./views/dashboard/routes').then(m => m.routes)
-            },
-            {
-                path: 'whiteboard',
-                loadChildren: () => import('./views/whiteboard/routes').then(m => m.routes)
             }
         ]
     },

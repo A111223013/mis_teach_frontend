@@ -18,9 +18,35 @@
   
   // Loading 狀態
   &.loading {
-    pointer-events: none;
+    /* 不禁止整頁互動，避免頁面被鎖死；僅以視覺透明度提示 */
+    pointer-events: auto;
     opacity: 0.7;
   }
+}
+
+// 頁面標題區 - 統一樣式
+.page-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem 0;
+    
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0 0 0.5rem;
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .page-subtitle {
+        font-size: 1rem;
+        color: #64748b;
+        margin: 0;
+        font-weight: 400;
+    }
 }
 
 // Loading 覆蓋層
@@ -67,11 +93,13 @@
   .ai-avatar {
     width: 60px;
     height: 60px;
-    background: rgba(255, 255, 255, 0.2);
+    background-image: url('/assets/misHelper.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    flex-shrink: 0;
   }
 }
 
@@ -542,7 +570,7 @@ select.form-select {
       .activity-fill {
         height: 100%;
         border-radius: 6px;
-        transition: width 0.5s ease;
+      transition: none;
         position: relative;
         
         &::after {
@@ -552,8 +580,8 @@ select.form-select {
           left: 0;
           right: 0;
           bottom: 0;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-          animation: shimmer 2s infinite;
+        background: none;
+        animation: none;
         }
       }
     }
@@ -607,6 +635,47 @@ select.form-select {
 .evidence-card, .insights-card {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
+}
+
+// 分析依據樣式 - 確保文字自動換行
+.evidence {
+  .d-flex {
+    align-items: flex-start; // 對齊到頂部，避免高度不一致時的問題
+  }
+  
+  .evidence-item {
+    display: inline-block;
+    white-space: normal !important; // 強制允許換行
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word; // 現代瀏覽器支持
+    max-width: 100%;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+    text-align: left;
+    vertical-align: top; // 對齊到頂部
+    
+    // 確保在 flex 容器中也能正確換行
+    flex: 0 1 auto;
+    min-width: 0; // 允許 flex item 縮小到內容寬度以下
+    
+    // 響應式寬度設置
+    @media (min-width: 992px) {
+      max-width: calc(33.333% - 0.5rem); // 大螢幕：每行最多3個
+      flex-basis: calc(33.333% - 0.5rem);
+    }
+    
+    @media (min-width: 768px) and (max-width: 991px) {
+      max-width: calc(50% - 0.5rem); // 中等螢幕：每行最多2個
+      flex-basis: calc(50% - 0.5rem);
+    }
+    
+    @media (max-width: 767px) {
+      max-width: 100%; // 手機上全寬
+      flex-basis: 100%;
+    }
+  }
 }
 
 .practice-package {
@@ -867,7 +936,7 @@ select.form-select {
 .knowledge-item,
 .suggestion-card,
 .metric-card {
-  animation: fadeIn 0.3s ease-out;
+  animation: none;
 }
 
 // 工具提示樣式
@@ -981,9 +1050,9 @@ select.form-select {
 .skeleton-text {
   .skeleton-line {
     height: 1rem;
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
+    background: #f0f0f0;
+    background-size: auto;
+    animation: none;
     border-radius: 4px;
     margin-bottom: 0.5rem;
     
