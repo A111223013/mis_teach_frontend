@@ -353,34 +353,321 @@ export class ExampleComponent implements OnInit {
 }
 ```
 
-## 常見問題
+## 路由配置
 
-### 1. LaTeX 渲染問題
+### 主要路由
 
-- 確保 KaTeX CSS 已正確載入
-- 檢查 `DomSanitizer` 配置
-- 清除瀏覽器快取
+```typescript
+/                    → 重定向到 /login
+/login               → 登入頁面
+/settings            → 設定頁面
+/dashboard           → 儀表板（需要認證）
+  ├── /overview      → 總覽頁面
+  ├── /quiz-center   → 測驗中心
+  ├── /quiz-taking    → 測驗作答
+  ├── /quiz-result   → 測驗結果
+  ├── /ai-tutoring   → AI 教學
+  ├── /ai-chat        → AI 聊天
+  ├── /learning-analytics → 學習分析
+  ├── /material       → 教材瀏覽
+  ├── /news           → 新聞
+  ├── /courses        → 課程
+  ├── /mistake-analysis → 錯題分析
+  └── /web-ai-assistant → 網頁 AI 助手
+```
 
-### 2. CORS 錯誤
+### 路由守衛
 
-- 檢查後端 CORS 配置
-- 確認 API URL 設定正確
-- 檢查 ngrok 攔截器配置
+- 登入頁面：未登入使用者可訪問
+- 儀表板頁面：需要 JWT Token 認證
+- Token 過期自動跳轉到登入頁面
 
-### 3. Token 刷新失敗
+## 服務層詳細說明
 
-- 檢查 Token 格式
-- 確認後端 Token 驗證邏輯
-- 清除 localStorage 重新登入
+### AuthService (`auth.service.ts`)
 
-## 未來規劃
+**主要方法**:
+```typescript
+login(email: string, password: string): Observable<any>
+logout(): void
+getToken(): string | null
+setToken(token: string): void
+clearToken(): void
+isAuthenticated(): boolean
+refreshToken(): Observable<string>
+```
 
-- [ ] PWA 支援
-- [ ] 離線功能
-- [ ] 多語言支援
-- [ ] 深色模式
-- [ ] 效能優化
-- [ ] 單元測試覆蓋率提升
+**使用範例**:
+```typescript
+constructor(private authService: AuthService) {}
+
+login() {
+  this.authService.login(email, password).subscribe({
+    next: (response) => {
+      // 登入成功，Token 已自動儲存
+      this.router.navigate(['/dashboard']);
+    },
+    error: (error) => {
+      // 處理錯誤
+    }
+  });
+}
+```
+
+### QuizService (`quiz.service.ts`)
+
+**主要方法**:
+```typescript
+generateQuiz(params: QuizParams): Observable<QuizResponse>
+submitQuiz(quizId: string, answers: any): Observable<any>
+getQuizResult(resultId: string): Observable<QuizResult>
+getQuizHistory(): Observable<QuizHistory[]>
+```
+
+**使用範例**:
+```typescript
+constructor(private quizService: QuizService) {}
+
+generateQuiz() {
+  const params = {
+    template_id: '123',
+    count: 20,
+    difficulty: 'medium'
+  };
+  
+  this.quizService.generateQuiz(params).subscribe({
+    next: (quiz) => {
+      this.router.navigate(['/dashboard/quiz-taking'], {
+        queryParams: { quizId: quiz.quiz_id }
+      });
+    }
+  });
+}
+```
+
+### AiTutoringService (`ai-tutoring.service.ts`)
+
+**主要方法**:
+```typescript
+startSession(concept: string): Observable<SessionResponse>
+sendMessage(sessionId: string, message: string): Observable<MessageResponse>
+getSession(sessionId: string): Observable<SessionData>
+getLearningPath(sessionId: string): Observable<QuestionData[]>
+```
+
+## 組件使用範例
+
+### 測驗作答組件
+
+```typescript
+// quiz-taking.component.ts
+export class QuizTakingComponent {
+  currentQuestion: QuizQuestion | null = null;
+  userAnswers: { [key: number]: any } = {};
+  
+  selectAnswer(questionId: number, answer: any) {
+    this.userAnswers[questionId] = answer;
+    this.saveProgress();
+  }
+  
+  submitQuiz() {
+    this.quizService.submitQuiz(this.quizId, this.userAnswers)
+      .subscribe(result => {
+        this.router.navigate(['/dashboard/quiz-result'], {
+          queryParams: { resultId: result.result_id }
+        });
+      });
+  }
+}
+```
+
+### LaTeX 公式編輯
+
+```typescript
+// 在組件中使用
+mathFormula: string = '';
+
+renderMathFormula(formula: string): SafeHtml {
+  return this.sanitizer.bypassSecurityTrustHtml(
+    katex.renderToString(formula, { displayMode: true })
+  );
+}
+
+// 在模板中使用
+<div [innerHTML]="renderMathFormula(mathFormula)"></div>
+```
+
+### Canvas 繪圖
+
+```typescript
+@ViewChild('drawingCanvas') canvas!: ElementRef<HTMLCanvasElement>;
+
+startDrawing(event: MouseEvent) {
+  const rect = this.canvas.nativeElement.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  
+  const ctx = this.canvas.nativeElement.getContext('2d');
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  this.isDrawing = true;
+}
+
+draw(event: MouseEvent) {
+  if (!this.isDrawing) return;
+  // 繪圖邏輯
+}
+
+saveDrawing() {
+  const dataURL = this.canvas.nativeElement.toDataURL();
+  // 儲存到答案
+}
+```
+
+## 狀態管理
+
+### RxJS Subject 使用
+
+```typescript
+// 在服務中
+private tokenSubject = new BehaviorSubject<string | null>(null);
+token$ = this.tokenSubject.asObservable();
+
+setToken(token: string) {
+  localStorage.setItem('token', token);
+  this.tokenSubject.next(token);
+}
+
+// 在組件中訂閱
+constructor(private authService: AuthService) {
+  this.authService.token$.subscribe(token => {
+    if (!token) {
+      this.router.navigate(['/login']);
+    }
+  });
+}
+```
+
+## 錯誤處理
+
+### 全局錯誤處理
+
+```typescript
+// HTTP 攔截器
+intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+  return next.handle(req).pipe(
+    catchError((error: HttpErrorResponse) => {
+      if (error.status === 401) {
+        // Token 過期，重新登入
+        this.authService.clearToken();
+        this.router.navigate(['/login']);
+      }
+      return throwError(() => error);
+    })
+  );
+}
+```
+
+## 效能優化技巧
+
+### 1. OnPush 變更檢測
+
+```typescript
+@Component({
+  selector: 'app-example',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  // ...
+})
+```
+
+### 2. 懶加載模組
+
+```typescript
+{
+  path: 'dashboard',
+  loadChildren: () => import('./views/dashboard/routes').then(m => m.routes)
+}
+```
+
+### 3. 虛擬滾動
+
+```typescript
+<cdk-virtual-scroll-viewport itemSize="50" class="viewport">
+  <div *cdkVirtualFor="let item of items">
+    {{item}}
+  </div>
+</cdk-virtual-scroll-viewport>
+```
+
+## 測試範例
+
+### 組件測試
+
+```typescript
+describe('QuizTakingComponent', () => {
+  let component: QuizTakingComponent;
+  let fixture: ComponentFixture<QuizTakingComponent>;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [QuizTakingComponent]
+    });
+    fixture = TestBed.createComponent(QuizTakingComponent);
+    component = fixture.componentInstance;
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('should select answer', () => {
+    component.selectAnswer(1, 'A');
+    expect(component.userAnswers[1]).toBe('A');
+  });
+});
+```
+
+## 開發最佳實踐
+
+### 1. 組件設計原則
+
+- **單一職責**: 每個組件只負責一個功能
+- **可重用性**: 將通用邏輯提取到服務或共用組件
+- **可測試性**: 使用依賴注入，避免直接實例化
+
+### 2. 服務設計原則
+
+- **無狀態**: 服務應該是無狀態的
+- **單例**: 使用 `providedIn: 'root'`
+- **錯誤處理**: 統一處理錯誤並提供友好的錯誤訊息
+
+### 3. 樣式管理
+
+- **BEM 命名**: 使用 BEM（Block Element Modifier）命名規範
+- **SCSS 變數**: 使用變數管理顏色、間距等
+- **組件樣式**: 將樣式與組件放在同一目錄
+
+### 4. 效能優化
+
+- **懶加載**: 路由和功能模組使用懶加載
+- **變更檢測**: 使用 OnPush 策略減少不必要的檢測
+- **虛擬滾動**: 長列表使用虛擬滾動
+- **圖片優化**: 使用適當的圖片格式和大小
+
+## 相關資源
+
+### 官方文檔
+
+- [Angular 官方文檔](https://angular.dev)
+- [CoreUI Angular 文檔](https://coreui.io/angular/docs/)
+- [RxJS 文檔](https://rxjs.dev)
+- [TypeScript 文檔](https://www.typescriptlang.org/docs/)
+
+### 學習資源
+
+- [Angular 風格指南](https://angular.dev/style-guide)
+- [RxJS 操作符指南](https://rxjs.dev/guide/operators)
+- [Angular 效能最佳實踐](https://angular.dev/guide/performance)
 
 ## 授權
 
@@ -388,4 +675,4 @@ MIT License
 
 ## 聯絡資訊
 
-如有問題或建議，請聯繫開發團隊。
+如有問題或建議，請聯繫開發團隊或提交 Issue。
