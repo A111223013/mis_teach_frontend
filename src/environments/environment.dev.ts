@@ -14,6 +14,11 @@ function getApiUrl(): string {
       // Docker Desktop instant endpoint 後端
       return 'https://0bb00f45e925.ngrok-free.app';
     }
+
+    // 如果是 Cloudflare Tunnel 域名，使用對應的 Cloudflare 後端
+    if (hostname.includes('.trycloudflare.com')) {
+      return 'https://editions-organic-experiences-prince.trycloudflare.com';
+    }
   }
   
   // 預設使用本地後端（用於 SSR 或其他環境）

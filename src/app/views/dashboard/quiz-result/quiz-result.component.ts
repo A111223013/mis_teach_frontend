@@ -97,6 +97,9 @@ export class QuizResultComponent implements OnInit, AfterViewChecked {
   ) {}
 
   ngOnInit(): void {
+    // 載入 KaTeX
+    this.loadKaTeX();
+
     this.route.params.subscribe(params => {
       this.resultId = params['resultId'];
       if (this.resultId) {
@@ -111,6 +114,45 @@ export class QuizResultComponent implements OnInit, AfterViewChecked {
   ngAfterViewChecked(): void {
     // 頁面載入完成後自動觸發 LaTeX 渲染
     this.renderMathInElement();
+  }
+
+  // 載入 KaTeX 函式庫
+  loadKaTeX(): void {
+    // 檢查是否已經載入
+    if ((window as any).katex && (window as any).renderMathInElement) {
+
+      return;
+    }
+
+    // 標記正在載入
+    (window as any).katexLoading = true;
+
+    // 載入 KaTeX CSS
+    const cssLink = document.createElement('link');
+    cssLink.rel = 'stylesheet';
+    cssLink.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+    document.head.appendChild(cssLink);
+
+    // 載入 KaTeX JS
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
+    script.async = true;
+    script.onload = () => {
+      // 載入 auto-render 擴展
+      const autoRenderScript = document.createElement('script');
+      autoRenderScript.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js';
+      autoRenderScript.async = true;
+      autoRenderScript.onload = () => {
+        (window as any).katexLoading = false;
+        this.cdr.detectChanges();
+      };
+      document.head.appendChild(autoRenderScript);
+    };
+    script.onerror = () => {
+      (window as any).katexLoading = false;
+      console.error('❌ KaTeX 載入失敗');
+    };
+    document.head.appendChild(script);
   }
 
   loadQuizResult(): void {
@@ -308,7 +350,17 @@ export class QuizResultComponent implements OnInit, AfterViewChecked {
 
   // 檢查是否為畫圖答案
   isDrawingAnswer(answer: string, questionType?: string): boolean {
-    return questionType === 'draw-answer' && !!answer && answer.startsWith('data:image/');
+    // 如果題目類型是 draw-answer 且答案是 base64 圖片
+    if (questionType === 'draw-answer' && !!answer && answer.startsWith('data:image/')) {
+      return true;
+    }
+
+    // 如果答案本身是 base64 圖片，也應該顯示為圖片（無論題目類型）
+    if (!!answer && answer.startsWith('data:image/')) {
+      return true;
+    }
+
+    return false;
   }
 
   // 渲染題目文本中的 LaTeX 數學公式
@@ -352,8 +404,7 @@ export class QuizResultComponent implements OnInit, AfterViewChecked {
   }
 
   // 渲染元素中的數學公式
-  renderMathInElement(): void {
-    console.log('🔍 開始渲染 LaTeX 數學公式');
+  renderMathInElement(): void { 
     
     // 檢查 KaTeX 是否載入
     if (!(window as any).renderMathInElement) {
@@ -361,7 +412,6 @@ export class QuizResultComponent implements OnInit, AfterViewChecked {
       return;
     }
     
-    console.log('✅ KaTeX 已載入，開始渲染');
     
     // 使用 KaTeX 的 auto-render 功能，與作答頁面保持一致
     setTimeout(() => {
@@ -378,7 +428,6 @@ export class QuizResultComponent implements OnInit, AfterViewChecked {
         
         // 觸發變更檢測以確保所有數學公式都正確渲染
         this.cdr.detectChanges();
-        console.log('✅ LaTeX 渲染完成');
       } catch (error) {
         console.error('❌ LaTeX 渲染失敗:', error);
       }

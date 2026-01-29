@@ -303,8 +303,8 @@
           <h6 class="text-muted">正確答案</h6>
           <div class="p-3 bg-success-subtle rounded">
             <span class="text-success">
-              <span *ngIf="selectedQuestion.correct_answer && selectedQuestion.correct_answer !== '無' && selectedQuestion.correct_answer !== '無參考答案'">
-                {{ selectedQuestion.correct_answer }}
+              <span *ngIf="selectedQuestion.correct_answer && selectedQuestion.correct_answer !== '無' && selectedQuestion.correct_answer !== '無參考答案'"
+                    [innerHTML]="renderQuestionText(selectedQuestion.correct_answer)">
               </span>
               <span *ngIf="!selectedQuestion.correct_answer || selectedQuestion.correct_answer === '無' || selectedQuestion.correct_answer === '無參考答案'" class="text-muted">
                 <i class="cilInfo"></i> 正在從資料庫載入參考答案...
